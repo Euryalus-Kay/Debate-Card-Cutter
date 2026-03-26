@@ -98,10 +98,26 @@ export async function POST(req: NextRequest) {
           })),
         });
 
-        // Step 2: Generate each component
+        // Step 2: Create the argument row FIRST so card FK constraints work
         const argumentId = uuid();
         const cardIds: string[] = [];
         const generatedComponents: Array<Record<string, unknown>> = [];
+
+        // Insert argument shell first (will update with components at end)
+        const { error: argInsertError } = await supabase.from("arguments").insert({
+          id: argumentId,
+          title: plan.title,
+          description: plan.file_notes || query,
+          argument_type: argType,
+          strategy_overview: plan.file_notes || "",
+          author_name: authorName || "Anonymous",
+          card_ids: [],
+          components: [],
+          created_at: new Date().toISOString(),
+        });
+        if (argInsertError) {
+          console.error("Failed to create argument shell:", argInsertError);
+        }
 
         for (let i = 0; i < allComponents.length; i++) {
           const comp = allComponents[i];
@@ -229,7 +245,7 @@ export async function POST(req: NextRequest) {
             const cite = `${card.cite_author} (${card.cite_credentials}. "${card.cite_title}" ${card.cite_date}. ${card.cite_url}) ${card.cite_initials}`;
 
             const now = new Date().toISOString();
-            await supabase.from("cards").insert({
+            const { error: cardInsertError } = await supabase.from("cards").insert({
               id: cardId,
               tag: card.tag,
               cite,
@@ -252,6 +268,9 @@ export async function POST(req: NextRequest) {
               updated_at: now,
             });
 
+            if (cardInsertError) {
+              console.error(`Failed to save card ${comp.label}:`, cardInsertError.message);
+            }
             cardIds.push(cardId);
             generatedComponents.push({
               index: i,
@@ -292,18 +311,16 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Save the argument with camp file structure
-        await supabase.from("arguments").insert({
-          id: argumentId,
-          title: plan.title,
-          description: plan.file_notes,
-          argument_type: argType,
-          strategy_overview: plan.file_notes,
-          author_name: authorName || "Anonymous",
-          card_ids: cardIds,
-          components: generatedComponents,
-          created_at: new Date().toISOString(),
-        });
+        // Update the argument with completed components
+        const { error: argUpdateError } = await supabase.from("arguments")
+          .update({
+            card_ids: cardIds,
+            components: generatedComponents,
+          })
+          .eq("id", argumentId);
+        if (argUpdateError) {
+          console.error("Failed to update argument:", argUpdateError);
+        }
 
         send("done", {
           argument_id: argumentId,
