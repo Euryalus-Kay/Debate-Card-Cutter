@@ -94,7 +94,7 @@ export default function SpeechDisplay({ speechType, html, rawContent, onIterate,
               onChange={(e) => setIterateInput(e.target.value)}
               placeholder="e.g., Add more impact comparison, extend the DA..."
               autoFocus
-              className="flex-1 px-3 py-2 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#444] focus:outline-none focus:border-[#333]"
+              className="flex-1 px-3 py-2 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#777] focus:outline-none focus:border-[#333]"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && iterateInput.trim()) {
                   onIterate(iterateInput);

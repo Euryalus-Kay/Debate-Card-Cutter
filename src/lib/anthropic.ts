@@ -291,179 +291,287 @@ export interface AdvancedArgumentPlan {
   components: ArgumentComponent[];
 }
 
-const ARGUMENT_TYPE_KNOWLEDGE: Record<ArgumentType, string> = {
-  aff: `AFFIRMATIVE CASE (1AC) STRUCTURE:
-You are planning an Affirmative Case for policy debate. The 1AC follows a specific structure:
+const CAMP_FILE_KNOWLEDGE: Record<ArgumentType, string> = {
+  aff: `AFFIRMATIVE CAMP FILE STRUCTURE:
+You are building a COMPLETE CAMP FILE for an Affirmative case. This should be tournament-ready, like what a top debate camp (Harvard, Michigan, Georgetown) would produce.
 
-CONTENTION 1: INHERENCY — Evidence showing the problem exists in the status quo and current policies are insufficient.
-PLAN TEXT — The specific policy proposal the affirmative team advocates. Written as: "The United States federal government should [action]." This is NOT an evidence card — it is a debater-written text.
-CONTENTION 2: HARMS/ADVANTAGES — Evidence showing the significance of the problem.
-  - Each advantage needs INTERNAL LINKS (chain of causation) and IMPACTS (terminal consequences).
-  - Common impact framing: lives saved, economic growth, hegemony, environmental protection, etc.
-CONTENTION 3: SOLVENCY — Evidence showing the plan fixes the problem.
-  - Need at least one "mechanism" card showing HOW the plan solves.
-  - Ideally include "sufficiency" evidence showing the plan solves ENOUGH.
+CAMP FILE SECTIONS:
 
-For advantages-style cases, structure as:
-- Advantage 1: [Name] — with uniqueness, link, internal link, impact
-- Advantage 2: [Name] — same structure
-- Plan text between inherency and advantages OR before advantages
-- Solvency woven into each advantage or as separate contention
+**File Notes** — Strategic coaching notes: what topics this aff is strongest on, how to answer common neg args, tips for the 2AC/1AR.
 
-Generate 5-8 evidence cards plus a plan text and any needed analytics.`,
+**1AC Shell** — The complete 1AC:
+- Plan Text (analytic)
+- Contention 1: Inherency (1-2 cards)
+- For each Advantage: Uniqueness card, Link card, Internal Link card, Impact card
+- Solvency (2-3 cards, mechanism + sufficiency)
 
-  da: `DISADVANTAGE (DA) STRUCTURE:
-You are planning a Disadvantage for policy debate. DAs have this structure:
+**2AC Add-Ons** — Additional advantages/cards to read in the 2AC:
+- Extra impact cards with different framings
+- Additional solvency evidence
+- Turn cards against common DAs
 
-UNIQUENESS — Evidence showing the status quo is stable/good right now. The impact is NOT happening currently.
-  - "Brink" evidence is especially powerful: shows we're RIGHT AT the tipping point.
-LINK — Evidence showing the affirmative plan CAUSES the bad thing. This connects the plan to the impact chain.
-  - Generic links work against many affs (e.g., "spending" links to any plan that costs money).
-  - Specific links are stronger but narrower.
-INTERNAL LINK — Evidence showing how the link leads to the impact (the causal chain).
-IMPACT — Evidence showing the terminal consequence is catastrophic/significant.
-  - Nuclear war, economic collapse, extinction, hegemony loss, etc.
-  - Magnitude + timeframe + probability framing.
+**Answers to Common Off-Case** — AT blocks for what the neg will likely read:
+- AT Topicality (we meet + counter-interp cards, standards analytics)
+- AT [likely DA] (non-unique, no link, link turn, impact turn cards)
+- AT [likely CP] (perm analytics, CP doesn't solve cards, theory analytics)
+- AT [likely K] (framework cards, perm analytics, no link args)
 
-A strong DA needs 2-3 uniqueness cards, 1-2 link cards, 1 internal link card, and 1-2 impact cards.
-Include analytics explaining the story of the DA between cards.`,
+Generate 20-30 cards across all sections with analytics between them.`,
 
-  cp: `COUNTERPLAN (CP) STRUCTURE:
-You are planning a Counterplan for policy debate. CPs have this structure:
+  da: `DISADVANTAGE CAMP FILE STRUCTURE:
+You are building a COMPLETE CAMP FILE for a Disadvantage. This should look like a top camp's DA file.
 
-CP TEXT — The specific alternative policy. Written formally like a plan text.
-  - Must be non-topical (cannot be what the resolution advocates).
-  - Common types: States CP, International CP, Consult CP, Advantage CP, PIC (Plan-Inclusive Counterplan).
-SOLVENCY — Evidence showing the CP solves the same advantages as the affirmative plan.
-  - Must show the CP addresses the affirmative's harms.
-NET BENEFIT — The reason the CP is BETTER than the plan. Usually a DA that links to the plan but not the CP.
-  - This is the voting issue: the CP solves the aff's advantages AND avoids a disadvantage.
-COMPETITION — Evidence/analytics showing the CP and plan are mutually exclusive.
-  - Mutual exclusivity: cannot do both at once.
-  - Net benefits: doing both is worse than just the CP.
-  - Must answer permutations (perm: do both, perm: do the CP, etc.).
+CAMP FILE SECTIONS:
 
-Generate the CP text, 2-3 solvency cards, net benefit evidence, and competition arguments.`,
+**File Notes** — Strategic overview: which affs to read this DA against, how to extend in the block, what to collapse on in the 2NR.
 
-  k: `KRITIK (K) STRUCTURE:
-You are planning a Kritik for policy debate. Kritiks have this structure:
+**1NC Shell** — The shell to read in the 1NC:
+- Uniqueness card (status quo is stable/good)
+- Link card (plan triggers the DA)
+- Internal Link card (chain of causation)
+- Impact card (terminal impact)
 
-LINK — Evidence showing the affirmative's plan/rhetoric/assumptions are problematic.
-  - Can be specific (to the plan) or generic (to the assumptions behind it).
-  - Discourse/rhetoric links: the WAY they talk about the issue is harmful.
-  - Assumption links: their framework/epistemology is flawed.
-IMPACT/IMPLICATIONS — Evidence showing why the linked assumptions/actions are harmful.
-  - Often structural violence, epistemological violence, or ontological harms.
-  - Different from policy impacts: these are about ways of thinking, not just policy outcomes.
-ALTERNATIVE — The proposed alternative to the affirmative's framework.
-  - Can be a specific action, a rejection, a methodology shift, or an ethical commitment.
-  - Must solve or address the link.
-FRAMEWORK / ROLE OF THE BALLOT — Argument for why the judge should evaluate the round through the K's lens.
-  - Why should the judge prioritize K impacts over policy impacts?
-  - What does voting aff/neg mean in context of the K?
+**Additional Uniqueness** — Extra uniqueness evidence for the block:
+- 2NC uniqueness cards from different angles
+- "Brink" evidence (we're at the tipping point)
 
-The K needs philosophical depth. Generate cards from critical theory literature.
-Common Ks: Capitalism K, Securitization K, Settler Colonialism K, Afropessimism K, Baudrillard K, Deleuze K.`,
+**Additional Links** — Link cards organized by aff type:
+- "1nc --- [specific aff] link" format
+- "2nc --- [topic area] link" format
+- Generic and specific link cards
 
-  t: `TOPICALITY (T) STRUCTURE:
-You are planning a Topicality argument for policy debate. T has this structure:
+**Impact Extensions** — Additional impact evidence:
+- Different impact framings (magnitude, timeframe, probability)
+- Impact comparison cards (outweighs aff advantages)
+- Scenario-specific impact cards
 
-INTERPRETATION — Your definition of the key term in the resolution.
-  - Must come from a credible source (legal dictionary, statutory definition, academic usage).
-  - This is YOUR definition that the affirmative violates.
-VIOLATION — An analytic argument explaining HOW the affirmative's plan does not meet your interpretation.
-  - "The affirmative defines [term] as [their definition] but our interpretation requires [X] which they don't do."
-STANDARDS — Arguments for why YOUR interpretation is BETTER. These are the core of T:
-  - LIMITS: Your interp sets better limits on the topic, preventing unlimited affirmative ground.
-  - GROUND: Your interp preserves negative ground (DAs, CPs that are relevant).
-  - PREDICTABILITY: Your interp is more predictable, allowing better preparation.
-  - EDUCATION: Your interp leads to better debates and more educational value.
-  - BRIGHT LINE: Your interp provides a clear line between topical and non-topical.
-VOTERS — Why topicality is a voting issue:
-  - EDUCATION: Fair limits ensure educational debates.
-  - FAIRNESS: Competitive equity requires predictable interpretations.
-  - JURISDICTION: The judge only has authority to evaluate topical plans.
+**Answers Section** — AT blocks:
+- AT: No Uniqueness (uniqueness overwhelms the link)
+- AT: No Link (link is empirically proven)
+- AT: Link Turn (turn is wrong because...)
+- AT: Impact Turn (their impact claims are false)
+- AT: Non-Unique (the DA is still unique because...)
 
-Generate the interpretation card, write the violation analytic, and get standards/voters evidence.`,
+Generate 20-30 cards across all sections.`,
 
-  theory: `THEORY ARGUMENT STRUCTURE:
-You are planning a Theory argument for policy debate. Theory challenges debate practices:
+  cp: `COUNTERPLAN CAMP FILE STRUCTURE:
+You are building a COMPLETE CAMP FILE for a Counterplan. Like a top camp would produce.
 
-INTERPRETATION — The rule you think debate should follow.
-  - e.g., "The negative must not run more than 2 conditional advocacies."
-VIOLATION — How the opponent broke this rule.
-  - Specific description of what they did wrong.
-STANDARDS — Why your rule is good for debate:
-  - FAIRNESS: How the violation is unfair (time skew, strategy skew, moving target).
-  - EDUCATION: How the violation undermines educational value.
-  - GROUND: How it takes away arguments or preparation.
-  - RECIPROCITY: Both sides should have equal obligations.
-VOTERS — Why this matters enough to decide the round:
-  - Fairness as a voter: competitive equity.
-  - Education as a voter: the purpose of debate.
-  - Drop the argument vs. drop the team.
+CAMP FILE SECTIONS:
 
-Common theory args: Condo bad, Dispo good, PICs bad, States CP theory, Consult CP theory.`,
+**File Notes** — Strategy: which affs to read it against, how to pair with net benefits, 2NR strategy.
 
-  custom: `CUSTOM ARGUMENT:
-The user will describe their argument idea. Analyze what type of argument it is and determine the appropriate structure. Use your knowledge of policy debate to figure out what components are needed.
+**1NC Shell** — The CP shell:
+- CP Text (analytic — formal counterplan text)
+- Solvency card (CP solves the aff's advantages)
+- Competition card/analytic (why CP and plan are mutually exclusive)
+- Net Benefit link (DA that links to plan but not CP)
 
-Consider whether this is:
-- A case argument (needs inherency, harms, plan, solvency)
-- An off-case argument (needs uniqueness, link, impact)
-- A procedural (needs interpretation, violation, standards, voters)
-- A kritik (needs link, impact, alternative, framework)
-- A hybrid or novel structure
+**Extended Solvency** — Additional solvency for the block:
+- Multiple solvency cards from different angles
+- Mechanism-specific solvency
+- Historical precedent for the CP
 
-Plan the components accordingly.`,
+**Net Benefit** — The DA that is the net benefit:
+- Uniqueness, link, impact cards for the net benefit DA
+- Why the CP avoids the net benefit
+
+**Competition** — Evidence for why CP competes:
+- Mutual exclusivity evidence
+- Functional competition cards
+
+**Answers Section** — AT blocks:
+- AT: Permutation Do Both (perm severs/is intrinsic)
+- AT: CP Doesn't Solve (yes it does, here's why)
+- AT: Theory (CP is theoretically legitimate)
+- AT: Aff Solvency Deficit (CP solves 100%)
+
+Generate 20-30 cards.`,
+
+  k: `KRITIK CAMP FILE STRUCTURE:
+You are building a COMPLETE CAMP FILE for a Kritik. This should mirror what top camps like Michigan 7-week or Harvard produce for K files.
+
+CAMP FILE SECTIONS:
+
+**File Notes** — Strategic coaching notes: what affs to read it against, framework strategy, how to handle the perm, 2NR tips.
+
+**1NC Shell — [specific aff/topic]** — A complete 1NC K shell:
+- Link card specific to the topic
+- Impact/Implications card
+- Alt Text (analytic — the alternative advocacy)
+- Alt Solvency card
+
+**Additional 1NC Shells** — If applicable, shells for other common affs with different link cards.
+
+**Additional Links** — MANY link cards organized by topic:
+- "1nc --- [topic] link" (read in the 1NC)
+- "2nc --- [topic] link" (extend in the block)
+- Generic links (state action, reform, discourse)
+- Specific links for different affs
+
+**Impact/Implications** — Extended impact evidence:
+- Root cause arguments
+- Structural violence framing
+- Epistemological/ontological impact cards
+- Impact comparison (K impacts outweigh)
+
+**Alternative** — Extended alt evidence:
+- Alt solvency cards
+- Alt resolves the links
+- Historical examples of the alt working
+
+**Framework / Role of the Ballot** — Framework evidence:
+- Why the judge should use K framework
+- Role of the ballot cards
+- Why policy simulation fails
+
+**Answers Section** — AT blocks (this is CRITICAL for Ks):
+- AT: Permutation (perm fails, severs the alt, links to the K)
+- AT: Alt Fails / No Solvency (alt solves, historical proof)
+- AT: Cap Good / Impact Turns (their impact claims reinforce the K)
+- AT: Framework (our framework is better)
+- AT: Cede the Political (engagement fails)
+- AT: Floating PIK (alt is distinct from the plan)
+
+Generate 25-35 cards. K files need DEPTH especially in the links and AT sections.`,
+
+  t: `TOPICALITY CAMP FILE STRUCTURE:
+You are building a COMPLETE CAMP FILE for a Topicality argument.
+
+CAMP FILE SECTIONS:
+
+**File Notes** — Strategy: which affs this T arg is for, how to handle counter-interps, 2NR strategy.
+
+**1NC Shell** — The T shell:
+- Interpretation card (definition of the key term)
+- Violation (analytic — how the aff violates)
+- Standards analytics (limits, ground, predictability, education)
+- Voters analytic (education, fairness)
+
+**Extended Standards** — Cards for each standard:
+- Limits cards (their interp explodes the topic)
+- Ground cards (their interp destroys neg ground)
+- Predictability cards (education requires predictable limits)
+
+**Answers Section** — AT blocks:
+- AT: We Meet (no they don't, here's why)
+- AT: Counter-Interpretation (our interp is better)
+- AT: Reasonability (competing interpretations is better)
+- AT: Overlimiting (limits are good, not overlimiting)
+
+Generate 15-25 cards.`,
+
+  theory: `THEORY CAMP FILE STRUCTURE:
+You are building a COMPLETE CAMP FILE for a Theory argument.
+
+CAMP FILE SECTIONS:
+
+**File Notes** — When to read this theory arg, strategic context.
+
+**Shell** — The theory shell:
+- Interpretation (analytic)
+- Violation (analytic)
+- Standards analytics (fairness, education, ground, reciprocity)
+- Voters (analytic)
+
+**Extended Standards** — Cards supporting each standard:
+- Fairness evidence
+- Education evidence
+
+**Answers Section** — AT blocks for likely responses.
+
+Generate 10-20 cards.`,
+
+  custom: `CUSTOM CAMP FILE STRUCTURE:
+The user will describe their argument idea. Build a COMPLETE CAMP FILE appropriate to the argument type. Analyze what kind of argument this is and produce a full camp-quality file with:
+
+- File notes (strategic coaching)
+- 1NC/1AC shell(s) as appropriate
+- Extended evidence sections
+- AT (Answers To) blocks for common responses
+- Analytics between cards
+
+Determine the right structure based on the argument described. Generate 15-30 cards.`,
 };
+
+export interface CampFileSection {
+  section_header: string;
+  components: ArgumentComponent[];
+}
+
+export interface CampFilePlan {
+  title: string;
+  file_notes: string;
+  argument_type: ArgumentType;
+  sections: CampFileSection[];
+}
+
+// Keep the old interface for backward compat
+export interface AdvancedArgumentPlan {
+  title: string;
+  description: string;
+  strategy_overview: string;
+  argument_type: ArgumentType;
+  components: ArgumentComponent[];
+}
 
 export async function planArgumentAdvanced(
   argumentType: ArgumentType,
   description: string,
   userContext: string
-): Promise<AdvancedArgumentPlan> {
-  const typeKnowledge = ARGUMENT_TYPE_KNOWLEDGE[argumentType];
+): Promise<CampFilePlan> {
+  const typeKnowledge = CAMP_FILE_KNOWLEDGE[argumentType];
 
-  const systemPrompt = `You are an elite high school policy debate strategist and coach. You plan complete, tournament-ready argument blocks.
+  const systemPrompt = `You are an elite debate camp lab leader (think Michigan 7-week, Harvard, Georgetown, Gonzaga). You produce COMPLETE CAMP FILES — not just a few cards, but full tournament-ready files that a team could use at a national tournament.
 
 ${typeKnowledge}
 
-PLANNING RULES:
-1. Each "card" component needs a specific, searchable query that will find real evidence.
-2. "analytic" components are debater-written arguments (no evidence needed) — write the full text.
-3. "plan_text" is the formal policy proposal text — write it out completely.
-4. "interp_text" is the formal interpretation for T/Theory — write it out completely.
-5. Plan enough cards to make the argument competitive but not bloated.
-6. Order components in the proper debate structure.
-7. Make search queries SPECIFIC — not generic. Include keywords that will find expert analysis.
-8. Analytics should sound like an experienced debater wrote them — concise, strategic, persuasive.
+CAMP FILE PLANNING RULES:
+1. Structure the file into SECTIONS with clear headers (like "1NC Shell", "Additional Links", "AT: Permutation").
+2. Each section contains multiple components — cards, analytics, plan/interp texts.
+3. Each "card" component needs a SPECIFIC, searchable query that will find real academic/journalistic evidence.
+4. "analytic" components are debater-written arguments — write the FULL text as an experienced debater would.
+5. "plan_text" is the formal policy text. "interp_text" is the formal interpretation.
+6. Search queries must be SPECIFIC — include author names, specific claims, journal-quality keywords.
+7. Analytics should sound like a top-level debater wrote them: concise, strategic, persuasive.
+8. Include AT (Answers To) sections — these are CRITICAL for camp files.
+9. Label cards like camp files do: "1nc --- [topic] link", "2nc --- [topic] link", "AT: [argument name]".
+10. Generate 15-35 components total across all sections. More for Ks and DAs, fewer for Theory.
 
 Return a JSON object:
 {
-  "title": "Argument block name",
-  "description": "2-3 sentence description of the argument strategy",
-  "strategy_overview": "Longer strategic explanation of how to run this argument, when to read it, what it's strongest against",
+  "title": "File title (e.g., 'K - Capitalism', 'DA - Spending', 'Aff - Quantum Computing')",
+  "file_notes": "Strategic coaching notes: what affs/negs to read it against, how to use the file, 2NR/2AR strategy, tips for the block. Write 3-5 sentences like a camp lab leader briefing their students.",
   "argument_type": "${argumentType}",
-  "components": [
+  "sections": [
     {
-      "type": "card" | "analytic" | "plan_text" | "interp_text",
-      "label": "Component label (e.g., 'Uniqueness 1 — Economy Strong Now')",
-      "query": "specific search query for evidence (only for type=card)",
-      "purpose": "what this component does in the argument",
-      "content": "full text content (only for analytic/plan_text/interp_text)"
+      "section_header": "Section name (e.g., '1NC Shell', 'Additional Links', 'AT: Permutation')",
+      "components": [
+        {
+          "type": "card",
+          "label": "Card label (e.g., '1nc --- Green Tech Link', '2nc --- Root Cause')",
+          "query": "specific search query to find this evidence",
+          "purpose": "what this card does in the argument"
+        },
+        {
+          "type": "analytic",
+          "label": "Analytic label (e.g., 'Alt Text', 'Perm: Do Both')",
+          "purpose": "strategic purpose",
+          "content": "Full text of the analytic as a debater would write it"
+        }
+      ]
     }
   ]
 }`;
 
   const text = await streamMessage({
     model: "claude-opus-4-20250514",
-    max_tokens: 8000,
+    max_tokens: 12000,
     system: systemPrompt,
     messages: [
       {
         role: "user",
-        content: `Plan a complete ${argumentType.toUpperCase()} argument block for:\n${description}\n\n${userContext ? `Context/Topic: ${userContext}` : ""}\n\nReturn JSON only.`,
+        content: `Build a complete camp file for:\n${description}\n\n${userContext ? `Topic/Context: ${userContext}` : ""}\n\nThis needs to be a FULL camp file with shells, extended evidence, and AT blocks. Return JSON only.`,
       },
     ],
   });

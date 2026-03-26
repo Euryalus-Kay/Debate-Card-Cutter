@@ -84,7 +84,7 @@ export default function RoundsPage() {
                 {round.partner_name && (
                   <p className="text-[11px] text-[#666]">Partner: {round.partner_name}</p>
                 )}
-                <p className="text-[10px] text-[#555]">{new Date(round.created_at).toLocaleDateString()}</p>
+                <p className="text-[10px] text-[#999]">{new Date(round.created_at).toLocaleDateString()}</p>
               </div>
             </Link>
           ))}

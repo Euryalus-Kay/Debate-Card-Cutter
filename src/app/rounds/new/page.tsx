@@ -83,25 +83,25 @@ export default function NewRoundPage() {
         <div className="space-y-1.5">
           <label className="text-[12px] text-[#888]">Opponent Name</label>
           <input value={opponentName} onChange={e => setOpponentName(e.target.value)}
-            className="w-full px-3 py-2 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#444] focus:outline-none focus:border-[#333]"
+            className="w-full px-3 py-2 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#777] focus:outline-none focus:border-[#333]"
             placeholder="e.g., Smith & Jones" />
         </div>
         <div className="space-y-1.5">
           <label className="text-[12px] text-[#888]">Opponent School</label>
           <input value={opponentSchool} onChange={e => setOpponentSchool(e.target.value)}
-            className="w-full px-3 py-2 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#444] focus:outline-none focus:border-[#333]"
+            className="w-full px-3 py-2 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#777] focus:outline-none focus:border-[#333]"
             placeholder="e.g., Lincoln High" />
         </div>
         <div className="space-y-1.5">
           <label className="text-[12px] text-[#888]">Tournament</label>
           <input value={tournament} onChange={e => setTournament(e.target.value)}
-            className="w-full px-3 py-2 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#444] focus:outline-none focus:border-[#333]"
+            className="w-full px-3 py-2 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#777] focus:outline-none focus:border-[#333]"
             placeholder="e.g., State Tournament" />
         </div>
         <div className="space-y-1.5">
           <label className="text-[12px] text-[#888]">Round Number</label>
           <input value={roundNumber} onChange={e => setRoundNumber(e.target.value)}
-            className="w-full px-3 py-2 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#444] focus:outline-none focus:border-[#333]"
+            className="w-full px-3 py-2 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#777] focus:outline-none focus:border-[#333]"
             placeholder="e.g., 3, Quarterfinals" />
         </div>
       </div>
@@ -109,7 +109,7 @@ export default function NewRoundPage() {
       <div className="space-y-1.5">
         <label className="text-[12px] text-[#888]">Topic / Resolution</label>
         <textarea value={topic} onChange={e => setTopic(e.target.value)}
-          className="w-full h-20 px-3 py-2 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#444] focus:outline-none focus:border-[#333] resize-y"
+          className="w-full h-20 px-3 py-2 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#777] focus:outline-none focus:border-[#333] resize-y"
           placeholder="e.g., Resolved: The USFG should significantly strengthen its protection of domestic IP rights..." />
       </div>
 

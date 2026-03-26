@@ -62,7 +62,7 @@ export default function DocumentUpload({ onSubmit, isLoading }: Props) {
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Paste speech content here..."
-            className="w-full h-48 px-3 py-2 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-[#ddd] placeholder:text-[#444] focus:outline-none focus:border-[#333] resize-y"
+            className="w-full h-48 px-3 py-2 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-[#ddd] placeholder:text-[#777] focus:outline-none focus:border-[#333] resize-y"
           />
           <button
             onClick={() => text.trim() && onSubmit(text, 'paste')}
@@ -95,7 +95,7 @@ export default function DocumentUpload({ onSubmit, isLoading }: Props) {
             <>
               <span className="text-[24px] mb-2">📄</span>
               <span className="text-[13px] text-[#666]">Drop a .docx, .pdf, or .txt file</span>
-              <span className="text-[11px] text-[#444] mt-1">or click to browse</span>
+              <span className="text-[11px] text-[#888] mt-1">or click to browse</span>
             </>
           )}
         </div>

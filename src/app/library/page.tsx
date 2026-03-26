@@ -25,12 +25,30 @@ interface Card {
   created_at: string;
 }
 
+interface ArgumentComponent {
+  index: number;
+  type: string;
+  label: string;
+  purpose: string;
+  id?: string;
+  tag?: string;
+  cite?: string;
+  cite_author?: string;
+  evidence_html?: string;
+  content?: string;
+  sectionHeader?: string;
+}
+
 interface Argument {
   id: string;
   title: string;
   description: string;
   author_name: string;
   card_ids: string[];
+  argument_type?: string;
+  strategy_overview?: string;
+  file_notes?: string;
+  components?: ArgumentComponent[];
   created_at: string;
 }
 
@@ -43,6 +61,30 @@ function authorShort(cite: string): string {
   const parenIdx = cite.indexOf('(');
   if (parenIdx > 0) return cite.substring(0, parenIdx).trim();
   return cite.substring(0, 30);
+}
+
+function typeColor(argType?: string): string {
+  switch (argType) {
+    case 'aff': return 'bg-blue-900/30 text-blue-400';
+    case 'da': return 'bg-red-900/30 text-red-400';
+    case 'cp': return 'bg-green-900/30 text-green-400';
+    case 'k': return 'bg-purple-900/30 text-purple-400';
+    case 't': return 'bg-yellow-900/30 text-yellow-400';
+    case 'theory': return 'bg-orange-900/30 text-orange-400';
+    default: return 'bg-[#1a1a1a] text-[#888]';
+  }
+}
+
+function typeLabel(argType?: string): string {
+  switch (argType) {
+    case 'aff': return 'AFF';
+    case 'da': return 'DA';
+    case 'cp': return 'CP';
+    case 'k': return 'K';
+    case 't': return 'T';
+    case 'theory': return 'Theory';
+    default: return 'Custom';
+  }
 }
 
 export default function LibraryPage() {
@@ -77,12 +119,10 @@ export default function LibraryPage() {
 
     // Load arguments
     fetch('/api/cards').then(r => r.json()).then(async (allCards: Card[]) => {
-      // Get arguments from the arguments table
       const argRes = await fetch('/api/argument?list=true');
       if (argRes.ok) {
         const args = await argRes.json();
         setArguments(args || []);
-        // Group cards by argument_id
         const grouped: Record<string, Card[]> = {};
         for (const card of allCards) {
           if (card.argument_id) {
@@ -122,6 +162,12 @@ export default function LibraryPage() {
               if (data.count !== undefined) {
                 setUploadProgress(`Imported ${data.count} cards`);
                 await loadCards();
+                // Refresh arguments
+                const argRes = await fetch('/api/argument?list=true');
+                if (argRes.ok) {
+                  const args = await argRes.json();
+                  setArguments(args || []);
+                }
               }
             } catch {}
           }
@@ -156,6 +202,23 @@ export default function LibraryPage() {
     await fetch(`/api/cards/${cardId}`, { method: 'DELETE' });
     setCards(prev => prev.filter(c => c.id !== cardId));
     setExpandedCardId(null);
+  };
+
+  const copyArgument = (arg: Argument, argCardList: Card[]) => {
+    const html = argCardList.map(c => {
+      const evidence = c.evidence_html
+        .replace(/<mark>/g, '</span><b><u><span style="font-family:Georgia,serif;font-size:11px;">')
+        .replace(/<\/mark>/g, '</span></u></b><span style="font-family:Georgia,serif;font-size:8px;color:#666;">');
+      return `<p style="font-family:Georgia,serif;font-size:13px;font-weight:bold;margin:12px 0 4px 0;">${c.tag}</p>` +
+        `<p style="font-family:Georgia,serif;font-size:11px;margin:0 0 4px 0;">${c.cite}</p>` +
+        `<p style="font-family:Georgia,serif;font-size:8px;color:#666;margin:0 0 8px 0;line-height:1.4;"><span style="font-size:8px;color:#666;">${evidence}</span></p>`;
+    }).join('');
+    navigator.clipboard.write([
+      new ClipboardItem({
+        'text/html': new Blob([`<p style="font-family:Georgia,serif;font-size:16px;font-weight:bold;text-align:center;">${arg.title}</p>` + html], { type: 'text/html' }),
+        'text/plain': new Blob([argCardList.map(c => c.tag).join('\n\n')], { type: 'text/plain' }),
+      }),
+    ]).then(() => alert('Argument copied with formatting!'));
   };
 
   const filteredCards = cards.filter(c => {
@@ -219,7 +282,7 @@ export default function LibraryPage() {
         value={search}
         onChange={e => setSearch(e.target.value)}
         placeholder={tab === 'cards' ? 'Search cards by tag, author, citation...' : 'Search arguments by title or description...'}
-        className="w-full px-4 py-2.5 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#555] focus:outline-none focus:border-[#333]"
+        className="w-full px-4 py-2.5 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#999] focus:outline-none focus:border-[#333]"
       />
 
       {/* Collections */}
@@ -227,7 +290,7 @@ export default function LibraryPage() {
         <div className="flex gap-2 flex-wrap">
           {collections.map(c => (
             <span key={c.id} className="text-[11px] px-2 py-1 bg-[#111] border border-[#1a1a1a] rounded text-[#888]">
-              {c.collection_name} <span className="text-[#555]">by {c.uploaded_by}</span>
+              {c.collection_name} <span className="text-[#999]">by {c.uploaded_by}</span>
             </span>
           ))}
         </div>
@@ -261,7 +324,7 @@ export default function LibraryPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-[9px] text-[#666]">{card.author_name}</span>
-                      <span className="text-[9px] text-[#555]">
+                      <span className="text-[9px] text-[#999]">
                         {new Date(card.created_at).toLocaleDateString()}
                       </span>
                     </div>
@@ -301,7 +364,7 @@ export default function LibraryPage() {
           {filteredArgs.length === 0 ? (
             <div className="text-center py-12 space-y-2">
               <p className="text-[#666] text-[13px]">No arguments yet.</p>
-              <p className="text-[#555] text-[12px]">Build arguments from the Build Argument page — they&apos;ll appear here as complete blocks.</p>
+              <p className="text-[#999] text-[12px]">Build arguments from the Build Argument page or upload a debate file — they&apos;ll appear here.</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -317,65 +380,69 @@ export default function LibraryPage() {
                       className="w-full text-left px-4 py-3 hover:bg-[#111] transition-colors"
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <h3 className="text-[14px] font-semibold text-white">{arg.title}</h3>
+                        <div className="flex items-center gap-2">
+                          {arg.argument_type && (
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${typeColor(arg.argument_type)}`}>
+                              {typeLabel(arg.argument_type)}
+                            </span>
+                          )}
+                          <h3 className="text-[14px] font-semibold text-white">{arg.title}</h3>
+                        </div>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] text-[#666] bg-[#1a1a1a] px-2 py-0.5 rounded">
                             {argCardList.length} cards
                           </span>
-                          <span className={`text-[#555] transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
+                          <span className={`text-[#999] transition-transform ${isExpanded ? 'rotate-90' : ''}`}>&#9654;</span>
                         </div>
                       </div>
                       <p className="text-[12px] text-[#888] line-clamp-2">{arg.description}</p>
                       <div className="flex items-center gap-3 mt-1.5">
                         <span className="text-[10px] text-[#666]">by {arg.author_name}</span>
-                        <span className="text-[10px] text-[#555]">{new Date(arg.created_at).toLocaleDateString()}</span>
+                        <span className="text-[10px] text-[#999]">{new Date(arg.created_at).toLocaleDateString()}</span>
                       </div>
                     </button>
 
                     {/* Expanded: show all cards in the argument */}
                     {isExpanded && (
-                      <div className="border-t border-[#1a1a1a] p-4 space-y-3">
-                        {argCardList.length === 0 ? (
-                          <p className="text-[12px] text-[#555]">No cards linked to this argument.</p>
-                        ) : (
-                          argCardList.map(card => (
-                            <CardDisplay
-                              key={card.id}
-                              id={card.id}
-                              tag={card.tag}
-                              cite={card.cite}
-                              citeAuthor={card.cite_author}
-                              evidenceHtml={card.evidence_html}
-                              authorName={card.author_name}
-                              createdAt={card.created_at}
-                              onIterate={instr => handleIterate(card.id, instr)}
-                              isLoading={iteratingId === card.id}
-                            />
-                          ))
+                      <div className="border-t border-[#1a1a1a]">
+                        {/* File notes / strategy overview */}
+                        {(arg.file_notes || arg.strategy_overview) && (
+                          <div className="px-4 py-3 bg-[#060606] border-b border-[#1a1a1a]">
+                            <div className="text-[10px] text-[#555] uppercase tracking-wider mb-1">Strategy Notes</div>
+                            <p className="text-[12px] text-[#999] leading-relaxed">{arg.file_notes || arg.strategy_overview}</p>
+                          </div>
                         )}
 
-                        {/* Copy entire argument */}
-                        <button
-                          onClick={() => {
-                            const html = argCardList.map(c => {
-                              const evidence = c.evidence_html
-                                .replace(/<mark>/g, '</span><b><u><span style="font-family:Georgia,serif;font-size:11px;">')
-                                .replace(/<\/mark>/g, '</span></u></b><span style="font-family:Georgia,serif;font-size:8px;color:#666;">');
-                              return `<p style="font-family:Georgia,serif;font-size:13px;font-weight:bold;margin:12px 0 4px 0;">${c.tag}</p>` +
-                                `<p style="font-family:Georgia,serif;font-size:11px;margin:0 0 4px 0;">${c.cite}</p>` +
-                                `<p style="font-family:Georgia,serif;font-size:8px;color:#666;margin:0 0 8px 0;line-height:1.4;"><span style="font-size:8px;color:#666;">${evidence}</span></p>`;
-                            }).join('');
-                            navigator.clipboard.write([
-                              new ClipboardItem({
-                                'text/html': new Blob([html], { type: 'text/html' }),
-                                'text/plain': new Blob([argCardList.map(c => c.tag).join('\n\n')], { type: 'text/plain' }),
-                              }),
-                            ]).then(() => alert('Argument copied with formatting!'));
-                          }}
-                          className="px-4 py-2 text-[12px] text-[#888] hover:text-white border border-[#1a1a1a] hover:border-[#333] rounded-lg transition-colors"
-                        >
-                          Copy Complete Argument
-                        </button>
+                        <div className="p-4 space-y-3">
+                          {argCardList.length === 0 ? (
+                            <p className="text-[12px] text-[#999]">No cards linked to this argument.</p>
+                          ) : (
+                            argCardList.map(card => (
+                              <CardDisplay
+                                key={card.id}
+                                id={card.id}
+                                tag={card.tag}
+                                cite={card.cite}
+                                citeAuthor={card.cite_author}
+                                evidenceHtml={card.evidence_html}
+                                authorName={card.author_name}
+                                createdAt={card.created_at}
+                                onIterate={instr => handleIterate(card.id, instr)}
+                                isLoading={iteratingId === card.id}
+                              />
+                            ))
+                          )}
+
+                          {/* Action buttons */}
+                          <div className="flex gap-2 pt-2">
+                            <button
+                              onClick={() => copyArgument(arg, argCardList)}
+                              className="px-4 py-2 text-[12px] text-[#888] hover:text-white border border-[#1a1a1a] hover:border-[#333] rounded-lg transition-colors"
+                            >
+                              Copy Complete Argument
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>

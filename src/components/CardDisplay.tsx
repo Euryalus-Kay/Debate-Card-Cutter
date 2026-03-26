@@ -126,7 +126,7 @@ export default function CardDisplay({
       {/* Header */}
       {showActions && (
         <div className="flex items-center justify-between px-4 py-2 border-b border-[#1a1a1a]">
-          <div className="flex items-center gap-2 text-[11px] text-[#444]">
+          <div className="flex items-center gap-2 text-[11px] text-[#888]">
             <span>{authorName}</span>
             {createdAt && (
               <>
@@ -141,7 +141,7 @@ export default function CardDisplay({
               className={`px-2.5 py-1 text-[11px] rounded-md transition-colors ${
                 copied
                   ? "text-green-400"
-                  : "text-[#555] hover:text-white hover:bg-[#1a1a1a]"
+                  : "text-[#999] hover:text-white hover:bg-[#1a1a1a]"
               }`}
             >
               {copied ? "Copied" : "Copy"}
@@ -152,7 +152,7 @@ export default function CardDisplay({
                 className={`px-2.5 py-1 text-[11px] rounded-md transition-colors ${
                   showIterate
                     ? "text-white bg-[#1a1a1a]"
-                    : "text-[#555] hover:text-white hover:bg-[#1a1a1a]"
+                    : "text-[#999] hover:text-white hover:bg-[#1a1a1a]"
                 }`}
               >
                 Iterate
@@ -160,14 +160,14 @@ export default function CardDisplay({
             )}
             <a
               href={`/card/${id}`}
-              className="px-2.5 py-1 text-[11px] text-[#555] hover:text-white hover:bg-[#1a1a1a] rounded-md transition-colors"
+              className="px-2.5 py-1 text-[11px] text-[#999] hover:text-white hover:bg-[#1a1a1a] rounded-md transition-colors"
             >
               View
             </a>
             {onDelete && (
               <button
                 onClick={onDelete}
-                className="px-2.5 py-1 text-[11px] text-[#555] hover:text-red-400 hover:bg-[#1a1a1a] rounded-md transition-colors"
+                className="px-2.5 py-1 text-[11px] text-[#999] hover:text-red-400 hover:bg-[#1a1a1a] rounded-md transition-colors"
               >
                 Delete
               </button>
@@ -196,7 +196,7 @@ export default function CardDisplay({
               onChange={(e) => setIterateInput(e.target.value)}
               placeholder="e.g., Highlight more about costs, shorten the tag..."
               autoFocus
-              className="flex-1 px-3 py-2 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#333] focus:outline-none focus:border-[#333] transition-colors"
+              className="flex-1 px-3 py-2 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#666] focus:outline-none focus:border-[#333] transition-colors"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && iterateInput.trim()) {
                   onIterate(iterateInput);
@@ -219,7 +219,7 @@ export default function CardDisplay({
               {isLoading ? "..." : "Go"}
             </button>
           </div>
-          <p className="mt-1.5 text-[11px] text-[#333]">
+          <p className="mt-1.5 text-[11px] text-[#777]">
             Adjusts highlights and tag only. Evidence text is never modified.
           </p>
         </div>

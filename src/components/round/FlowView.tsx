@@ -71,7 +71,7 @@ export default function FlowView({ rows, onCellEdit, onExport, isGenerating }: P
       </div>
 
       {rows.length === 0 ? (
-        <div className="text-center py-12 text-[#444] text-[13px]">
+        <div className="text-center py-12 text-[#888] text-[13px]">
           No flow data yet. Add speeches to generate the flow.
         </div>
       ) : (
@@ -103,7 +103,7 @@ export default function FlowView({ rows, onCellEdit, onExport, isGenerating }: P
                   >
                     <span className={`transition-transform ${isCollapsed ? '' : 'rotate-90'}`}>▶</span>
                     {cat.toUpperCase().replace(/-/g, ' — ')}
-                    <span className="text-[#555]">({catRows.length})</span>
+                    <span className="text-[#999]">({catRows.length})</span>
                   </button>
 
                   {/* Rows */}
@@ -147,7 +147,7 @@ export default function FlowView({ rows, onCellEdit, onExport, isGenerating }: P
                               />
                             ) : (
                               <div className="flex flex-col gap-0.5">
-                                <span className={`${cell?.text ? 'text-[#ccc]' : 'text-transparent group-hover:text-[#333]'}`}>
+                                <span className={`${cell?.text ? 'text-[#ccc]' : 'text-transparent group-hover:text-[#777]'}`}>
                                   {cell?.text || '—'}
                                 </span>
                                 {cell?.status && statusBadges[cell.status] && (

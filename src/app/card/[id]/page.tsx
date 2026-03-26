@@ -75,11 +75,11 @@ export default function CardPage({ params }: { params: Promise<{ id: string }> }
   };
 
   if (loading) {
-    return <div className="text-center py-20 text-[#444] text-sm">Loading...</div>;
+    return <div className="text-center py-20 text-[#888] text-sm">Loading...</div>;
   }
 
   if (!card) {
-    return <div className="text-center py-20 text-[#444] text-sm">Card not found.</div>;
+    return <div className="text-center py-20 text-[#888] text-sm">Card not found.</div>;
   }
 
   return (
@@ -109,7 +109,7 @@ export default function CardPage({ params }: { params: Promise<{ id: string }> }
           </div>
           <div>
             <label className="text-[13px] text-[#666] mb-1.5 block">
-              Evidence HTML <span className="text-[11px] text-[#444]">(&lt;mark&gt; = highlight)</span>
+              Evidence HTML <span className="text-[11px] text-[#888]">(&lt;mark&gt; = highlight)</span>
             </label>
             <textarea
               value={editEvidence}
@@ -151,7 +151,7 @@ export default function CardPage({ params }: { params: Promise<{ id: string }> }
       )}
 
       {card.cite_url && (
-        <p className="text-[11px] text-[#333]">
+        <p className="text-[11px] text-[#777]">
           Source:{" "}
           <a
             href={card.cite_url}

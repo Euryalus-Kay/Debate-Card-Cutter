@@ -15,6 +15,8 @@ interface ComponentPlan {
 
 interface GeneratedComponent {
   index: number;
+  sectionIndex?: number;
+  sectionHeader?: string;
   type: "card" | "analytic" | "plan_text" | "interp_text";
   label: string;
   purpose: string;
@@ -29,13 +31,21 @@ interface GeneratedComponent {
   fallback?: boolean;
 }
 
+interface SectionPlan {
+  index: number;
+  section_header: string;
+  components: ComponentPlan[];
+}
+
 interface ArgumentPlan {
   title: string;
-  description: string;
+  description?: string;
+  file_notes?: string;
   strategy_overview: string;
   argument_type: string;
   total_components: number;
-  components: ComponentPlan[];
+  components?: ComponentPlan[];
+  sections?: SectionPlan[];
 }
 
 interface ProgressUpdate {
@@ -315,7 +325,7 @@ export default function ArgumentPage() {
       const html = argumentToGoogleDocsHtml(plan, components);
       const plainParts: string[] = [];
       plainParts.push(plan.title);
-      plainParts.push(plan.description);
+      plainParts.push(plan.file_notes || plan.description || '');
       plainParts.push("");
       for (const comp of components) {
         plainParts.push(`--- ${comp.label} ---`);
@@ -449,18 +459,40 @@ export default function ArgumentPage() {
             <div className="px-4 py-3 border-b border-[#1a1a1a]">
               <h2 className="text-[14px] font-semibold">{plan.title}</h2>
               <p className="text-[12px] text-[#666] mt-0.5">
-                {plan.description}
+                {plan.file_notes || plan.description}
               </p>
             </div>
             <div className="p-3 space-y-1.5">
-              {plan.components.map((comp, i) => {
-                const isCompleted = completedIndices.has(i);
-                const isError = errorIndices.has(i);
+              {(() => {
+                // Flatten sections into a flat component list with global indices
+                const flatComps: Array<ComponentPlan & { globalIndex: number; sectionHeader?: string }> = [];
+                if (plan.sections) {
+                  let idx = 0;
+                  for (const s of plan.sections) {
+                    for (const comp of (s.components || [])) {
+                      flatComps.push({ ...comp, globalIndex: idx, sectionHeader: s.section_header });
+                      idx++;
+                    }
+                  }
+                } else if (plan.components) {
+                  plan.components.forEach((comp, idx) => flatComps.push({ ...comp, globalIndex: idx }));
+                }
+
+                let lastSection = '';
+                return flatComps.map((comp) => {
+                const idx = comp.globalIndex;
+                const showSectionHeader = comp.sectionHeader && comp.sectionHeader !== lastSection;
+                if (comp.sectionHeader) lastSection = comp.sectionHeader;
+                const isCompleted = completedIndices.has(idx);
+                const isError = errorIndices.has(idx);
                 const isActive =
-                  progress?.index === i && !isCompleted && !isError;
+                  progress?.index === idx && !isCompleted && !isError;
                 return (
+                  <div key={idx}>
+                  {showSectionHeader && (
+                    <div className="text-[10px] text-[#555] uppercase tracking-wider font-semibold mt-3 mb-1 px-3">{comp.sectionHeader}</div>
+                  )}
                   <div
-                    key={i}
                     className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-[12px] transition-all ${
                       isCompleted
                         ? "text-green-400 bg-green-950/10"
@@ -526,8 +558,10 @@ export default function ArgumentPage() {
                       {comp.label}
                     </span>
                   </div>
+                  </div>
                 );
-              })}
+              });
+              })()}
             </div>
             {progress && (
               <div className="px-4 py-2.5 border-t border-[#1a1a1a] flex items-center gap-2.5 text-[12px] text-[#999]">
@@ -561,7 +595,7 @@ export default function ArgumentPage() {
                   <div>
                     <h2 className="text-[15px] font-semibold">{plan.title}</h2>
                     <p className="text-[12px] text-[#666] mt-0.5">
-                      {plan.description}
+                      {plan.file_notes || plan.description}
                     </p>
                   </div>
                   {done && (
@@ -601,10 +635,20 @@ export default function ArgumentPage() {
             )}
 
             {/* Generated components */}
-            {components
-              .sort((a, b) => a.index - b.index)
-              .map((comp) => (
+            {(() => {
+              const sorted = [...components].sort((a, b) => a.index - b.index);
+              let lastSection = '';
+              return sorted.map((comp) => {
+                const showSection = comp.sectionHeader && comp.sectionHeader !== lastSection;
+                if (comp.sectionHeader) lastSection = comp.sectionHeader;
+                return (
                 <div key={comp.index}>
+                  {/* Section header */}
+                  {showSection && (
+                    <div className="mt-6 mb-3 pb-2 border-b border-[#1a1a1a]">
+                      <h3 className="text-[13px] font-semibold text-[#ccc] uppercase tracking-wider">{comp.sectionHeader}</h3>
+                    </div>
+                  )}
                   {/* Component label */}
                   <div className="flex items-center gap-2 mb-1.5">
                     <span
@@ -703,7 +747,8 @@ export default function ArgumentPage() {
                     </div>
                   )}
                 </div>
-              ))}
+              );});
+            })()}
 
             {/* Summary when done */}
             {done && (

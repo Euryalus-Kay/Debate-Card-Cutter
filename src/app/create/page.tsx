@@ -161,7 +161,7 @@ export default function CreatePage() {
             value={context}
             onChange={(e) => setContext(e.target.value)}
             placeholder="e.g., Running a copyright reform aff on the 2024-25 topic..."
-            className="w-full px-3 py-2.5 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#333] focus:outline-none focus:border-[#333] transition-colors min-h-[70px] resize-y"
+            className="w-full px-3 py-2.5 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#666] focus:outline-none focus:border-[#333] transition-colors min-h-[70px] resize-y"
           />
         </div>
 
@@ -174,7 +174,7 @@ export default function CreatePage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="e.g., Licensing fails because there is no entity that can administer licenses at the scale needed for AI training data..."
-            className="w-full px-3 py-2.5 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#333] focus:outline-none focus:border-[#333] transition-colors min-h-[100px] resize-y"
+            className="w-full px-3 py-2.5 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#666] focus:outline-none focus:border-[#333] transition-colors min-h-[100px] resize-y"
             onKeyDown={(e) => {
               if (e.key === "Enter" && e.metaKey) generateCard();
             }}
@@ -195,12 +195,12 @@ export default function CreatePage() {
             className={`px-3 py-2 text-[11px] rounded-lg border transition-colors ${
               rapid
                 ? "border-amber-500/50 text-amber-400 bg-amber-950/30"
-                : "border-[#1a1a1a] text-[#444] hover:text-[#666]"
+                : "border-[#1a1a1a] text-[#888] hover:text-[#aaa]"
             }`}
           >
             {rapid ? "Rapid" : "Standard"}
           </button>
-          <span className="text-[11px] text-[#333]">
+          <span className="text-[11px] text-[#777]">
             {rapid ? "Faster, uses Sonnet" : "Cmd+Enter"}
           </span>
         </div>

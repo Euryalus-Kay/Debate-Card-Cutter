@@ -121,7 +121,7 @@ export default function DashboardPage() {
               {f.icon}
             </div>
             <div className="text-[13px] font-semibold text-white mb-1">{f.title}</div>
-            <div className="text-[11px] text-[#555] leading-relaxed">{f.desc}</div>
+            <div className="text-[11px] text-[#999] leading-relaxed">{f.desc}</div>
           </Link>
         ))}
       </div>
@@ -130,15 +130,15 @@ export default function DashboardPage() {
       <div className="mb-8">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-[15px] font-semibold">Recent Cards</h2>
-          <Link href="/library" className="text-[11px] text-[#555] hover:text-[#999] transition-colors">
+          <Link href="/library" className="text-[11px] text-[#999] hover:text-[#999] transition-colors">
             View all
           </Link>
         </div>
         {loading ? (
-          <div className="text-[13px] text-[#444] py-4">Loading...</div>
+          <div className="text-[13px] text-[#888] py-4">Loading...</div>
         ) : recentCards.length === 0 ? (
           <div className="text-center py-8 border border-[#1a1a1a] rounded-lg bg-[#0a0a0a]">
-            <p className="text-[13px] text-[#555] mb-2">No cards yet</p>
+            <p className="text-[13px] text-[#999] mb-2">No cards yet</p>
             <Link
               href="/create"
               className="inline-block text-[12px] text-[#888] hover:text-white transition-colors"
@@ -161,11 +161,11 @@ export default function DashboardPage() {
                   >
                     {shortTag(card.tag)}
                   </div>
-                  <div className="text-[11px] text-[#555] mt-0.5" style={{ fontFamily: "Georgia, serif" }}>
+                  <div className="text-[11px] text-[#999] mt-0.5" style={{ fontFamily: "Georgia, serif" }}>
                     {authorShort(card.cite)}
                   </div>
                 </div>
-                <div className="text-[10px] text-[#333] ml-3 shrink-0">
+                <div className="text-[10px] text-[#777] ml-3 shrink-0">
                   {new Date(card.created_at).toLocaleDateString()}
                 </div>
               </Link>
@@ -178,15 +178,15 @@ export default function DashboardPage() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-[15px] font-semibold">Recent Rounds</h2>
-          <Link href="/rounds" className="text-[11px] text-[#555] hover:text-[#999] transition-colors">
+          <Link href="/rounds" className="text-[11px] text-[#999] hover:text-[#999] transition-colors">
             View all
           </Link>
         </div>
         {loading ? (
-          <div className="text-[13px] text-[#444] py-4">Loading...</div>
+          <div className="text-[13px] text-[#888] py-4">Loading...</div>
         ) : recentRounds.length === 0 ? (
           <div className="text-center py-8 border border-[#1a1a1a] rounded-lg bg-[#0a0a0a]">
-            <p className="text-[13px] text-[#555] mb-2">No rounds yet</p>
+            <p className="text-[13px] text-[#999] mb-2">No rounds yet</p>
             <Link
               href="/rounds/new"
               className="inline-block text-[12px] text-[#888] hover:text-white transition-colors"
@@ -206,12 +206,12 @@ export default function DashboardPage() {
                   <div className="text-[12px] font-semibold text-white truncate group-hover:text-blue-300 transition-colors">
                     {round.name || "Untitled Round"}
                   </div>
-                  <div className="text-[11px] text-[#555] mt-0.5">
+                  <div className="text-[11px] text-[#999] mt-0.5">
                     {round.side === "aff" ? "Affirmative" : "Negative"}
                     {round.topic ? ` — ${round.topic}` : ""}
                   </div>
                 </div>
-                <div className="text-[10px] text-[#333] ml-3 shrink-0">
+                <div className="text-[10px] text-[#777] ml-3 shrink-0">
                   {new Date(round.created_at).toLocaleDateString()}
                 </div>
               </Link>

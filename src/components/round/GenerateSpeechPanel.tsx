@@ -50,7 +50,7 @@ export default function GenerateSpeechPanel({ speechTypes, onGenerate, isGenerat
         value={instructions}
         onChange={(e) => setInstructions(e.target.value)}
         placeholder="Additional instructions (optional)... e.g., 'Focus on the spending DA', 'Include a politics net benefit'..."
-        className="w-full h-20 px-3 py-2 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-[#ddd] placeholder:text-[#444] focus:outline-none focus:border-[#333] resize-y"
+        className="w-full h-20 px-3 py-2 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-[#ddd] placeholder:text-[#777] focus:outline-none focus:border-[#333] resize-y"
       />
 
       {/* Card selector */}
@@ -69,7 +69,7 @@ export default function GenerateSpeechPanel({ speechTypes, onGenerate, isGenerat
               value={cardSearch}
               onChange={(e) => setCardSearch(e.target.value)}
               placeholder="Search cards..."
-              className="w-full px-3 py-1.5 text-[12px] bg-[#111] border border-[#1a1a1a] rounded text-[#ddd] placeholder:text-[#444] focus:outline-none"
+              className="w-full px-3 py-1.5 text-[12px] bg-[#111] border border-[#1a1a1a] rounded text-[#ddd] placeholder:text-[#777] focus:outline-none"
             />
             <div className="max-h-40 overflow-y-auto space-y-1">
               {filteredCards.slice(0, 20).map(card => (
@@ -84,7 +84,7 @@ export default function GenerateSpeechPanel({ speechTypes, onGenerate, isGenerat
                     className="accent-blue-500"
                   />
                   <span className="text-[11px] text-[#ccc] truncate">{card.tag}</span>
-                  <span className="text-[10px] text-[#555] shrink-0">{card.cite_author}</span>
+                  <span className="text-[10px] text-[#999] shrink-0">{card.cite_author}</span>
                 </label>
               ))}
             </div>
@@ -104,7 +104,7 @@ export default function GenerateSpeechPanel({ speechTypes, onGenerate, isGenerat
         <div className="flex items-center gap-2 px-3 py-2 bg-[#111] rounded-lg border border-[#1a1a1a]">
           <div className="animate-spin w-3.5 h-3.5 border-2 border-blue-500/30 border-t-blue-400 rounded-full" />
           <span className="text-[12px] text-[#ccc]">{progress.label}</span>
-          <span className="text-[10px] text-[#555] ml-auto">{progress.step}/{progress.total}</span>
+          <span className="text-[10px] text-[#999] ml-auto">{progress.step}/{progress.total}</span>
         </div>
       )}
     </div>

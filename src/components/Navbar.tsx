@@ -35,7 +35,7 @@ export default function Navbar({
           >
             Debate
           </Link>
-          <span className="text-[#333] mx-0.5">|</span>
+          <span className="text-[#777] mx-0.5">|</span>
           {links.map((link) => (
             <Link
               key={link.href}

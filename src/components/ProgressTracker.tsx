@@ -66,7 +66,7 @@ export default function ProgressTracker({ current }: { current: Step | null }) {
               </div>
               <span
                 className={`text-[10px] ${
-                  isActive ? "text-blue-400" : isDone ? "text-[#555]" : "text-[#333]"
+                  isActive ? "text-blue-400" : isDone ? "text-[#999]" : "text-[#777]"
                 }`}
               >
                 {s.name}

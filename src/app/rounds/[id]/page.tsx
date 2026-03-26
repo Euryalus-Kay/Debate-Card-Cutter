@@ -391,7 +391,7 @@ export default function RoundWorkspacePage({ params }: { params: Promise<{ id: s
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-[12px] text-[#888]">Round Context</label>
-            <button onClick={handleSaveContext} className={`text-[11px] transition-colors ${contextSaved ? 'text-green-400' : 'text-[#555] hover:text-white'}`}>
+            <button onClick={handleSaveContext} className={`text-[11px] transition-colors ${contextSaved ? 'text-green-400' : 'text-[#999] hover:text-white'}`}>
               {contextSaved ? 'Saved!' : 'Save'}
             </button>
           </div>
@@ -399,7 +399,7 @@ export default function RoundWorkspacePage({ params }: { params: Promise<{ id: s
             value={roundContext}
             onChange={e => setRoundContext(e.target.value)}
             placeholder="Add context about this round..."
-            className="w-full h-16 px-3 py-2 text-[12px] bg-[#111] border border-[#1a1a1a] rounded-lg text-[#ccc] placeholder:text-[#444] focus:outline-none focus:border-[#333] resize-y"
+            className="w-full h-16 px-3 py-2 text-[12px] bg-[#111] border border-[#1a1a1a] rounded-lg text-[#ccc] placeholder:text-[#777] focus:outline-none focus:border-[#333] resize-y"
           />
         </div>
       )}

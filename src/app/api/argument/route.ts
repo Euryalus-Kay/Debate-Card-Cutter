@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { planArgumentAdvanced, generateCard, selectBestSource } from "@/lib/anthropic";
-import type { ArgumentType, AdvancedArgumentPlan } from "@/lib/anthropic";
+import type { ArgumentType, CampFilePlan } from "@/lib/anthropic";
 import { searchEvidence, deepSearchSource } from "@/lib/perplexity";
 import { scrapeArticle } from "@/lib/scraper";
 import { supabase } from "@/lib/supabase";
@@ -43,26 +43,58 @@ export async function POST(req: NextRequest) {
       }
 
       try {
-        // Step 1: Plan the argument
+        // Step 1: Plan the camp file
         send("progress", {
           step: "planning",
-          label: `Planning ${argType.toUpperCase()} argument structure...`,
+          label: `Planning ${argType.toUpperCase()} camp file structure...`,
           icon: "brain",
         });
 
-        const plan: AdvancedArgumentPlan = await planArgumentAdvanced(argType, query, context || "");
+        const plan: CampFilePlan = await planArgumentAdvanced(argType, query, context || "");
+
+        // Flatten all components across sections for tracking
+        const allComponents: Array<{
+          sectionIndex: number;
+          sectionHeader: string;
+          componentIndex: number;
+          type: string;
+          label: string;
+          query?: string;
+          purpose: string;
+          content?: string;
+        }> = [];
+
+        for (let si = 0; si < plan.sections.length; si++) {
+          const section = plan.sections[si];
+          for (let ci = 0; ci < section.components.length; ci++) {
+            const comp = section.components[ci];
+            allComponents.push({
+              sectionIndex: si,
+              sectionHeader: section.section_header,
+              componentIndex: ci,
+              type: comp.type,
+              label: comp.label,
+              query: comp.query,
+              purpose: comp.purpose,
+              content: comp.content,
+            });
+          }
+        }
 
         send("plan", {
           title: plan.title,
-          description: plan.description,
-          strategy_overview: plan.strategy_overview,
+          file_notes: plan.file_notes,
           argument_type: plan.argument_type,
-          total_components: plan.components.length,
-          components: plan.components.map((c, i) => ({
-            index: i,
-            type: c.type,
-            label: c.label,
-            purpose: c.purpose,
+          total_components: allComponents.length,
+          sections: plan.sections.map((s, si) => ({
+            index: si,
+            section_header: s.section_header,
+            components: s.components.map((c, ci) => ({
+              index: ci,
+              type: c.type,
+              label: c.label,
+              purpose: c.purpose,
+            })),
           })),
         });
 
@@ -71,22 +103,25 @@ export async function POST(req: NextRequest) {
         const cardIds: string[] = [];
         const generatedComponents: Array<Record<string, unknown>> = [];
 
-        for (let i = 0; i < plan.components.length; i++) {
-          const comp = plan.components[i];
+        for (let i = 0; i < allComponents.length; i++) {
+          const comp = allComponents[i];
 
           send("progress", {
             step: "component",
             index: i,
-            total: plan.components.length,
-            label: `Generating: ${comp.label}`,
+            total: allComponents.length,
+            sectionIndex: comp.sectionIndex,
+            sectionHeader: comp.sectionHeader,
+            label: `[${comp.sectionHeader}] ${comp.label}`,
             icon: comp.type === "card" ? "search" : "pen",
             type: comp.type,
           });
 
           if (comp.type === "analytic" || comp.type === "plan_text" || comp.type === "interp_text") {
-            // Non-card components: use AI-generated content directly
             generatedComponents.push({
               index: i,
+              sectionIndex: comp.sectionIndex,
+              sectionHeader: comp.sectionHeader,
               type: comp.type,
               label: comp.label,
               purpose: comp.purpose,
@@ -95,6 +130,8 @@ export async function POST(req: NextRequest) {
 
             send("component_done", {
               index: i,
+              sectionIndex: comp.sectionIndex,
+              sectionHeader: comp.sectionHeader,
               type: comp.type,
               label: comp.label,
               purpose: comp.purpose,
@@ -108,7 +145,8 @@ export async function POST(req: NextRequest) {
             send("progress", {
               step: "searching",
               index: i,
-              total: plan.components.length,
+              total: allComponents.length,
+              sectionHeader: comp.sectionHeader,
               label: `Searching evidence for: ${comp.label}`,
               icon: "search",
             });
@@ -116,20 +154,23 @@ export async function POST(req: NextRequest) {
             const searchResults = await searchEvidence(comp.query || comp.label, context || "");
 
             if (!searchResults.sources.length) {
-              // If no sources, generate an analytic instead
               generatedComponents.push({
                 index: i,
+                sectionIndex: comp.sectionIndex,
+                sectionHeader: comp.sectionHeader,
                 type: "analytic",
                 label: comp.label,
                 purpose: comp.purpose,
-                content: `[No evidence found — write your own warrant here for: ${comp.label}]`,
+                content: `[No evidence found -- write your own warrant here for: ${comp.label}]`,
               });
               send("component_done", {
                 index: i,
+                sectionIndex: comp.sectionIndex,
+                sectionHeader: comp.sectionHeader,
                 type: "analytic",
                 label: comp.label,
                 purpose: comp.purpose,
-                content: `[No evidence found — write your own warrant here for: ${comp.label}]`,
+                content: `[No evidence found -- write your own warrant here for: ${comp.label}]`,
                 fallback: true,
               });
               continue;
@@ -153,12 +194,12 @@ export async function POST(req: NextRequest) {
             send("progress", {
               step: "scraping",
               index: i,
-              total: plan.components.length,
+              total: allComponents.length,
+              sectionHeader: comp.sectionHeader,
               label: `Fetching source for: ${comp.label}`,
               icon: "download",
             });
 
-            // Get full text
             let fullText = await scrapeArticle(selectedUrl);
             if (fullText.length < 500) {
               fullText = await deepSearchSource(selectedUrl, comp.query || comp.label);
@@ -170,12 +211,12 @@ export async function POST(req: NextRequest) {
             send("progress", {
               step: "generating",
               index: i,
-              total: plan.components.length,
+              total: allComponents.length,
+              sectionHeader: comp.sectionHeader,
               label: `Cutting card: ${comp.label}`,
               icon: "sparkle",
             });
 
-            // Generate card
             const card = await generateCard(
               comp.query || comp.label,
               fullText,
@@ -214,6 +255,8 @@ export async function POST(req: NextRequest) {
             cardIds.push(cardId);
             generatedComponents.push({
               index: i,
+              sectionIndex: comp.sectionIndex,
+              sectionHeader: comp.sectionHeader,
               type: "card",
               id: cardId,
               label: comp.label,
@@ -226,6 +269,8 @@ export async function POST(req: NextRequest) {
 
             send("component_done", {
               index: i,
+              sectionIndex: comp.sectionIndex,
+              sectionHeader: comp.sectionHeader,
               type: "card",
               id: cardId,
               label: comp.label,
@@ -239,19 +284,21 @@ export async function POST(req: NextRequest) {
             console.error(`Failed to generate card for: ${comp.label}`, cardError);
             send("component_error", {
               index: i,
+              sectionIndex: comp.sectionIndex,
+              sectionHeader: comp.sectionHeader,
               label: comp.label,
               error: cardError instanceof Error ? cardError.message : "Card generation failed",
             });
           }
         }
 
-        // Save the argument
+        // Save the argument with camp file structure
         await supabase.from("arguments").insert({
           id: argumentId,
           title: plan.title,
-          description: plan.description,
+          description: plan.file_notes,
           argument_type: argType,
-          strategy_overview: plan.strategy_overview,
+          strategy_overview: plan.file_notes,
           author_name: authorName || "Anonymous",
           card_ids: cardIds,
           components: generatedComponents,
@@ -261,12 +308,12 @@ export async function POST(req: NextRequest) {
         send("done", {
           argument_id: argumentId,
           title: plan.title,
-          description: plan.description,
-          strategy_overview: plan.strategy_overview,
+          file_notes: plan.file_notes,
           argument_type: argType,
-          total_components: plan.components.length,
+          total_components: allComponents.length,
           generated_components: generatedComponents.length,
           card_count: cardIds.length,
+          section_count: plan.sections.length,
         });
 
         controller.close();

@@ -24,12 +24,12 @@ export async function POST(req: NextRequest) {
       }
 
       try {
-        send('progress', { step: 1, total: 3, label: 'Parsing document...', icon: 'doc' });
+        send('progress', { step: 1, total: 4, label: 'Parsing document...', icon: 'doc' });
 
         const buffer = Buffer.from(await file.arrayBuffer());
         const parsed = await parseDocument(buffer, file.name);
 
-        send('progress', { step: 2, total: 3, label: 'AI is splitting cards from document...', icon: 'brain' });
+        send('progress', { step: 2, total: 4, label: 'AI is splitting cards from document...', icon: 'brain' });
 
         // Create library entry
         const { data: library } = await supabase
@@ -43,25 +43,63 @@ export async function POST(req: NextRequest) {
         // Use AI to parse individual cards
         const cards = await parseBulkCards(parsed.html || parsed.text, collectionName);
 
-        send('progress', { step: 3, total: 3, label: `Saving ${cards.length} cards...`, icon: 'save' });
+        send('progress', { step: 3, total: 4, label: `Saving ${cards.length} cards...`, icon: 'save' });
 
-        // Save all cards
+        // Create an argument entry for the uploaded collection
+        const argumentId = uuid();
+        const cardIds: string[] = [];
+        const components: Array<Record<string, unknown>> = [];
+
+        // Save all cards and track them
         const now = new Date().toISOString();
-        for (const card of cards) {
+        for (let i = 0; i < cards.length; i++) {
+          const card = cards[i];
+          const cardId = uuid();
           const cite = `${card.cite_author} (${card.cite_credentials}. "${card.cite_title}" ${card.cite_date}. ${card.cite_url}) ${card.cite_initials}`;
+
           await supabase.from('cards').insert({
-            id: uuid(),
+            id: cardId,
             tag: card.tag, cite, cite_author: card.cite_author, cite_year: card.cite_year,
             cite_credentials: card.cite_credentials, cite_title: card.cite_title,
             cite_date: card.cite_date, cite_url: card.cite_url,
             cite_access_date: new Date().toLocaleDateString(),
             cite_initials: card.cite_initials, evidence_html: card.evidence_html,
-            author_name: uploadedBy, library_id: libraryId, is_shared: true,
+            author_name: uploadedBy, library_id: libraryId, argument_id: argumentId,
+            is_shared: true,
             created_at: now, updated_at: now,
+          });
+
+          cardIds.push(cardId);
+          components.push({
+            index: i,
+            type: 'card',
+            id: cardId,
+            label: card.tag.substring(0, 80),
+            purpose: 'Uploaded evidence',
+            tag: card.tag,
+            cite,
+            cite_author: card.cite_author,
+            evidence_html: card.evidence_html,
           });
         }
 
-        send('done', { count: cards.length, library_id: libraryId });
+        send('progress', { step: 4, total: 4, label: 'Creating argument collection...', icon: 'save' });
+
+        // Save as a combined argument
+        await supabase.from('arguments').insert({
+          id: argumentId,
+          title: collectionName,
+          description: `Uploaded from ${file.name} — ${cards.length} cards`,
+          author_name: uploadedBy,
+          card_ids: cardIds,
+          argument_type: 'custom',
+          strategy_overview: '',
+          file_notes: '',
+          components,
+          created_at: now,
+        });
+
+        send('done', { count: cards.length, library_id: libraryId, argument_id: argumentId });
         controller.close();
       } catch (error) {
         send('error', { message: error instanceof Error ? error.message : 'Upload failed' });

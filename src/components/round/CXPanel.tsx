@@ -71,20 +71,20 @@ export default function CXPanel({ questions, answers, onGenerateQuestions, onGen
                 onClick={() => setExpandedQ(expandedQ === i ? null : i)}
                 className="w-full text-left px-3 py-2 flex items-start gap-2"
               >
-                <span className="text-[11px] text-[#555] font-mono shrink-0">{i + 1}.</span>
+                <span className="text-[11px] text-[#999] font-mono shrink-0">{i + 1}.</span>
                 <span className="text-[12px] text-[#ddd]">{q.question}</span>
               </button>
               {expandedQ === i && (
                 <div className="px-3 pb-3 space-y-2 border-t border-[#1a1a1a] pt-2">
                   <p className="text-[11px] text-[#888]">
-                    <span className="text-[#555]">Target:</span> {q.target_argument}
+                    <span className="text-[#999]">Target:</span> {q.target_argument}
                   </p>
                   <p className="text-[11px] text-[#888]">
-                    <span className="text-[#555]">Goal:</span> {q.strategic_goal}
+                    <span className="text-[#999]">Goal:</span> {q.strategic_goal}
                   </p>
                   {q.follow_ups.length > 0 && (
                     <div className="space-y-1">
-                      <span className="text-[10px] text-[#555]">Follow-ups:</span>
+                      <span className="text-[10px] text-[#999]">Follow-ups:</span>
                       {q.follow_ups.map((f, j) => (
                         <p key={j} className="text-[11px] text-[#777] pl-3">→ {f}</p>
                       ))}
@@ -103,7 +103,7 @@ export default function CXPanel({ questions, answers, onGenerateQuestions, onGen
             <div key={i} className="border border-[#1a1a1a] rounded-lg bg-[#0a0a0a] p-3 space-y-1.5">
               <p className="text-[12px] text-orange-400/80">Q: {a.likely_question}</p>
               <p className="text-[12px] text-[#ccc]">A: {a.suggested_answer}</p>
-              <p className="text-[10px] text-[#555] italic">{a.strategy_note}</p>
+              <p className="text-[10px] text-[#999] italic">{a.strategy_note}</p>
             </div>
           ))}
         </div>

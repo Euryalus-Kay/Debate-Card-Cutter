@@ -56,7 +56,7 @@ export default function SpeechTimeline({ slots, activeSlot, onSlotClick }: Props
               </div>
               <div className="flex items-center gap-2">
                 {!slot.isCX && (
-                  <span className="text-[10px] text-[#555]">{slot.time}min</span>
+                  <span className="text-[10px] text-[#999]">{slot.time}min</span>
                 )}
                 {slot.status === 'filled' && (
                   <span className="w-2 h-2 rounded-full bg-green-500/60" />
