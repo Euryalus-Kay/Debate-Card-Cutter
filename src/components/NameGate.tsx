@@ -94,7 +94,7 @@ export default function NameGate({ children, userName, onNameSet }: NameGateProp
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="Your name"
                 autoFocus
-                className="w-full px-4 py-3 rounded-lg bg-[#0a0a0a] border border-[#222] text-white font-sans text-sm placeholder:text-[#444] focus:outline-none focus:border-[#3b82f6] mb-3"
+                className="w-full px-4 py-3 rounded-lg bg-[#0a0a0a] border border-[#222] text-white font-sans text-sm placeholder:text-[#888] focus:outline-none focus:border-[#3b82f6] mb-3"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && newName.trim()) createUser();
                 }}

@@ -41,7 +41,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   if (!mounted) {
     return (
       <div className="min-h-screen bg-[#050505] flex items-center justify-center">
-        <div className="text-[#444] font-sans text-sm">Loading...</div>
+        <div className="text-[#888] font-sans text-sm">Loading...</div>
       </div>
     );
   }

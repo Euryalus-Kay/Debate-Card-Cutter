@@ -306,3 +306,416 @@ Return JSON: {"selectedUrl": "the url", "reason": "why this source is best"}`,
 
   return JSON.parse(extractJson(text));
 }
+
+export async function parseSpeech(
+  speechText: string,
+  speechType: string,
+  side: string,
+  roundContext: string,
+  hasHighlights: boolean
+): Promise<Array<{
+  id: string;
+  type: string;
+  arg_type: string;
+  label: string;
+  tag: string;
+  cite?: string;
+  evidence_html?: string;
+  summary: string;
+}>> {
+  const systemPrompt = `You are an expert policy debate flow judge and analyst. You read debate speeches and identify every individual argument, card, and analytic within them.
+
+You are analyzing a ${speechType} speech from the ${side === 'aff' ? 'affirmative' : 'negative'} team.
+
+SPEECH CONTEXT:
+- 1AC: Affirmative case presentation (plan, advantages, solvency)
+- 1NC: Negative's full position (DAs, CPs, Ks, T, case attacks)
+- 2AC: Answers everything in 1NC, rebuilds case
+- 2NC: Part of neg block, extends some positions
+- 1NR: Part of neg block, extends remaining positions
+- 1AR: Must answer entire neg block
+- 2NR: Collapses to strongest arguments
+- 2AR: Final weighing, explains why judge should vote aff
+
+For EACH argument/card you identify, classify it:
+- card: Has a tag, citation, and evidence
+- analytic: Debater-written argument without citation
+- theory: Procedural argument about debate norms
+- framework: Argument about how the judge should evaluate the round
+
+Classify the argument type (arg_type):
+- case-advantage, case-plan, case-solvency, case-inherency, case-impact
+- da-uniqueness, da-link, da-impact, da-turn
+- cp-text, cp-solvency, cp-net-benefit, cp-perm
+- k-link, k-impact, k-alternative, k-framework
+- t-interp, t-violation, t-standards, t-voters
+- theory, framework, overview, underview
+
+${hasHighlights ? 'The speech text has existing highlighting/formatting. PRESERVE it in the evidence_html field.' : 'The speech text has no highlighting. Add strategic <mark> tags around the key portions that prove each argument.'}
+
+Return a JSON array of objects with these fields:
+- id: a unique string identifier (use format "arg-1", "arg-2", etc.)
+- type: "card" | "analytic" | "theory" | "framework"
+- arg_type: classification string from the list above
+- label: short 3-8 word label (e.g., "Spending DA - Uniqueness")
+- tag: the tagline/claim of the argument
+- cite: citation string if it's a card (empty string if analytic)
+- evidence_html: the evidence HTML with <mark> tags if it's a card (empty string if analytic)
+- summary: 1-2 sentence summary of what this argument claims
+
+Return ONLY a JSON array, no other text.`;
+
+  const text = await streamMessage({
+    model: 'claude-opus-4-20250514',
+    max_tokens: 16000,
+    system: systemPrompt,
+    messages: [{
+      role: 'user',
+      content: `${roundContext ? `Round context: ${roundContext}\n\n` : ''}Identify every argument in this ${speechType} speech:\n\n${speechText}`,
+    }],
+  });
+
+  const match = text.match(/\[[\s\S]*\]/);
+  if (!match) return [];
+  return JSON.parse(match[0]);
+}
+
+export async function generateFlow(
+  speeches: Array<{ speech_type: string; parsed_content: unknown[] }>,
+  side: string
+): Promise<Array<{ row_index: number; category: string; label: string; entries: Record<string, unknown> }>> {
+  const systemPrompt = `You are an expert policy debate flow expert. Given parsed arguments from each speech, construct a flow chart.
+
+The user is on the ${side === 'aff' ? 'affirmative' : 'negative'} side.
+
+FLOW RULES:
+- Each ROW tracks one argument chain across the round
+- Group rows by CATEGORY: case, da-[name], cp-[name], k-[name], t-[name], theory
+- Each cell in a row corresponds to a speech column
+- Match responses to the arguments they respond to (horizontal alignment)
+- Mark dropped arguments (argument from speech N with no response in N+1 when one was required)
+- Mark turns (where a response argues the opposite direction)
+- Mark extensions (where a later speech develops an earlier argument)
+
+For each row, provide entries as a map of speech_type to:
+{
+  "text": "Short 5-15 word description of the argument at this point",
+  "status": "new" | "answered" | "dropped" | "turned" | "extended"
+}
+
+Return a JSON array of row objects:
+{
+  "row_index": number,
+  "category": "case" | "da-spending" | "cp-states" | etc,
+  "label": "Short label for this argument chain",
+  "entries": { "1AC": {...}, "1NC": {...}, ... }
+}`;
+
+  const text = await streamMessage({
+    model: 'claude-opus-4-20250514',
+    max_tokens: 16000,
+    system: systemPrompt,
+    messages: [{
+      role: 'user',
+      content: `Generate the flow for this debate round. Here are the parsed arguments from each speech:\n\n${JSON.stringify(speeches, null, 2)}`,
+    }],
+  });
+
+  const match = text.match(/\[[\s\S]*\]/);
+  if (!match) return [];
+  return JSON.parse(match[0]);
+}
+
+export async function planSpeech(
+  speechType: string,
+  side: string,
+  previousSpeeches: Array<{ speech_type: string; parsed_content: unknown[] }>,
+  flowEntries: unknown[],
+  availableCards: Array<{ id: string; tag: string; cite_author: string; evidence_html: string }>,
+  selectedCardIds: string[],
+  roundContext: string,
+  additionalInstructions: string
+): Promise<{
+  strategy: string;
+  sections: Array<{ label: string; action: string; card_source: string; search_query?: string; card_id?: string; analytics: string }>;
+}> {
+  const speechInfo: Record<string, string> = {
+    '1AC': 'Present the affirmative case: plan text, advantages with inherency/harms/solvency. 8 minutes.',
+    '1NC': 'Present all negative positions: DAs, CPs, Ks, T, case attacks. 8 minutes.',
+    '2AC': 'Answer EVERY argument from 1NC. Extend case advantages. 8 minutes. Must not drop anything.',
+    '2NC': 'First half of neg block. Cover some off-case positions in depth. 8 minutes.',
+    '1NR': 'Second half of neg block. Cover remaining positions not in 2NC. 5 minutes.',
+    '1AR': 'Answer the ENTIRE neg block (2NC + 1NR). 5 minutes. Most time-pressured speech.',
+    '2NR': 'Collapse to 1-2 strongest arguments. Extend thoroughly with impact comparison. 5 minutes.',
+    '2AR': 'Final speech. Weigh arguments. Explain why judge should vote aff. 5 minutes.',
+  };
+
+  const systemPrompt = `You are an elite policy debate strategist planning a ${speechType} speech for the ${side === 'aff' ? 'affirmative' : 'negative'}.
+
+SPEECH REQUIREMENTS: ${speechInfo[speechType] || 'Respond to existing arguments.'}
+
+You have access to a card library. For each section of the speech, decide:
+1. Use an existing library card (specify card_id)
+2. Generate a new card (specify search_query for Perplexity)
+3. Write an analytic (debater-written argument, no evidence needed)
+
+Selected cards the user wants included: ${selectedCardIds.length > 0 ? selectedCardIds.join(', ') : 'None specified'}
+
+Be SPECIFIC and STRATEGIC. Think like an experienced debater:
+- Don't make broad generic arguments — target specific claims the opponent made
+- For the 2NR, collapse strategically — don't go for everything
+- For the 1AR, be efficient — you only have 5 minutes to answer 13+ minutes of neg arguments
+- For the 2AC, have a specific answer to every off-case position
+
+Return JSON:
+{
+  "strategy": "Brief 2-3 sentence overview of speech strategy",
+  "sections": [
+    {
+      "label": "Section label (e.g., 'Spending DA - Uniqueness Answer')",
+      "action": "use_card" | "generate_card" | "analytic",
+      "card_source": "library" | "generate" | "analytic",
+      "search_query": "if generating, the search query",
+      "card_id": "if using library card, the card id",
+      "analytics": "if analytic, the full text of the analytic argument"
+    }
+  ]
+}`;
+
+  const text = await streamMessage({
+    model: 'claude-opus-4-20250514',
+    max_tokens: 8000,
+    system: systemPrompt,
+    messages: [{
+      role: 'user',
+      content: `Plan the ${speechType} speech.
+
+Round context: ${roundContext}
+${additionalInstructions ? `Additional instructions: ${additionalInstructions}` : ''}
+
+Previous speeches and their arguments:
+${JSON.stringify(previousSpeeches, null, 2)}
+
+Current flow state:
+${JSON.stringify(flowEntries, null, 2)}
+
+Available cards in library (${availableCards.length} total):
+${availableCards.slice(0, 50).map(c => `- [${c.id}] ${c.tag} (${c.cite_author})`).join('\n')}
+${availableCards.length > 50 ? `\n... and ${availableCards.length - 50} more cards` : ''}`,
+    }],
+  });
+
+  return JSON.parse(extractJson(text));
+}
+
+export async function assembleSpeech(
+  speechType: string,
+  side: string,
+  strategy: string,
+  sections: Array<{ label: string; action: string; content: string; tag?: string; cite?: string; evidence_html?: string }>,
+  roundContext: string
+): Promise<string> {
+  const systemPrompt = `You are an expert policy debate speech writer. Assemble a complete ${speechType} speech for the ${side === 'aff' ? 'affirmative' : 'negative'}.
+
+FORMAT THE SPEECH IN PROPER DEBATE FORMAT:
+- Each argument section starts with the section label as a heading
+- Cards must have: tag (bold), citation, evidence (with <mark> highlighting preserved)
+- Analytics are written as regular bold assertions
+- Include transitions between sections
+- Include time allocation suggestions as comments
+
+The speech should read like an actual debate speech that could be delivered in a round.
+
+OUTPUT: Return the complete speech as HTML. Use:
+- <h3> for section headers
+- <div class="card-block"> around each card
+- <div class="card-tag"> for tags
+- <div class="card-cite"> for citations
+- <div class="card-evidence"> for evidence
+- <p class="analytic"> for analytics
+- <mark> preserved for highlighted evidence`;
+
+  const text = await streamMessage({
+    model: 'claude-opus-4-20250514',
+    max_tokens: 16000,
+    system: systemPrompt,
+    messages: [{
+      role: 'user',
+      content: `Assemble this ${speechType} speech.
+
+Strategy: ${strategy}
+Context: ${roundContext}
+
+Sections to include:
+${JSON.stringify(sections, null, 2)}
+
+Write the complete speech HTML.`,
+    }],
+  });
+
+  // Return the HTML content (strip any markdown code fences)
+  return text.replace(/```html\n?/g, '').replace(/```\n?/g, '').trim();
+}
+
+export async function generateCXQuestions(
+  opponentSpeech: unknown[],
+  speechType: string,
+  side: string,
+  roundContext: string
+): Promise<Array<{ question: string; target_argument: string; strategic_goal: string; follow_ups: string[] }>> {
+  const systemPrompt = `You are an expert policy debate cross-examination strategist. Generate strategic CX questions targeting the ${speechType} speech.
+
+You are the ${side === 'aff' ? 'affirmative' : 'negative'} team questioning the ${side === 'aff' ? 'negative' : 'affirmative'}.
+
+CX STRATEGY RULES:
+- Mix of broad strategic questions and specific targeted ones
+- Questions should be REALISTIC — things you'd actually ask in a round
+- Focus on: exposing contradictions, getting concessions, establishing link turns, clarifying positions
+- Don't make questions overly specific or nitpicky unless strategically valuable
+- Include follow-up questions that build on likely answers
+- Order by strategic importance
+
+Return a JSON array of objects:
+{
+  "question": "The CX question",
+  "target_argument": "Which argument this targets",
+  "strategic_goal": "What you're trying to accomplish",
+  "follow_ups": ["Follow-up question 1", "Follow-up question 2"]
+}`;
+
+  const text = await streamMessage({
+    model: 'claude-opus-4-20250514',
+    max_tokens: 4000,
+    system: systemPrompt,
+    messages: [{
+      role: 'user',
+      content: `Generate CX questions for this ${speechType}:\n\n${roundContext ? `Context: ${roundContext}\n\n` : ''}Arguments:\n${JSON.stringify(opponentSpeech, null, 2)}`,
+    }],
+  });
+
+  const match = text.match(/\[[\s\S]*\]/);
+  if (!match) return [];
+  return JSON.parse(match[0]);
+}
+
+export async function generateCXAnswers(
+  userSpeech: unknown[],
+  speechType: string,
+  side: string,
+  roundContext: string
+): Promise<Array<{ likely_question: string; suggested_answer: string; strategy_note: string }>> {
+  const systemPrompt = `You are an expert policy debate CX prep coach. Predict likely cross-examination questions the opponent will ask about the ${speechType} speech and prepare strategic answers.
+
+You are prepping the ${side === 'aff' ? 'affirmative' : 'negative'} team to ANSWER questions about their own ${speechType}.
+
+ANSWER STRATEGY:
+- Be concise — don't give away more than asked
+- Avoid concessions that hurt your position
+- Redirect when possible
+- Know when to simply say "yes" or "no"
+
+Return a JSON array:
+{
+  "likely_question": "What the opponent will probably ask",
+  "suggested_answer": "How to answer strategically",
+  "strategy_note": "Why this answer is strategic"
+}`;
+
+  const text = await streamMessage({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 4000,
+    system: systemPrompt,
+    messages: [{
+      role: 'user',
+      content: `Prepare CX answers for this ${speechType}:\n\n${roundContext ? `Context: ${roundContext}\n\n` : ''}Arguments:\n${JSON.stringify(userSpeech, null, 2)}`,
+    }],
+  });
+
+  const match = text.match(/\[[\s\S]*\]/);
+  if (!match) return [];
+  return JSON.parse(match[0]);
+}
+
+export async function explainArgument(
+  argument: string,
+  context: string
+): Promise<string> {
+  const text = await streamMessage({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 2000,
+    system: `You explain policy debate arguments in extremely simple, easy-to-understand language. No jargon. Use analogies. Write 2-3 short paragraphs that a non-debater could understand. Be concise.`,
+    messages: [{
+      role: 'user',
+      content: `Explain this debate argument simply:\n\n${argument}\n\n${context ? `Context: ${context}` : ''}`,
+    }],
+  });
+
+  return text;
+}
+
+export async function iterateSpeech(
+  speechHtml: string,
+  instruction: string
+): Promise<string> {
+  const text = await streamMessage({
+    model: 'claude-opus-4-20250514',
+    max_tokens: 16000,
+    system: `You refine policy debate speeches. You can:
+- Reorder arguments
+- Adjust highlighting (<mark> tags)
+- Modify analytics (debater-written arguments)
+- Add transitions
+- Adjust emphasis
+
+You CANNOT:
+- Modify evidence text within cards (only highlighting)
+- Remove cards entirely (only reorder)
+- Change citations
+
+Return the complete updated speech HTML.`,
+    messages: [{
+      role: 'user',
+      content: `Current speech:\n${speechHtml}\n\nInstruction: ${instruction}\n\nReturn the updated speech HTML.`,
+    }],
+  });
+
+  return text.replace(/```html\n?/g, '').replace(/```\n?/g, '').trim();
+}
+
+export async function parseBulkCards(
+  documentText: string,
+  collectionName: string
+): Promise<Array<{
+  tag: string;
+  cite_author: string;
+  cite_year: string;
+  cite_credentials: string;
+  cite_title: string;
+  cite_date: string;
+  cite_url: string;
+  cite_initials: string;
+  evidence_html: string;
+}>> {
+  const text = await streamMessage({
+    model: 'claude-opus-4-20250514',
+    max_tokens: 16000,
+    system: `You are an expert at parsing debate card collections. Given a document that contains multiple debate cards (like a camp file, theory bible, or evidence packet), split it into individual cards.
+
+Each card has:
+- A tag (bold claim/argument heading)
+- A citation (author, year, credentials, title, URL)
+- Evidence body (the quoted text, often with highlighting)
+
+For each card, extract the structured fields. If evidence has bold/underline text, convert those to <mark> tags.
+
+Return a JSON array of card objects with: tag, cite_author, cite_year, cite_credentials, cite_title, cite_date, cite_url, cite_initials, evidence_html`,
+    messages: [{
+      role: 'user',
+      content: `Parse all individual debate cards from this ${collectionName} document:\n\n${documentText.substring(0, 60000)}`,
+    }],
+  });
+
+  const match = text.match(/\[[\s\S]*\]/);
+  if (!match) return [];
+  return JSON.parse(match[0]);
+}

@@ -18,6 +18,8 @@ export default function Navbar({
     { href: "/", label: "Cards" },
     { href: "/create", label: "Cut Card" },
     { href: "/argument", label: "Build Argument" },
+    { href: "/rounds", label: "Rounds" },
+    { href: "/library", label: "Library" },
   ];
 
   return (
@@ -31,7 +33,7 @@ export default function Navbar({
               className={`px-3 py-1.5 text-[13px] rounded-md font-sans transition-colors ${
                 pathname === link.href
                   ? "bg-[#1a1a1a] text-white"
-                  : "text-[#666] hover:text-[#aaa]"
+                  : "text-[#999] hover:text-[#aaa]"
               }`}
             >
               {link.label}
@@ -39,10 +41,10 @@ export default function Navbar({
           ))}
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-[13px] text-[#666] font-sans">{userName}</span>
+          <span className="text-[13px] text-[#aaa] font-sans">{userName}</span>
           <button
             onClick={onLogout}
-            className="text-[11px] text-[#444] hover:text-[#888] font-sans transition-colors"
+            className="text-[11px] text-[#777] hover:text-[#888] font-sans transition-colors"
           >
             Switch
           </button>
