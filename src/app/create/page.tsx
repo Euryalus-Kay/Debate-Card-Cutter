@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useApp } from "@/components/AppShell";
 import CardDisplay from "@/components/CardDisplay";
+import ProgressTracker from "@/components/ProgressTracker";
 
 interface GeneratedCard {
   id: string;
@@ -11,6 +12,13 @@ interface GeneratedCard {
   cite_author: string;
   evidence_html: string;
   author_name: string;
+}
+
+interface ProgressStep {
+  step: number;
+  total: number;
+  label: string;
+  icon: string;
 }
 
 export default function CreatePage() {
@@ -23,6 +31,7 @@ export default function CreatePage() {
   const [card, setCard] = useState<GeneratedCard | null>(null);
   const [iteratingId, setIteratingId] = useState<string | null>(null);
   const [rapid, setRapid] = useState(false);
+  const [progress, setProgress] = useState<ProgressStep | null>(null);
 
   useEffect(() => {
     if (!userName) return;
@@ -52,6 +61,7 @@ export default function CreatePage() {
     setLoading(true);
     setError("");
     setCard(null);
+    setProgress(null);
 
     try {
       const res = await fetch("/api/generate", {
@@ -70,10 +80,41 @@ export default function CreatePage() {
         throw new Error(data.error || "Generation failed");
       }
 
-      const data = await res.json();
-      setCard(data);
+      // Read SSE stream
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      if (!reader) throw new Error("No response stream");
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        let eventType = "";
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            eventType = line.slice(7);
+          } else if (line.startsWith("data: ")) {
+            const data = JSON.parse(line.slice(6));
+            if (eventType === "progress") {
+              setProgress(data);
+            } else if (eventType === "done") {
+              setCard(data);
+              setProgress(null);
+            } else if (eventType === "error") {
+              throw new Error(data.message);
+            }
+          }
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
+      setProgress(null);
     } finally {
       setLoading(false);
     }
@@ -170,16 +211,10 @@ export default function CreatePage() {
           </div>
         )}
 
-        {loading && (
-          <div className="flex items-center gap-3 px-4 py-5 border border-[#1a1a1a] rounded-lg bg-[#0a0a0a]">
-            <div className="animate-spin w-4 h-4 border-2 border-[#333] border-t-white rounded-full" />
-            <div className="text-[13px]">
-              <span className="text-[#999]">Searching and formatting...</span>
-              <span className="text-[#444] ml-2">{rapid ? "~10-20s" : "~30-60s"}</span>
-            </div>
-          </div>
-        )}
+        {/* Progress tracker */}
+        {loading && <ProgressTracker current={progress} />}
 
+        {/* Generated card */}
         {card && (
           <div className="pt-2">
             <CardDisplay

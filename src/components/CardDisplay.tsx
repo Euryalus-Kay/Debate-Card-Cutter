@@ -16,6 +16,39 @@ interface CardDisplayProps {
   showActions?: boolean;
 }
 
+// Convert card HTML to Google Docs-friendly format with inline styles
+function toGoogleDocsHtml(tag: string, cite: string, citeAuthor: string | undefined, evidenceHtml: string): string {
+  // Format tag as bold
+  const tagHtml = `<p style="font-family:Georgia,serif;font-size:13px;font-weight:bold;margin:0 0 4px 0;">${tag}</p>`;
+
+  // Format citation with bold author
+  let citeHtml = cite;
+  if (citeAuthor) {
+    const idx = cite.indexOf(citeAuthor);
+    if (idx >= 0) {
+      citeHtml = cite.substring(0, idx) +
+        `<b><u>${citeAuthor}</u></b>` +
+        cite.substring(idx + citeAuthor.length);
+    }
+  } else {
+    const parenIdx = cite.indexOf("(");
+    if (parenIdx > 0) {
+      citeHtml = `<b><u>${cite.substring(0, parenIdx).trim()}</u></b> ${cite.substring(parenIdx)}`;
+    }
+  }
+  const citeBlock = `<p style="font-family:Georgia,serif;font-size:11px;margin:0 0 4px 0;">${citeHtml}</p>`;
+
+  // Convert <mark> to bold+underline with inline styles for evidence
+  // Non-highlighted text should be smaller
+  const evidence = evidenceHtml
+    .replace(/<mark>/g, '</span><b><u><span style="font-family:Georgia,serif;font-size:11px;">')
+    .replace(/<\/mark>/g, '</span></u></b><span style="font-family:Georgia,serif;font-size:8px;color:#999;">');
+
+  const evidBlock = `<p style="font-family:Georgia,serif;font-size:8px;color:#999;margin:0;line-height:1.4;"><span style="font-family:Georgia,serif;font-size:8px;color:#999;">${evidence}</span></p>`;
+
+  return tagHtml + citeBlock + evidBlock;
+}
+
 export default function CardDisplay({
   id,
   tag,
@@ -35,26 +68,31 @@ export default function CardDisplay({
   const [showIterate, setShowIterate] = useState(false);
 
   const copyToClipboard = async () => {
-    if (!cardRef.current) return;
     try {
-      const html = cardRef.current.innerHTML;
-      const text = cardRef.current.innerText;
+      // Build Google Docs-friendly HTML with inline styles
+      const html = toGoogleDocsHtml(tag, cite, citeAuthor, evidenceHtml);
+      const text = cardRef.current?.innerText || "";
+
       await navigator.clipboard.write([
         new ClipboardItem({
           "text/html": new Blob([html], { type: "text/html" }),
           "text/plain": new Blob([text], { type: "text/plain" }),
         }),
       ]);
+
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      const selection = window.getSelection();
-      const range = document.createRange();
-      range.selectNodeContents(cardRef.current);
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-      document.execCommand("copy");
-      selection?.removeAllRanges();
+      // Fallback: select and copy
+      if (cardRef.current) {
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(cardRef.current);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        document.execCommand("copy");
+        selection?.removeAllRanges();
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
