@@ -11,12 +11,12 @@ body {
   font-family: Georgia, "Times New Roman", serif;
   font-size: 11px;
   line-height: 1.4;
-  color: #777;
+  color: #aaa;
 }
 
 .card-evidence mark {
   background: none;
-  color: #e5e5e5;
+  color: #fff;
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -32,7 +32,7 @@ body {
 .card-cite {
   font-family: Georgia, "Times New Roman", serif;
   font-size: 11px;
-  color: #999;
+  color: #bbb;
 }
 
 .card-cite .author-name {

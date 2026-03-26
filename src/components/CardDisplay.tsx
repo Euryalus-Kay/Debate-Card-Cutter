@@ -42,9 +42,9 @@ function toGoogleDocsHtml(tag: string, cite: string, citeAuthor: string | undefi
   // Non-highlighted text should be smaller
   const evidence = evidenceHtml
     .replace(/<mark>/g, '</span><b><u><span style="font-family:Georgia,serif;font-size:11px;">')
-    .replace(/<\/mark>/g, '</span></u></b><span style="font-family:Georgia,serif;font-size:8px;color:#999;">');
+    .replace(/<\/mark>/g, '</span></u></b><span style="font-family:Georgia,serif;font-size:8px;color:#666;">');
 
-  const evidBlock = `<p style="font-family:Georgia,serif;font-size:8px;color:#999;margin:0;line-height:1.4;"><span style="font-family:Georgia,serif;font-size:8px;color:#999;">${evidence}</span></p>`;
+  const evidBlock = `<p style="font-family:Georgia,serif;font-size:8px;color:#666;margin:0;line-height:1.4;"><span style="font-family:Georgia,serif;font-size:8px;color:#666;">${evidence}</span></p>`;
 
   return tagHtml + citeBlock + evidBlock;
 }
