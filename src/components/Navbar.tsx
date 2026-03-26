@@ -6,9 +6,11 @@ import { usePathname } from "next/navigation";
 export default function Navbar({
   userName,
   onNameChange,
+  onLogout,
 }: {
   userName: string;
   onNameChange: (name: string) => void;
+  onLogout: () => void;
 }) {
   const pathname = usePathname();
 
@@ -19,37 +21,31 @@ export default function Navbar({
   ];
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur-sm">
-      <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="text-lg font-bold text-[var(--fg)] font-sans">
-            CardCutter
-          </Link>
-          <div className="flex items-center gap-1">
-            {links.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`px-3 py-1.5 text-sm rounded font-sans transition-colors ${
-                  pathname === link.href
-                    ? "bg-[var(--accent)] text-white"
-                    : "text-[var(--muted)] hover:text-[var(--fg)] hover:bg-[var(--border)]"
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </div>
+    <nav className="sticky top-0 z-50 border-b border-[#1a1a1a] bg-[#050505]/90 backdrop-blur-md">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 h-12 flex items-center justify-between">
+        <div className="flex items-center gap-1">
+          {links.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={`px-3 py-1.5 text-[13px] rounded-md font-sans transition-colors ${
+                pathname === link.href
+                  ? "bg-[#1a1a1a] text-white"
+                  : "text-[#666] hover:text-[#aaa]"
+              }`}
+            >
+              {link.label}
+            </Link>
+          ))}
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-[var(--muted)] font-sans">Cutter:</span>
-          <input
-            type="text"
-            value={userName}
-            onChange={(e) => onNameChange(e.target.value)}
-            placeholder="Your name"
-            className="w-32 px-2 py-1 text-sm bg-[var(--card-bg)] border border-[var(--border)] rounded text-[var(--fg)] font-sans placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--accent)]"
-          />
+        <div className="flex items-center gap-3">
+          <span className="text-[13px] text-[#666] font-sans">{userName}</span>
+          <button
+            onClick={onLogout}
+            className="text-[11px] text-[#444] hover:text-[#888] font-sans transition-colors"
+          >
+            Switch
+          </button>
         </div>
       </div>
     </nav>

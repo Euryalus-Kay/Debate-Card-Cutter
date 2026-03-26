@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Navbar from "@/components/Navbar";
+import { useApp } from "@/components/AppShell";
 import CardDisplay from "@/components/CardDisplay";
 
 interface GeneratedCard {
@@ -14,37 +14,27 @@ interface GeneratedCard {
 }
 
 export default function CreatePage() {
-  const [userName, setUserName] = useState("");
+  const { userName } = useApp();
   const [query, setQuery] = useState("");
   const [context, setContext] = useState("");
   const [savedContext, setSavedContext] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [card, setCard] = useState<GeneratedCard | null>(null);
-  const [status, setStatus] = useState("");
   const [iteratingId, setIteratingId] = useState<string | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem("cardcutter-name");
-    if (saved) {
-      setUserName(saved);
-      // Load saved context
-      fetch(`/api/context?user=${encodeURIComponent(saved)}`)
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.context) {
-            setSavedContext(data.context);
-            setContext(data.context);
-          }
-        })
-        .catch(() => {});
-    }
-  }, []);
-
-  const handleNameChange = (name: string) => {
-    setUserName(name);
-    localStorage.setItem("cardcutter-name", name);
-  };
+    if (!userName) return;
+    fetch(`/api/context?user=${encodeURIComponent(userName)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.context) {
+          setSavedContext(data.context);
+          setContext(data.context);
+        }
+      })
+      .catch(() => {});
+  }, [userName]);
 
   const saveContext = async () => {
     if (!userName) return;
@@ -61,7 +51,6 @@ export default function CreatePage() {
     setLoading(true);
     setError("");
     setCard(null);
-    setStatus("Searching for evidence...");
 
     try {
       const res = await fetch("/api/generate", {
@@ -79,14 +68,12 @@ export default function CreatePage() {
         throw new Error(data.error || "Generation failed");
       }
 
-      setStatus("Card generated!");
       const data = await res.json();
       setCard(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
-      setTimeout(() => setStatus(""), 3000);
     }
   };
 
@@ -111,113 +98,89 @@ export default function CreatePage() {
 
   return (
     <>
-      <Navbar userName={userName} onNameChange={handleNameChange} />
-      <main className="max-w-4xl mx-auto px-4 py-6">
-        <h1 className="text-xl font-bold font-sans mb-6">Cut a Card</h1>
+      <h1 className="text-lg font-semibold tracking-tight mb-6">Cut a Card</h1>
 
-        <div className="space-y-4">
-          {/* Context */}
-          <div>
-            <label className="block text-sm text-[var(--muted)] font-sans mb-1">
-              Debate Context{" "}
-              <span className="text-xs">(saves across sessions)</span>
-            </label>
-            <div className="flex gap-2">
-              <textarea
-                value={context}
-                onChange={(e) => setContext(e.target.value)}
-                placeholder="e.g., We are running a Copyright reform aff on the 2024-25 topic. We need cards about fair use, licensing failures, and AI training data..."
-                className="flex-1 px-3 py-2 text-sm bg-[var(--card-bg)] border border-[var(--border)] rounded text-[var(--fg)] font-sans placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--accent)] min-h-[80px] resize-y"
-              />
-              {context !== savedContext && (
-                <button
-                  onClick={saveContext}
-                  className="self-start px-3 py-2 text-xs bg-[var(--border)] hover:bg-[var(--accent)] text-[var(--fg)] rounded font-sans transition-colors"
-                >
-                  Save
-                </button>
-              )}
+      <div className="space-y-5">
+        {/* Context */}
+        <div>
+          <div className="flex items-baseline justify-between mb-1.5">
+            <label className="text-[13px] text-[#666]">Debate Context</label>
+            {context !== savedContext && (
+              <button
+                onClick={saveContext}
+                className="text-[11px] text-[#3b82f6] hover:text-[#60a5fa] transition-colors"
+              >
+                Save context
+              </button>
+            )}
+          </div>
+          <textarea
+            value={context}
+            onChange={(e) => setContext(e.target.value)}
+            placeholder="e.g., Running a copyright reform aff on the 2024-25 topic..."
+            className="w-full px-3 py-2.5 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#333] focus:outline-none focus:border-[#333] transition-colors min-h-[70px] resize-y"
+          />
+        </div>
+
+        {/* Query */}
+        <div>
+          <label className="text-[13px] text-[#666] mb-1.5 block">
+            What should this card argue?
+          </label>
+          <textarea
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="e.g., Licensing fails because there is no entity that can administer licenses at the scale needed for AI training data..."
+            className="w-full px-3 py-2.5 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#333] focus:outline-none focus:border-[#333] transition-colors min-h-[100px] resize-y"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && e.metaKey) generateCard();
+            }}
+          />
+        </div>
+
+        {/* Generate */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={generateCard}
+            disabled={loading || !query.trim()}
+            className="px-5 py-2 bg-white text-black text-[13px] font-medium rounded-lg hover:bg-[#e5e5e5] disabled:opacity-30 transition-colors"
+          >
+            {loading ? "Generating..." : "Cut Card"}
+          </button>
+          <span className="text-[11px] text-[#333]">Cmd+Enter</span>
+        </div>
+
+        {error && (
+          <div className="px-3 py-2.5 bg-red-950/50 border border-red-900/50 rounded-lg text-[13px] text-red-400">
+            {error}
+          </div>
+        )}
+
+        {loading && (
+          <div className="flex items-center gap-3 px-4 py-5 border border-[#1a1a1a] rounded-lg bg-[#0a0a0a]">
+            <div className="animate-spin w-4 h-4 border-2 border-[#333] border-t-white rounded-full" />
+            <div className="text-[13px]">
+              <span className="text-[#999]">Searching and formatting...</span>
+              <span className="text-[#444] ml-2">~30-60s</span>
             </div>
           </div>
+        )}
 
-          {/* Query */}
-          <div>
-            <label className="block text-sm text-[var(--muted)] font-sans mb-1">
-              What should the card argue?
-            </label>
-            <textarea
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="e.g., Licensing fails because there is no entity that can administer licenses at the scale needed for AI training data, and the costs would be prohibitive..."
-              className="w-full px-3 py-2 text-sm bg-[var(--card-bg)] border border-[var(--border)] rounded text-[var(--fg)] font-sans placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--accent)] min-h-[100px] resize-y"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && e.metaKey) {
-                  generateCard();
-                }
-              }}
+        {card && (
+          <div className="pt-2">
+            <CardDisplay
+              id={card.id}
+              tag={card.tag}
+              cite={card.cite}
+              citeAuthor={card.cite_author}
+              evidenceHtml={card.evidence_html}
+              authorName={card.author_name}
+              onIterate={(instruction) => handleIterate(card.id, instruction)}
+              isLoading={iteratingId === card.id}
             />
           </div>
-
-          {/* Generate button */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={generateCard}
-              disabled={loading || !query.trim()}
-              className="px-6 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded font-sans font-medium disabled:opacity-50 transition-colors"
-            >
-              {loading ? "Generating..." : "Cut Card"}
-            </button>
-            {status && (
-              <span className="text-sm text-[var(--muted)] font-sans">
-                {status}
-              </span>
-            )}
-            <span className="text-xs text-[var(--muted)] font-sans">
-              Cmd+Enter to generate
-            </span>
-          </div>
-
-          {/* Error */}
-          {error && (
-            <div className="p-3 bg-red-900/30 border border-red-800 rounded text-sm text-red-300 font-sans">
-              {error}
-            </div>
-          )}
-
-          {/* Loading indicator */}
-          {loading && (
-            <div className="p-6 border border-[var(--border)] rounded-lg bg-[var(--card-bg)]">
-              <div className="flex items-center gap-3">
-                <div className="animate-spin w-5 h-5 border-2 border-[var(--accent)] border-t-transparent rounded-full" />
-                <div className="font-sans text-sm">
-                  <p className="text-[var(--fg)]">Generating card...</p>
-                  <p className="text-xs text-[var(--muted)] mt-1">
-                    Searching sources with Perplexity, then formatting with Claude.
-                    This may take 30-60 seconds.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Generated card */}
-          {card && (
-            <div className="mt-6">
-              <h2 className="text-lg font-bold font-sans mb-3">Generated Card</h2>
-              <CardDisplay
-                id={card.id}
-                tag={card.tag}
-                cite={card.cite}
-                citeAuthor={card.cite_author}
-                evidenceHtml={card.evidence_html}
-                authorName={card.author_name}
-                onIterate={(instruction) => handleIterate(card.id, instruction)}
-                isLoading={iteratingId === card.id}
-              />
-            </div>
-          )}
-        </div>
-      </main>
+        )}
+      </div>
     </>
   );
 }

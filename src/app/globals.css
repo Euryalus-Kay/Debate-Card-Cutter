@@ -1,48 +1,38 @@
 @import "tailwindcss";
 
-:root {
-  --bg: #0a0a0a;
-  --fg: #ededed;
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
-  --card-bg: #141414;
-  --border: #2a2a2a;
-  --muted: #888;
-}
-
 body {
-  background: var(--bg);
-  color: var(--fg);
-  font-family: "Georgia", "Times New Roman", serif;
+  background: #050505;
+  color: #e5e5e5;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 /* Card evidence styling */
 .card-evidence {
-  font-family: "Georgia", "Times New Roman", serif;
+  font-family: Georgia, "Times New Roman", serif;
   font-size: 11px;
-  line-height: 1.3;
-  color: #ccc;
+  line-height: 1.4;
+  color: #777;
 }
 
 .card-evidence mark {
   background: none;
-  color: #fff;
+  color: #e5e5e5;
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 .card-tag {
-  font-family: "Georgia", "Times New Roman", serif;
+  font-family: Georgia, "Times New Roman", serif;
   font-size: 13px;
   font-weight: 700;
-  color: #fff;
+  line-height: 1.4;
 }
 
 .card-cite {
-  font-family: "Georgia", "Times New Roman", serif;
+  font-family: Georgia, "Times New Roman", serif;
   font-size: 11px;
-  color: #ccc;
+  color: #999;
 }
 
 .card-cite .author-name {
@@ -51,29 +41,12 @@ body {
   text-decoration: underline;
 }
 
-/* Editable card styling */
-.card-editable:focus {
-  outline: 1px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* Copy button animation */
-.copy-success {
-  animation: pulse-green 0.5s ease-out;
-}
-
-@keyframes pulse-green {
-  0% { background-color: #22c55e; }
-  100% { background-color: transparent; }
-}
-
 /* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #222; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #333; }
 
-/* Selection */
 ::selection {
-  background: rgba(59, 130, 246, 0.3);
+  background: rgba(59, 130, 246, 0.2);
 }

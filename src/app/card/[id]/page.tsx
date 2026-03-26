@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
-import Navbar from "@/components/Navbar";
+import { useApp } from "@/components/AppShell";
 import CardDisplay from "@/components/CardDisplay";
 
 interface Card {
@@ -17,23 +17,13 @@ interface Card {
 
 export default function CardPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const { userName } = useApp();
   const [card, setCard] = useState<Card | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState("");
   const [iteratingId, setIteratingId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [editTag, setEditTag] = useState("");
   const [editEvidence, setEditEvidence] = useState("");
-
-  useEffect(() => {
-    const saved = localStorage.getItem("cardcutter-name");
-    if (saved) setUserName(saved);
-  }, []);
-
-  const handleNameChange = (name: string) => {
-    setUserName(name);
-    localStorage.setItem("cardcutter-name", name);
-  };
 
   useEffect(() => {
     fetch(`/api/cards/${id}`)
@@ -74,10 +64,7 @@ export default function CardPage({ params }: { params: Promise<{ id: string }> }
       const res = await fetch(`/api/cards/${card.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tag: editTag,
-          evidence_html: editEvidence,
-        }),
+        body: JSON.stringify({ tag: editTag, evidence_html: editEvidence }),
       });
       const data = await res.json();
       setCard({ ...card, ...data });
@@ -87,99 +74,95 @@ export default function CardPage({ params }: { params: Promise<{ id: string }> }
     }
   };
 
+  if (loading) {
+    return <div className="text-center py-20 text-[#444] text-sm">Loading...</div>;
+  }
+
+  if (!card) {
+    return <div className="text-center py-20 text-[#444] text-sm">Card not found.</div>;
+  }
+
   return (
-    <>
-      <Navbar userName={userName} onNameChange={handleNameChange} />
-      <main className="max-w-4xl mx-auto px-4 py-6">
-        {loading ? (
-          <div className="text-center py-20 text-[var(--muted)] font-sans">Loading...</div>
-        ) : !card ? (
-          <div className="text-center py-20 text-[var(--muted)] font-sans">Card not found.</div>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <a href="/" className="text-sm text-[var(--accent)] hover:underline font-sans">
-                &larr; Back to all cards
-              </a>
-              <button
-                onClick={() => setEditing(!editing)}
-                className="px-3 py-1.5 text-sm bg-[var(--border)] hover:bg-[var(--accent)] text-[var(--fg)] rounded font-sans transition-colors"
-              >
-                {editing ? "Cancel Edit" : "Edit Raw"}
-              </button>
-            </div>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <a href="/" className="text-[13px] text-[#666] hover:text-[#999] transition-colors">
+          &larr; Back
+        </a>
+        <button
+          onClick={() => setEditing(!editing)}
+          className="text-[13px] text-[#666] hover:text-[#999] transition-colors"
+        >
+          {editing ? "Cancel" : "Edit raw"}
+        </button>
+      </div>
 
-            {editing ? (
-              <div className="space-y-4 border border-[var(--border)] rounded-lg p-4 bg-[var(--card-bg)]">
-                <div>
-                  <label className="block text-sm text-[var(--muted)] font-sans mb-1">Tag</label>
-                  <input
-                    type="text"
-                    value={editTag}
-                    onChange={(e) => setEditTag(e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-[var(--bg)] border border-[var(--border)] rounded text-[var(--fg)] font-sans focus:outline-none focus:border-[var(--accent)]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-[var(--muted)] font-sans mb-1">
-                    Evidence HTML{" "}
-                    <span className="text-xs">(use &lt;mark&gt; tags for highlighting)</span>
-                  </label>
-                  <textarea
-                    value={editEvidence}
-                    onChange={(e) => setEditEvidence(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-[var(--bg)] border border-[var(--border)] rounded text-[var(--fg)] font-mono focus:outline-none focus:border-[var(--accent)] min-h-[300px] resize-y"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleSaveEdit}
-                    className="px-4 py-2 text-sm bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded font-sans transition-colors"
-                  >
-                    Save Changes
-                  </button>
-                  <button
-                    onClick={() => {
-                      setEditTag(card.tag);
-                      setEditEvidence(card.evidence_html);
-                      setEditing(false);
-                    }}
-                    className="px-4 py-2 text-sm bg-[var(--border)] hover:bg-[var(--muted)] text-[var(--fg)] rounded font-sans transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <CardDisplay
-                id={card.id}
-                tag={card.tag}
-                cite={card.cite}
-                citeAuthor={card.cite_author}
-                evidenceHtml={card.evidence_html}
-                authorName={card.author_name}
-                createdAt={card.created_at}
-                onIterate={(instruction) => handleIterate(card.id, instruction)}
-                isLoading={iteratingId === card.id}
-              />
-            )}
-
-            {card.cite_url && (
-              <div className="text-xs text-[var(--muted)] font-sans">
-                Source:{" "}
-                <a
-                  href={card.cite_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[var(--accent)] hover:underline"
-                >
-                  {card.cite_url}
-                </a>
-              </div>
-            )}
+      {editing ? (
+        <div className="space-y-4 border border-[#1a1a1a] rounded-lg p-4 bg-[#0a0a0a]">
+          <div>
+            <label className="text-[13px] text-[#666] mb-1.5 block">Tag</label>
+            <input
+              type="text"
+              value={editTag}
+              onChange={(e) => setEditTag(e.target.value)}
+              className="w-full px-3 py-2.5 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white focus:outline-none focus:border-[#333]"
+            />
           </div>
-        )}
-      </main>
-    </>
+          <div>
+            <label className="text-[13px] text-[#666] mb-1.5 block">
+              Evidence HTML <span className="text-[11px] text-[#444]">(&lt;mark&gt; = highlight)</span>
+            </label>
+            <textarea
+              value={editEvidence}
+              onChange={(e) => setEditEvidence(e.target.value)}
+              className="w-full px-3 py-2.5 text-[11px] bg-[#111] border border-[#1a1a1a] rounded-lg text-[#999] font-mono focus:outline-none focus:border-[#333] min-h-[300px] resize-y"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleSaveEdit}
+              className="px-4 py-2 text-[13px] bg-white text-black rounded-lg hover:bg-[#e5e5e5] transition-colors"
+            >
+              Save
+            </button>
+            <button
+              onClick={() => {
+                setEditTag(card.tag);
+                setEditEvidence(card.evidence_html);
+                setEditing(false);
+              }}
+              className="px-4 py-2 text-[13px] text-[#666] hover:text-[#999] transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <CardDisplay
+          id={card.id}
+          tag={card.tag}
+          cite={card.cite}
+          citeAuthor={card.cite_author}
+          evidenceHtml={card.evidence_html}
+          authorName={card.author_name}
+          createdAt={card.created_at}
+          onIterate={(instruction) => handleIterate(card.id, instruction)}
+          isLoading={iteratingId === card.id}
+        />
+      )}
+
+      {card.cite_url && (
+        <p className="text-[11px] text-[#333]">
+          Source:{" "}
+          <a
+            href={card.cite_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[#666] hover:text-[#999] underline transition-colors"
+          >
+            {card.cite_url}
+          </a>
+        </p>
+      )}
+    </div>
   );
 }

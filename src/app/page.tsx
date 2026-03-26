@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import Navbar from "@/components/Navbar";
+import { useApp } from "@/components/AppShell";
 import CardDisplay from "@/components/CardDisplay";
 
 interface Card {
@@ -15,21 +15,11 @@ interface Card {
 }
 
 export default function Home() {
+  const { userName } = useApp();
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
   const [iteratingId, setIteratingId] = useState<string | null>(null);
-  const [userName, setUserName] = useState("");
   const [filter, setFilter] = useState("");
-
-  useEffect(() => {
-    const saved = localStorage.getItem("cardcutter-name");
-    if (saved) setUserName(saved);
-  }, []);
-
-  const handleNameChange = (name: string) => {
-    setUserName(name);
-    localStorage.setItem("cardcutter-name", name);
-  };
 
   const fetchCards = useCallback(async () => {
     try {
@@ -45,7 +35,6 @@ export default function Home() {
 
   useEffect(() => {
     fetchCards();
-    // Poll for new cards every 30s
     const interval = setInterval(fetchCards, 30000);
     return () => clearInterval(interval);
   }, [fetchCards]);
@@ -97,57 +86,52 @@ export default function Home() {
 
   return (
     <>
-      <Navbar userName={userName} onNameChange={handleNameChange} />
-      <main className="max-w-4xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-bold font-sans">All Cards</h1>
-          <input
-            type="text"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            placeholder="Search cards..."
-            className="w-64 px-3 py-1.5 text-sm bg-[var(--card-bg)] border border-[var(--border)] rounded text-[var(--fg)] font-sans placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--accent)]"
-          />
-        </div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-lg font-semibold tracking-tight">Cards</h1>
+        <input
+          type="text"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="Search..."
+          className="w-56 px-3 py-1.5 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#444] focus:outline-none focus:border-[#333] transition-colors"
+        />
+      </div>
 
-        {loading ? (
-          <div className="text-center py-20 text-[var(--muted)] font-sans">
-            Loading cards...
-          </div>
-        ) : filteredCards.length === 0 ? (
-          <div className="text-center py-20">
-            <p className="text-[var(--muted)] font-sans mb-4">
-              {filter ? "No cards match your search." : "No cards yet."}
-            </p>
-            {!filter && (
-              <a
-                href="/create"
-                className="inline-block px-4 py-2 bg-[var(--accent)] text-white rounded font-sans hover:bg-[var(--accent-hover)] transition-colors"
-              >
-                Cut Your First Card
-              </a>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredCards.map((card) => (
-              <CardDisplay
-                key={card.id}
-                id={card.id}
-                tag={card.tag}
-                cite={card.cite}
-                citeAuthor={card.cite_author}
-                evidenceHtml={card.evidence_html}
-                authorName={card.author_name}
-                createdAt={card.created_at}
-                onIterate={(instruction) => handleIterate(card.id, instruction)}
-                onDelete={() => handleDelete(card.id)}
-                isLoading={iteratingId === card.id}
-              />
-            ))}
-          </div>
-        )}
-      </main>
+      {loading ? (
+        <div className="text-center py-20 text-[#444] text-sm">Loading cards...</div>
+      ) : filteredCards.length === 0 ? (
+        <div className="text-center py-20">
+          <p className="text-[#444] text-sm mb-4">
+            {filter ? "No cards match your search." : "No cards yet."}
+          </p>
+          {!filter && (
+            <a
+              href="/create"
+              className="inline-block px-4 py-2 bg-[#1a1a1a] text-[#ccc] text-sm rounded-lg hover:bg-[#222] transition-colors"
+            >
+              Cut your first card
+            </a>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filteredCards.map((card) => (
+            <CardDisplay
+              key={card.id}
+              id={card.id}
+              tag={card.tag}
+              cite={card.cite}
+              citeAuthor={card.cite_author}
+              evidenceHtml={card.evidence_html}
+              authorName={card.author_name}
+              createdAt={card.created_at}
+              onIterate={(instruction) => handleIterate(card.id, instruction)}
+              onDelete={() => handleDelete(card.id)}
+              isLoading={iteratingId === card.id}
+            />
+          ))}
+        </div>
+      )}
     </>
   );
 }
