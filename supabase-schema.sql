@@ -1,4 +1,15 @@
 -- Run this SQL in your Supabase SQL Editor to set up the database
+-- Run the ENTIRE script at once (paste all, click Run)
+
+-- Arguments table FIRST (cards references it)
+CREATE TABLE IF NOT EXISTS arguments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  author_name TEXT NOT NULL DEFAULT 'Anonymous',
+  card_ids UUID[] DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
 -- Cards table
 CREATE TABLE IF NOT EXISTS cards (
@@ -18,16 +29,6 @@ CREATE TABLE IF NOT EXISTS cards (
   argument_id UUID REFERENCES arguments(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Arguments table (groups of cards)
-CREATE TABLE IF NOT EXISTS arguments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title TEXT NOT NULL,
-  description TEXT NOT NULL DEFAULT '',
-  author_name TEXT NOT NULL DEFAULT 'Anonymous',
-  card_ids UUID[] DEFAULT '{}',
-  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- User contexts (persistent context per user)
