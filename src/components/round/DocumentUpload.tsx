@@ -67,9 +67,12 @@ export default function DocumentUpload({ onSubmit, isLoading }: Props) {
           <button
             onClick={() => text.trim() && onSubmit(text, 'paste')}
             disabled={isLoading || !text.trim()}
-            className="px-4 py-2 text-[13px] bg-white text-black rounded-lg hover:bg-[#e5e5e5] disabled:opacity-30 transition-colors"
+            className="px-4 py-2 text-[13px] bg-white text-black rounded-lg hover:bg-[#e5e5e5] disabled:opacity-30 transition-colors flex items-center gap-2"
           >
-            {isLoading ? 'Processing...' : 'Submit Speech'}
+            {isLoading && (
+              <div className="animate-spin w-3.5 h-3.5 border-2 border-black/20 border-t-black rounded-full" />
+            )}
+            {isLoading ? 'Processing speech...' : 'Submit Speech'}
           </button>
         </div>
       ) : (

@@ -316,6 +316,8 @@ export async function POST(req: NextRequest) {
           section_count: plan.sections.length,
         });
 
+        // Small delay to ensure the done event is flushed to the client
+        await new Promise(resolve => setTimeout(resolve, 100));
         controller.close();
       } catch (error) {
         console.error("Argument generation error:", error);

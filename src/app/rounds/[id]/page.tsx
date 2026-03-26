@@ -117,48 +117,68 @@ export default function RoundWorkspacePage({ params }: { params: Promise<{ id: s
 
   const getSpeech = (type: string) => speeches.find(s => s.speech_type === type);
 
+  const [speechProgress, setSpeechProgress] = useState<{ step: number; total: number; label: string } | null>(null);
+
   // Submit a speech (upload or paste)
   const handleSpeechSubmit = async (type: string, content: string, sourceType: 'paste' | 'upload', filename?: string, hasHighlights?: boolean) => {
     setProcessingSlot(type);
+    setSpeechProgress({ step: 1, total: 3, label: 'Uploading...' });
     const speaker = isUserSpeech(type) ? 'user' : 'opponent';
 
-    const res = await fetch(`/api/rounds/${roundId}/speeches`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        speech_type: type,
-        speaker,
-        content,
-        source_type: sourceType,
-        source_filename: filename,
-        speech_order: SPEECH_ORDER_MAP[type] ?? 0,
-        hasHighlights,
-      }),
-    });
+    try {
+      const res = await fetch(`/api/rounds/${roundId}/speeches`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          speech_type: type,
+          speaker,
+          content,
+          source_type: sourceType,
+          source_filename: filename,
+          speech_order: SPEECH_ORDER_MAP[type] ?? 0,
+          hasHighlights,
+        }),
+      });
 
-    const reader = res.body?.getReader();
-    const decoder = new TextDecoder();
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
-    if (reader) {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const text = decoder.decode(value);
-        const lines = text.split('\n');
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (data.id) {
-                // Done - reload
-                await loadRound();
-              }
-            } catch {}
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const messages = buffer.split('\n\n');
+          buffer = messages.pop() || '';
+          for (const message of messages) {
+            if (!message.trim()) continue;
+            const lines = message.split('\n');
+            let eventType = '';
+            let dataStr = '';
+            for (const line of lines) {
+              if (line.startsWith('event: ')) eventType = line.slice(7).trim();
+              else if (line.startsWith('data: ')) dataStr = line.slice(6);
+            }
+            if (dataStr) {
+              try {
+                const data = JSON.parse(dataStr);
+                if (eventType === 'progress') {
+                  setSpeechProgress(data);
+                } else if (eventType === 'done' || data.id) {
+                  await loadRound();
+                }
+              } catch {}
+            }
           }
         }
       }
+    } catch (err) {
+      console.error('Speech submit error:', err);
+    } finally {
+      setProcessingSlot(null);
+      setSpeechProgress(null);
     }
-    setProcessingSlot(null);
   };
 
   // Generate speech
@@ -424,6 +444,16 @@ export default function RoundWorkspacePage({ params }: { params: Promise<{ id: s
                     ({isUserSpeech(activeSlot) ? 'Your speech' : "Opponent's speech"})
                   </span>
                 </h2>
+
+                {processingSlot === activeSlot && speechProgress && (
+                  <div className="flex items-center gap-3 px-4 py-4 border border-[#1a1a1a] rounded-lg bg-[#0a0a0a]">
+                    <div className="animate-spin w-4 h-4 border-2 border-[#333] border-t-white rounded-full shrink-0" />
+                    <div>
+                      <div className="text-[13px] text-white">{speechProgress.label}</div>
+                      <div className="text-[11px] text-[#666] mt-0.5">Step {speechProgress.step} of {speechProgress.total}</div>
+                    </div>
+                  </div>
+                )}
 
                 {getSpeech(activeSlot) ? (
                   <div className="space-y-3">

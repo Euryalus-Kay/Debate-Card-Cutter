@@ -181,6 +181,8 @@ export default function ArgumentPage() {
       .catch(() => {});
   }, [userName]);
 
+  const componentCountRef = useRef(0);
+
   const generateArgument = async () => {
     if (!query.trim()) return;
     setLoading(true);
@@ -191,6 +193,7 @@ export default function ArgumentPage() {
     setErrorIndices(new Set());
     setDone(false);
     setProgress(null);
+    componentCountRef.current = 0;
 
     try {
       const res = await fetch("/api/argument", {
@@ -214,43 +217,62 @@ export default function ArgumentPage() {
 
       const decoder = new TextDecoder();
       let buffer = "";
+      let receivedDone = false;
 
-      while (true) {
-        const { done: streamDone, value } = await reader.read();
-        if (streamDone) break;
+      try {
+        while (true) {
+          const { done: streamDone, value } = await reader.read();
+          if (streamDone) break;
 
-        buffer += decoder.decode(value, { stream: true });
+          buffer += decoder.decode(value, { stream: true });
 
-        // SSE messages are separated by double newlines
-        const messages = buffer.split("\n\n");
-        buffer = messages.pop() || "";
+          // SSE messages are separated by double newlines
+          const messages = buffer.split("\n\n");
+          buffer = messages.pop() || "";
 
-        for (const message of messages) {
-          if (!message.trim()) continue;
-          const lines = message.split("\n");
-          let eventType = "message";
-          let dataStr = "";
+          for (const message of messages) {
+            if (!message.trim()) continue;
+            const lines = message.split("\n");
+            let eventType = "message";
+            let dataStr = "";
 
-          for (const line of lines) {
-            if (line.startsWith("event: ")) {
-              eventType = line.slice(7).trim();
-            } else if (line.startsWith("data: ")) {
-              dataStr = line.slice(6);
+            for (const line of lines) {
+              if (line.startsWith("event: ")) {
+                eventType = line.slice(7).trim();
+              } else if (line.startsWith("data: ")) {
+                dataStr = line.slice(6);
+              }
             }
-          }
 
-          if (dataStr) {
-            try {
-              const data = JSON.parse(dataStr);
-              handleSSEEvent(eventType, data);
-            } catch {
-              // skip malformed JSON
+            if (dataStr) {
+              try {
+                const data = JSON.parse(dataStr);
+                if (eventType === "done") receivedDone = true;
+                handleSSEEvent(eventType, data);
+              } catch {
+                // skip malformed JSON
+              }
             }
           }
         }
+      } catch {
+        // Stream interrupted — if we already got components, that's fine
+      }
+
+      // If stream ended without explicit done event but we have components, mark as done
+      if (!receivedDone && componentCountRef.current > 0) {
+        setDone(true);
+        setProgress(null);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      // Only show error if we got NO components at all
+      if (componentCountRef.current === 0) {
+        setError(err instanceof Error ? err.message : "Something went wrong");
+      } else {
+        // We have components — just mark done despite the error
+        setDone(true);
+        setProgress(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -268,6 +290,7 @@ export default function ArgumentPage() {
         const comp = data as unknown as GeneratedComponent;
         setComponents((prev) => [...prev, comp]);
         setCompletedIndices((prev) => new Set([...prev, comp.index]));
+        componentCountRef.current++;
         break;
       }
       case "component_error": {
