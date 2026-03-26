@@ -1,184 +1,224 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useApp } from "@/components/AppShell";
-import CardDisplay from "@/components/CardDisplay";
 
 interface Card {
   id: string;
   tag: string;
   cite: string;
   cite_author: string;
-  evidence_html: string;
   author_name: string;
   created_at: string;
 }
 
-// Get a short preview of the tag (first ~60 chars)
-function shortTag(tag: string): string {
-  if (tag.length <= 60) return tag;
-  return tag.substring(0, 57) + "...";
+interface Round {
+  id: string;
+  name: string;
+  topic: string;
+  side: string;
+  created_at: string;
 }
 
-// Get author surname from cite_author like "Hansen and Brooke 23"
+function shortTag(tag: string): string {
+  if (tag.length <= 80) return tag;
+  return tag.substring(0, 77) + "...";
+}
+
 function authorShort(cite: string): string {
   const parenIdx = cite.indexOf("(");
   if (parenIdx > 0) return cite.substring(0, parenIdx).trim();
   return cite.substring(0, 30);
 }
 
-export default function Home() {
+export default function DashboardPage() {
   const { userName } = useApp();
-  const [cards, setCards] = useState<Card[]>([]);
+  const [recentCards, setRecentCards] = useState<Card[]>([]);
+  const [recentRounds, setRecentRounds] = useState<Round[]>([]);
   const [loading, setLoading] = useState(true);
-  const [iteratingId, setIteratingId] = useState<string | null>(null);
-  const [filter, setFilter] = useState("");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  const fetchCards = useCallback(async () => {
-    try {
-      const res = await fetch("/api/cards");
-      const data = await res.json();
-      if (Array.isArray(data)) setCards(data);
-    } catch (err) {
-      console.error("Failed to fetch cards:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   useEffect(() => {
-    fetchCards();
-    const interval = setInterval(fetchCards, 30000);
-    return () => clearInterval(interval);
-  }, [fetchCards]);
+    Promise.all([
+      fetch("/api/cards?limit=5")
+        .then((r) => r.json())
+        .then((data) => {
+          if (Array.isArray(data)) setRecentCards(data.slice(0, 5));
+        })
+        .catch(() => {}),
+      fetch("/api/rounds")
+        .then((r) => r.json())
+        .then((data) => {
+          if (Array.isArray(data)) setRecentRounds(data.slice(0, 3));
+        })
+        .catch(() => {}),
+    ]).finally(() => setLoading(false));
+  }, []);
 
-  const handleIterate = async (cardId: string, instruction: string) => {
-    setIteratingId(cardId);
-    try {
-      const res = await fetch("/api/iterate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cardId, instruction }),
-      });
-      const data = await res.json();
-      if (data.tag && data.evidence_html) {
-        setCards((prev) =>
-          prev.map((c) =>
-            c.id === cardId
-              ? { ...c, tag: data.tag, evidence_html: data.evidence_html }
-              : c
-          )
-        );
-      }
-    } catch (err) {
-      console.error("Iterate failed:", err);
-    } finally {
-      setIteratingId(null);
-    }
-  };
-
-  const handleDelete = async (cardId: string) => {
-    if (!confirm("Delete this card?")) return;
-    try {
-      await fetch(`/api/cards/${cardId}`, { method: "DELETE" });
-      setCards((prev) => prev.filter((c) => c.id !== cardId));
-    } catch (err) {
-      console.error("Delete failed:", err);
-    }
-  };
-
-  const filteredCards = cards.filter((c) => {
-    if (!filter) return true;
-    const q = filter.toLowerCase();
-    return (
-      c.tag.toLowerCase().includes(q) ||
-      c.cite.toLowerCase().includes(q) ||
-      c.author_name.toLowerCase().includes(q)
-    );
-  });
+  const features = [
+    {
+      href: "/create",
+      title: "Cut Card",
+      desc: "AI finds evidence and cuts a formatted debate card from any topic.",
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+        </svg>
+      ),
+    },
+    {
+      href: "/argument",
+      title: "Build Argument",
+      desc: "Generate a complete argument block: DA, Aff case, CP, K, or T.",
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+        </svg>
+      ),
+    },
+    {
+      href: "/rounds",
+      title: "Rounds",
+      desc: "Prep for rounds with speech planning, flows, and CX questions.",
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+      ),
+    },
+    {
+      href: "/library",
+      title: "Library",
+      desc: "Browse, search, and upload card collections.",
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+        </svg>
+      ),
+    },
+  ];
 
   return (
     <>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-lg font-semibold tracking-tight">Cards</h1>
-        <input
-          type="text"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          placeholder="Search..."
-          className="w-56 px-3 py-1.5 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#444] focus:outline-none focus:border-[#333] transition-colors"
-        />
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Welcome back{userName ? `, ${userName}` : ""}
+        </h1>
+        <p className="text-[13px] text-[#666] mt-1">
+          Your debate prep hub. Cut cards, build arguments, and prep for rounds.
+        </p>
       </div>
 
-      {loading ? (
-        <div className="text-center py-20 text-[#555] text-sm">Loading cards...</div>
-      ) : filteredCards.length === 0 ? (
-        <div className="text-center py-20">
-          <p className="text-[#555] text-sm mb-4">
-            {filter ? "No cards match your search." : "No cards yet."}
-          </p>
-          {!filter && (
-            <a
+      {/* Quick links */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10">
+        {features.map((f) => (
+          <Link
+            key={f.href}
+            href={f.href}
+            className="group p-4 rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] hover:border-[#333] hover:bg-[#111] transition-all"
+          >
+            <div className="text-[#666] group-hover:text-white transition-colors mb-3">
+              {f.icon}
+            </div>
+            <div className="text-[13px] font-semibold text-white mb-1">{f.title}</div>
+            <div className="text-[11px] text-[#555] leading-relaxed">{f.desc}</div>
+          </Link>
+        ))}
+      </div>
+
+      {/* Recent cards */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-[15px] font-semibold">Recent Cards</h2>
+          <Link href="/library" className="text-[11px] text-[#555] hover:text-[#999] transition-colors">
+            View all
+          </Link>
+        </div>
+        {loading ? (
+          <div className="text-[13px] text-[#444] py-4">Loading...</div>
+        ) : recentCards.length === 0 ? (
+          <div className="text-center py-8 border border-[#1a1a1a] rounded-lg bg-[#0a0a0a]">
+            <p className="text-[13px] text-[#555] mb-2">No cards yet</p>
+            <Link
               href="/create"
-              className="inline-block px-4 py-2 bg-[#1a1a1a] text-[#ccc] text-sm rounded-lg hover:bg-[#222] transition-colors"
+              className="inline-block text-[12px] text-[#888] hover:text-white transition-colors"
             >
               Cut your first card
-            </a>
-          )}
-        </div>
-      ) : (
-        <>
-          {/* Card grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-            {filteredCards.map((card) => (
-              <button
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {recentCards.map((card) => (
+              <Link
                 key={card.id}
-                onClick={() => setExpandedId(expandedId === card.id ? null : card.id)}
-                className={`text-left p-3 rounded-lg border transition-all ${
-                  expandedId === card.id
-                    ? "border-blue-500/50 bg-blue-950/20"
-                    : "border-[#1a1a1a] bg-[#0a0a0a] hover:border-[#333]"
-                }`}
+                href={`/card/${card.id}`}
+                className="flex items-center justify-between p-3 rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] hover:border-[#333] transition-colors group"
               >
-                <div className="text-[11px] font-semibold text-white leading-tight mb-2 line-clamp-2" style={{ fontFamily: "Georgia, serif" }}>
-                  {shortTag(card.tag)}
+                <div className="min-w-0 flex-1">
+                  <div
+                    className="text-[12px] font-semibold text-white leading-tight truncate group-hover:text-blue-300 transition-colors"
+                    style={{ fontFamily: "Georgia, serif" }}
+                  >
+                    {shortTag(card.tag)}
+                  </div>
+                  <div className="text-[11px] text-[#555] mt-0.5" style={{ fontFamily: "Georgia, serif" }}>
+                    {authorShort(card.cite)}
+                  </div>
                 </div>
-                <div className="text-[10px] text-[#666] leading-tight mb-1.5" style={{ fontFamily: "Georgia, serif" }}>
-                  {authorShort(card.cite)}
+                <div className="text-[10px] text-[#333] ml-3 shrink-0">
+                  {new Date(card.created_at).toLocaleDateString()}
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[9px] text-[#444]">{card.author_name}</span>
-                  <span className="text-[9px] text-[#333]">
-                    {new Date(card.created_at).toLocaleDateString()}
-                  </span>
-                </div>
-              </button>
+              </Link>
             ))}
           </div>
+        )}
+      </div>
 
-          {/* Expanded card */}
-          {expandedId && (() => {
-            const card = filteredCards.find((c) => c.id === expandedId);
-            if (!card) return null;
-            return (
-              <CardDisplay
-                key={card.id}
-                id={card.id}
-                tag={card.tag}
-                cite={card.cite}
-                citeAuthor={card.cite_author}
-                evidenceHtml={card.evidence_html}
-                authorName={card.author_name}
-                createdAt={card.created_at}
-                onIterate={(instruction) => handleIterate(card.id, instruction)}
-                onDelete={() => handleDelete(card.id)}
-                isLoading={iteratingId === card.id}
-              />
-            );
-          })()}
-        </>
-      )}
+      {/* Recent rounds */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-[15px] font-semibold">Recent Rounds</h2>
+          <Link href="/rounds" className="text-[11px] text-[#555] hover:text-[#999] transition-colors">
+            View all
+          </Link>
+        </div>
+        {loading ? (
+          <div className="text-[13px] text-[#444] py-4">Loading...</div>
+        ) : recentRounds.length === 0 ? (
+          <div className="text-center py-8 border border-[#1a1a1a] rounded-lg bg-[#0a0a0a]">
+            <p className="text-[13px] text-[#555] mb-2">No rounds yet</p>
+            <Link
+              href="/rounds/new"
+              className="inline-block text-[12px] text-[#888] hover:text-white transition-colors"
+            >
+              Start a round
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {recentRounds.map((round) => (
+              <Link
+                key={round.id}
+                href={`/rounds/${round.id}`}
+                className="flex items-center justify-between p-3 rounded-lg border border-[#1a1a1a] bg-[#0a0a0a] hover:border-[#333] transition-colors group"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="text-[12px] font-semibold text-white truncate group-hover:text-blue-300 transition-colors">
+                    {round.name || "Untitled Round"}
+                  </div>
+                  <div className="text-[11px] text-[#555] mt-0.5">
+                    {round.side === "aff" ? "Affirmative" : "Negative"}
+                    {round.topic ? ` — ${round.topic}` : ""}
+                  </div>
+                </div>
+                <div className="text-[10px] text-[#333] ml-3 shrink-0">
+                  {new Date(round.created_at).toLocaleDateString()}
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
     </>
   );
 }

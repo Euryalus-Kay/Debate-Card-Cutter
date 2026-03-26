@@ -273,6 +273,204 @@ Return JSON with:
   return JSON.parse(extractJson(text));
 }
 
+export type ArgumentType = "aff" | "da" | "cp" | "k" | "t" | "theory" | "custom";
+
+interface ArgumentComponent {
+  type: "card" | "analytic" | "plan_text" | "interp_text";
+  label: string;
+  query?: string; // search query if type=card
+  purpose: string;
+  content?: string; // for analytic/plan_text/interp_text, the AI-written text
+}
+
+export interface AdvancedArgumentPlan {
+  title: string;
+  description: string;
+  strategy_overview: string;
+  argument_type: ArgumentType;
+  components: ArgumentComponent[];
+}
+
+const ARGUMENT_TYPE_KNOWLEDGE: Record<ArgumentType, string> = {
+  aff: `AFFIRMATIVE CASE (1AC) STRUCTURE:
+You are planning an Affirmative Case for policy debate. The 1AC follows a specific structure:
+
+CONTENTION 1: INHERENCY — Evidence showing the problem exists in the status quo and current policies are insufficient.
+PLAN TEXT — The specific policy proposal the affirmative team advocates. Written as: "The United States federal government should [action]." This is NOT an evidence card — it is a debater-written text.
+CONTENTION 2: HARMS/ADVANTAGES — Evidence showing the significance of the problem.
+  - Each advantage needs INTERNAL LINKS (chain of causation) and IMPACTS (terminal consequences).
+  - Common impact framing: lives saved, economic growth, hegemony, environmental protection, etc.
+CONTENTION 3: SOLVENCY — Evidence showing the plan fixes the problem.
+  - Need at least one "mechanism" card showing HOW the plan solves.
+  - Ideally include "sufficiency" evidence showing the plan solves ENOUGH.
+
+For advantages-style cases, structure as:
+- Advantage 1: [Name] — with uniqueness, link, internal link, impact
+- Advantage 2: [Name] — same structure
+- Plan text between inherency and advantages OR before advantages
+- Solvency woven into each advantage or as separate contention
+
+Generate 5-8 evidence cards plus a plan text and any needed analytics.`,
+
+  da: `DISADVANTAGE (DA) STRUCTURE:
+You are planning a Disadvantage for policy debate. DAs have this structure:
+
+UNIQUENESS — Evidence showing the status quo is stable/good right now. The impact is NOT happening currently.
+  - "Brink" evidence is especially powerful: shows we're RIGHT AT the tipping point.
+LINK — Evidence showing the affirmative plan CAUSES the bad thing. This connects the plan to the impact chain.
+  - Generic links work against many affs (e.g., "spending" links to any plan that costs money).
+  - Specific links are stronger but narrower.
+INTERNAL LINK — Evidence showing how the link leads to the impact (the causal chain).
+IMPACT — Evidence showing the terminal consequence is catastrophic/significant.
+  - Nuclear war, economic collapse, extinction, hegemony loss, etc.
+  - Magnitude + timeframe + probability framing.
+
+A strong DA needs 2-3 uniqueness cards, 1-2 link cards, 1 internal link card, and 1-2 impact cards.
+Include analytics explaining the story of the DA between cards.`,
+
+  cp: `COUNTERPLAN (CP) STRUCTURE:
+You are planning a Counterplan for policy debate. CPs have this structure:
+
+CP TEXT — The specific alternative policy. Written formally like a plan text.
+  - Must be non-topical (cannot be what the resolution advocates).
+  - Common types: States CP, International CP, Consult CP, Advantage CP, PIC (Plan-Inclusive Counterplan).
+SOLVENCY — Evidence showing the CP solves the same advantages as the affirmative plan.
+  - Must show the CP addresses the affirmative's harms.
+NET BENEFIT — The reason the CP is BETTER than the plan. Usually a DA that links to the plan but not the CP.
+  - This is the voting issue: the CP solves the aff's advantages AND avoids a disadvantage.
+COMPETITION — Evidence/analytics showing the CP and plan are mutually exclusive.
+  - Mutual exclusivity: cannot do both at once.
+  - Net benefits: doing both is worse than just the CP.
+  - Must answer permutations (perm: do both, perm: do the CP, etc.).
+
+Generate the CP text, 2-3 solvency cards, net benefit evidence, and competition arguments.`,
+
+  k: `KRITIK (K) STRUCTURE:
+You are planning a Kritik for policy debate. Kritiks have this structure:
+
+LINK — Evidence showing the affirmative's plan/rhetoric/assumptions are problematic.
+  - Can be specific (to the plan) or generic (to the assumptions behind it).
+  - Discourse/rhetoric links: the WAY they talk about the issue is harmful.
+  - Assumption links: their framework/epistemology is flawed.
+IMPACT/IMPLICATIONS — Evidence showing why the linked assumptions/actions are harmful.
+  - Often structural violence, epistemological violence, or ontological harms.
+  - Different from policy impacts: these are about ways of thinking, not just policy outcomes.
+ALTERNATIVE — The proposed alternative to the affirmative's framework.
+  - Can be a specific action, a rejection, a methodology shift, or an ethical commitment.
+  - Must solve or address the link.
+FRAMEWORK / ROLE OF THE BALLOT — Argument for why the judge should evaluate the round through the K's lens.
+  - Why should the judge prioritize K impacts over policy impacts?
+  - What does voting aff/neg mean in context of the K?
+
+The K needs philosophical depth. Generate cards from critical theory literature.
+Common Ks: Capitalism K, Securitization K, Settler Colonialism K, Afropessimism K, Baudrillard K, Deleuze K.`,
+
+  t: `TOPICALITY (T) STRUCTURE:
+You are planning a Topicality argument for policy debate. T has this structure:
+
+INTERPRETATION — Your definition of the key term in the resolution.
+  - Must come from a credible source (legal dictionary, statutory definition, academic usage).
+  - This is YOUR definition that the affirmative violates.
+VIOLATION — An analytic argument explaining HOW the affirmative's plan does not meet your interpretation.
+  - "The affirmative defines [term] as [their definition] but our interpretation requires [X] which they don't do."
+STANDARDS — Arguments for why YOUR interpretation is BETTER. These are the core of T:
+  - LIMITS: Your interp sets better limits on the topic, preventing unlimited affirmative ground.
+  - GROUND: Your interp preserves negative ground (DAs, CPs that are relevant).
+  - PREDICTABILITY: Your interp is more predictable, allowing better preparation.
+  - EDUCATION: Your interp leads to better debates and more educational value.
+  - BRIGHT LINE: Your interp provides a clear line between topical and non-topical.
+VOTERS — Why topicality is a voting issue:
+  - EDUCATION: Fair limits ensure educational debates.
+  - FAIRNESS: Competitive equity requires predictable interpretations.
+  - JURISDICTION: The judge only has authority to evaluate topical plans.
+
+Generate the interpretation card, write the violation analytic, and get standards/voters evidence.`,
+
+  theory: `THEORY ARGUMENT STRUCTURE:
+You are planning a Theory argument for policy debate. Theory challenges debate practices:
+
+INTERPRETATION — The rule you think debate should follow.
+  - e.g., "The negative must not run more than 2 conditional advocacies."
+VIOLATION — How the opponent broke this rule.
+  - Specific description of what they did wrong.
+STANDARDS — Why your rule is good for debate:
+  - FAIRNESS: How the violation is unfair (time skew, strategy skew, moving target).
+  - EDUCATION: How the violation undermines educational value.
+  - GROUND: How it takes away arguments or preparation.
+  - RECIPROCITY: Both sides should have equal obligations.
+VOTERS — Why this matters enough to decide the round:
+  - Fairness as a voter: competitive equity.
+  - Education as a voter: the purpose of debate.
+  - Drop the argument vs. drop the team.
+
+Common theory args: Condo bad, Dispo good, PICs bad, States CP theory, Consult CP theory.`,
+
+  custom: `CUSTOM ARGUMENT:
+The user will describe their argument idea. Analyze what type of argument it is and determine the appropriate structure. Use your knowledge of policy debate to figure out what components are needed.
+
+Consider whether this is:
+- A case argument (needs inherency, harms, plan, solvency)
+- An off-case argument (needs uniqueness, link, impact)
+- A procedural (needs interpretation, violation, standards, voters)
+- A kritik (needs link, impact, alternative, framework)
+- A hybrid or novel structure
+
+Plan the components accordingly.`,
+};
+
+export async function planArgumentAdvanced(
+  argumentType: ArgumentType,
+  description: string,
+  userContext: string
+): Promise<AdvancedArgumentPlan> {
+  const typeKnowledge = ARGUMENT_TYPE_KNOWLEDGE[argumentType];
+
+  const systemPrompt = `You are an elite high school policy debate strategist and coach. You plan complete, tournament-ready argument blocks.
+
+${typeKnowledge}
+
+PLANNING RULES:
+1. Each "card" component needs a specific, searchable query that will find real evidence.
+2. "analytic" components are debater-written arguments (no evidence needed) — write the full text.
+3. "plan_text" is the formal policy proposal text — write it out completely.
+4. "interp_text" is the formal interpretation for T/Theory — write it out completely.
+5. Plan enough cards to make the argument competitive but not bloated.
+6. Order components in the proper debate structure.
+7. Make search queries SPECIFIC — not generic. Include keywords that will find expert analysis.
+8. Analytics should sound like an experienced debater wrote them — concise, strategic, persuasive.
+
+Return a JSON object:
+{
+  "title": "Argument block name",
+  "description": "2-3 sentence description of the argument strategy",
+  "strategy_overview": "Longer strategic explanation of how to run this argument, when to read it, what it's strongest against",
+  "argument_type": "${argumentType}",
+  "components": [
+    {
+      "type": "card" | "analytic" | "plan_text" | "interp_text",
+      "label": "Component label (e.g., 'Uniqueness 1 — Economy Strong Now')",
+      "query": "specific search query for evidence (only for type=card)",
+      "purpose": "what this component does in the argument",
+      "content": "full text content (only for analytic/plan_text/interp_text)"
+    }
+  ]
+}`;
+
+  const text = await streamMessage({
+    model: "claude-opus-4-20250514",
+    max_tokens: 8000,
+    system: systemPrompt,
+    messages: [
+      {
+        role: "user",
+        content: `Plan a complete ${argumentType.toUpperCase()} argument block for:\n${description}\n\n${userContext ? `Context/Topic: ${userContext}` : ""}\n\nReturn JSON only.`,
+      },
+    ],
+  });
+
+  return JSON.parse(extractJson(text));
+}
+
 export async function selectBestSource(
   query: string,
   searchResults: string,

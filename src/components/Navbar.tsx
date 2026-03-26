@@ -15,7 +15,6 @@ export default function Navbar({
   const pathname = usePathname();
 
   const links = [
-    { href: "/", label: "Cards" },
     { href: "/create", label: "Cut Card" },
     { href: "/argument", label: "Build Argument" },
     { href: "/rounds", label: "Rounds" },
@@ -26,6 +25,17 @@ export default function Navbar({
     <nav className="sticky top-0 z-50 border-b border-[#1a1a1a] bg-[#050505]/90 backdrop-blur-md">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 h-12 flex items-center justify-between">
         <div className="flex items-center gap-1">
+          <Link
+            href="/"
+            className={`px-3 py-1.5 text-[13px] rounded-md font-sans transition-colors font-semibold ${
+              pathname === "/"
+                ? "text-white"
+                : "text-[#ccc] hover:text-white"
+            }`}
+          >
+            Debate
+          </Link>
+          <span className="text-[#333] mx-0.5">|</span>
           {links.map((link) => (
             <Link
               key={link.href}

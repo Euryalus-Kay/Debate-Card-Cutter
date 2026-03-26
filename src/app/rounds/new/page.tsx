@@ -19,8 +19,11 @@ export default function NewRoundPage() {
 
   useEffect(() => {
     fetch('/api/users').then(r => r.json()).then(data => {
-      const names = (data || []).map((u: { user_name?: string; author_name?: string }) => u.user_name || u.author_name).filter(Boolean);
-      setUsers([...new Set(names)] as string[]);
+      // API returns a simple string array like ["Zain", "Alex"]
+      if (Array.isArray(data)) {
+        const names = data.filter((n: unknown) => typeof n === 'string' && n !== 'Anonymous');
+        setUsers(names);
+      }
     }).catch(() => {});
   }, []);
 
