@@ -8,6 +8,19 @@ import { v4 as uuid } from "uuid";
 
 export const maxDuration = 300;
 
+export async function GET(req: NextRequest) {
+  const list = req.nextUrl.searchParams.get('list');
+  if (list) {
+    const { data, error } = await supabase
+      .from('arguments')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) return new Response(JSON.stringify([]), { headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify(data || []), { headers: { 'Content-Type': 'application/json' } });
+  }
+  return new Response(JSON.stringify([]), { headers: { 'Content-Type': 'application/json' } });
+}
+
 export async function POST(req: NextRequest) {
   const { query, context, authorName, argument_type } = await req.json();
 
