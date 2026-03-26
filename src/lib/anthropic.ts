@@ -4,6 +4,33 @@ const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 });
 
+// Helper: stream a Claude request and collect the full text
+async function streamMessage(params: {
+  model: string;
+  max_tokens: number;
+  system: string;
+  messages: Array<{ role: "user" | "assistant"; content: string }>;
+}): Promise<string> {
+  const stream = client.messages.stream({
+    model: params.model,
+    max_tokens: params.max_tokens,
+    system: params.system,
+    messages: params.messages,
+  });
+
+  const response = await stream.finalMessage();
+  const content = response.content[0];
+  if (content.type !== "text") throw new Error("Unexpected response type");
+  return content.text;
+}
+
+// Helper: extract JSON from text
+function extractJson(text: string): string {
+  const match = text.match(/\{[\s\S]*\}/);
+  if (match) return match[0];
+  return text;
+}
+
 export async function generateCard(
   query: string,
   sourceText: string,
@@ -67,7 +94,14 @@ OUTPUT FORMAT: Return a JSON object with these exact fields:
   "evidence_html": "The full evidence HTML with <mark> tags for highlighting"
 }`;
 
-  const userPrompt = `Create a debate card for the following argument:
+  const text = await streamMessage({
+    model: "claude-opus-4-20250514",
+    max_tokens: 16000,
+    system: systemPrompt,
+    messages: [
+      {
+        role: "user",
+        content: `Create a debate card for the following argument:
 ${query}
 
 ${userContext ? `Debate context: ${userContext}` : ""}
@@ -85,34 +119,12 @@ Remember:
 2. Use <mark> tags to highlight key parts that form coherent sentences when read alone
 3. NEVER modify the source text - only add <mark> tags around existing text
 4. The tag should be a strong, specific claim
-5. Return valid JSON only`;
-
-  const response = await client.messages.create({
-    model: "claude-opus-4-20250514",
-    max_tokens: 16000,
-    messages: [
-      { role: "user", content: userPrompt },
+5. Return valid JSON only`,
+      },
     ],
-    system: systemPrompt,
   });
 
-  const content = response.content[0];
-  if (content.type !== "text") {
-    throw new Error("Unexpected response type from Claude");
-  }
-
-  // Extract JSON from response
-  let jsonStr = content.text;
-  const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    jsonStr = jsonMatch[0];
-  }
-
-  try {
-    return JSON.parse(jsonStr);
-  } catch {
-    throw new Error(`Failed to parse Claude response as JSON: ${content.text.substring(0, 500)}`);
-  }
+  return JSON.parse(extractJson(text));
 }
 
 export async function generateCardFast(
@@ -142,29 +154,25 @@ Rules:
 - NEVER modify source text, only add <mark> tags
 - Return valid JSON only`;
 
-  const userPrompt = `Create a debate card for: ${query}
+  const text = await streamMessage({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 8000,
+    system: systemPrompt,
+    messages: [
+      {
+        role: "user",
+        content: `Create a debate card for: ${query}
 ${userContext ? `Context: ${userContext}` : ""}
 Source: ${sourceUrl}
 Source info: ${sourceInfo}
 Text: ${sourceText.substring(0, 12000)}
 
-Return JSON only.`;
-
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 8000,
-    messages: [{ role: "user", content: userPrompt }],
-    system: systemPrompt,
+Return JSON only.`,
+      },
+    ],
   });
 
-  const content = response.content[0];
-  if (content.type !== "text") throw new Error("Unexpected response type");
-
-  let jsonStr = content.text;
-  const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
-  if (jsonMatch) jsonStr = jsonMatch[0];
-
-  return JSON.parse(jsonStr);
+  return JSON.parse(extractJson(text));
 }
 
 export async function iterateCard(
@@ -196,9 +204,10 @@ When adjusting highlights:
 
 Return JSON with "tag" and "evidence_html" fields only.`;
 
-  const response = await client.messages.create({
+  const text = await streamMessage({
     model: "claude-opus-4-20250514",
     max_tokens: 16000,
+    system: systemPrompt,
     messages: [
       {
         role: "user",
@@ -216,17 +225,9 @@ USER INSTRUCTION: ${instruction}
 Modify the card according to the instruction. Remember: NEVER change the evidence text itself, only the tag and highlighting. Return JSON with "tag" and "evidence_html".`,
       },
     ],
-    system: systemPrompt,
   });
 
-  const content = response.content[0];
-  if (content.type !== "text") throw new Error("Unexpected response type");
-
-  let jsonStr = content.text;
-  const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
-  if (jsonMatch) jsonStr = jsonMatch[0];
-
-  return JSON.parse(jsonStr);
+  return JSON.parse(extractJson(text));
 }
 
 export async function planArgument(
@@ -259,26 +260,19 @@ Return JSON with:
   ]
 }`;
 
-  const response = await client.messages.create({
+  const text = await streamMessage({
     model: "claude-opus-4-20250514",
     max_tokens: 4000,
+    system: systemPrompt,
     messages: [
       {
         role: "user",
         content: `Plan a complete debate argument block for:\n${query}\n\n${userContext ? `Context: ${userContext}` : ""}`,
       },
     ],
-    system: systemPrompt,
   });
 
-  const content = response.content[0];
-  if (content.type !== "text") throw new Error("Unexpected response type");
-
-  let jsonStr = content.text;
-  const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
-  if (jsonMatch) jsonStr = jsonMatch[0];
-
-  return JSON.parse(jsonStr);
+  return JSON.parse(extractJson(text));
 }
 
 export async function selectBestSource(
@@ -286,9 +280,10 @@ export async function selectBestSource(
   searchResults: string,
   sources: Array<{ url: string; title: string }>
 ): Promise<{ selectedUrl: string; reason: string }> {
-  const response = await client.messages.create({
-    model: "claude-opus-4-20250514",
+  const text = await streamMessage({
+    model: "claude-sonnet-4-20250514",
     max_tokens: 1000,
+    system: "You select the best source for debate evidence cards. Return only valid JSON.",
     messages: [
       {
         role: "user",
@@ -309,15 +304,7 @@ Select the BEST source for cutting a debate card. Consider:
 Return JSON: {"selectedUrl": "the url", "reason": "why this source is best"}`,
       },
     ],
-    system: "You select the best source for debate evidence cards. Return only valid JSON.",
   });
 
-  const content = response.content[0];
-  if (content.type !== "text") throw new Error("Unexpected response type");
-
-  let jsonStr = content.text;
-  const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
-  if (jsonMatch) jsonStr = jsonMatch[0];
-
-  return JSON.parse(jsonStr);
+  return JSON.parse(extractJson(text));
 }
