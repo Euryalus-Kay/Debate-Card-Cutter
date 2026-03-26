@@ -6,18 +6,21 @@ interface Props {
   speechType: string;
   html: string;
   rawContent: string;
+  sourceType?: string;
+  sourceFilename?: string;
   onIterate?: (instruction: string) => void;
   onExplain?: (text: string) => void;
   isLoading?: boolean;
 }
 
-export default function SpeechDisplay({ speechType, html, rawContent, onIterate, onExplain, isLoading }: Props) {
+export default function SpeechDisplay({ speechType, html, rawContent, sourceType, sourceFilename, onIterate, onExplain, isLoading }: Props) {
   const [copied, setCopied] = useState(false);
   const [showIterate, setShowIterate] = useState(false);
   const [iterateInput, setIterateInput] = useState('');
   const contentRef = useRef<HTMLDivElement>(null);
 
   const content = html || rawContent;
+  const wordCount = (rawContent || '').split(/\s+/).filter(Boolean).length;
 
   const copyToClipboard = async () => {
     try {
@@ -46,8 +49,21 @@ export default function SpeechDisplay({ speechType, html, rawContent, onIterate,
 
   return (
     <div className="border border-[#1a1a1a] rounded-lg bg-[#0a0a0a] overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-[#1a1a1a]">
-        <span className="text-[13px] font-medium text-white">{speechType}</span>
+      {/* Header with status */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#1a1a1a]">
+        <div className="flex items-center gap-3">
+          <span className="text-[13px] font-medium text-white">{speechType}</span>
+          <div className="flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span className="text-[11px] text-green-500/80">Uploaded</span>
+          </div>
+          <span className="text-[10px] text-[#555]">
+            {wordCount.toLocaleString()} words
+            {sourceFilename ? ` · ${sourceFilename}` : sourceType === 'paste' ? ' · pasted' : ''}
+          </span>
+        </div>
         <div className="flex items-center gap-1">
           <button
             onClick={copyToClipboard}
@@ -55,7 +71,7 @@ export default function SpeechDisplay({ speechType, html, rawContent, onIterate,
               copied ? 'text-green-400' : 'text-[#888] hover:text-white hover:bg-[#1a1a1a]'
             }`}
           >
-            {copied ? 'Copied' : 'Copy'}
+            {copied ? 'Copied!' : 'Copy'}
           </button>
           {onIterate && (
             <button
@@ -78,13 +94,15 @@ export default function SpeechDisplay({ speechType, html, rawContent, onIterate,
         </div>
       </div>
 
+      {/* Content */}
       <div
         ref={contentRef}
-        className="p-4 prose prose-invert prose-sm max-w-none card-evidence"
-        style={{ fontSize: '12px', lineHeight: '1.5' }}
+        className="p-4 prose prose-invert prose-sm max-w-none card-evidence overflow-auto"
+        style={{ fontSize: '12px', lineHeight: '1.5', maxHeight: '600px' }}
         dangerouslySetInnerHTML={{ __html: content }}
       />
 
+      {/* Iterate panel */}
       {showIterate && onIterate && (
         <div className="px-4 py-3 border-t border-[#1a1a1a]">
           <div className="flex gap-2">

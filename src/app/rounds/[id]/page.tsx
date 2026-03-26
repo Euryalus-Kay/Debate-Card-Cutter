@@ -461,6 +461,8 @@ export default function RoundWorkspacePage({ params }: { params: Promise<{ id: s
                       speechType={activeSlot}
                       html={getSpeech(activeSlot)!.generated_html}
                       rawContent={getSpeech(activeSlot)!.raw_content}
+                      sourceType={getSpeech(activeSlot)!.source_type}
+                      sourceFilename={(getSpeech(activeSlot) as Record<string, unknown>)?.source_filename as string | undefined}
                       onIterate={(instr) => handleIterateSpeech(getSpeech(activeSlot)!.id, instr)}
                       onExplain={handleExplain}
                     />
