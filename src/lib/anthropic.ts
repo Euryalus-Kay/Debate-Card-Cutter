@@ -88,7 +88,7 @@ Remember:
 5. Return valid JSON only`;
 
   const response = await client.messages.create({
-    model: "claude-opus-4-6-20250219",
+    model: "claude-opus-4-20250514",
     max_tokens: 16000,
     messages: [
       { role: "user", content: userPrompt },
@@ -151,7 +151,7 @@ Text: ${sourceText.substring(0, 12000)}
 Return JSON only.`;
 
   const response = await client.messages.create({
-    model: "claude-sonnet-4-6-20250514",
+    model: "claude-sonnet-4-20250514",
     max_tokens: 8000,
     messages: [{ role: "user", content: userPrompt }],
     system: systemPrompt,
@@ -197,7 +197,7 @@ When adjusting highlights:
 Return JSON with "tag" and "evidence_html" fields only.`;
 
   const response = await client.messages.create({
-    model: "claude-opus-4-6-20250219",
+    model: "claude-opus-4-20250514",
     max_tokens: 16000,
     messages: [
       {
@@ -260,7 +260,7 @@ Return JSON with:
 }`;
 
   const response = await client.messages.create({
-    model: "claude-opus-4-6-20250219",
+    model: "claude-opus-4-20250514",
     max_tokens: 4000,
     messages: [
       {
@@ -287,7 +287,7 @@ export async function selectBestSource(
   sources: Array<{ url: string; title: string }>
 ): Promise<{ selectedUrl: string; reason: string }> {
   const response = await client.messages.create({
-    model: "claude-opus-4-6-20250219",
+    model: "claude-opus-4-20250514",
     max_tokens: 1000,
     messages: [
       {
