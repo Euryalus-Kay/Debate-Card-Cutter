@@ -11,7 +11,7 @@ interface PerplexityResult {
   sources: PerplexitySource[];
 }
 
-export async function searchEvidence(query: string, context: string): Promise<PerplexityResult> {
+export async function searchEvidence(query: string, context: string, rapid?: boolean): Promise<PerplexityResult> {
   const systemPrompt = `You are a research assistant for high school policy debate. Your job is to find specific, high-quality evidence from academic papers, policy analyses, government reports, think tank publications, law review articles, and expert testimony that can be used as evidence cards in competitive debate.
 
 When searching, prioritize:
@@ -43,12 +43,12 @@ I need sources with substantial, quotable text that can be used as evidence in a
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "sonar-pro",
+      model: rapid ? "sonar" : "sonar-pro",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      max_tokens: 4000,
+      max_tokens: rapid ? 2000 : 4000,
       return_citations: true,
     }),
   });

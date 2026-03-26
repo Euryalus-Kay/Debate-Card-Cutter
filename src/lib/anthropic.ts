@@ -115,6 +115,58 @@ Remember:
   }
 }
 
+export async function generateCardFast(
+  query: string,
+  sourceText: string,
+  sourceUrl: string,
+  sourceInfo: string,
+  userContext: string
+): Promise<{
+  tag: string;
+  cite_author: string;
+  cite_year: string;
+  cite_credentials: string;
+  cite_title: string;
+  cite_date: string;
+  cite_url: string;
+  cite_initials: string;
+  evidence_html: string;
+}> {
+  const systemPrompt = `You create HS policy debate evidence cards. Return JSON with: tag, cite_author, cite_year, cite_credentials, cite_title, cite_date, cite_url, cite_initials, evidence_html.
+
+Rules:
+- Tag: bold claim summarizing the argument
+- Citation: author last name + year, credentials, title, date, url
+- Evidence: LARGE continuous block of VERBATIM source text with <mark> tags around key parts
+- Highlighted parts must form coherent sentences when read in sequence
+- NEVER modify source text, only add <mark> tags
+- Return valid JSON only`;
+
+  const userPrompt = `Create a debate card for: ${query}
+${userContext ? `Context: ${userContext}` : ""}
+Source: ${sourceUrl}
+Source info: ${sourceInfo}
+Text: ${sourceText.substring(0, 12000)}
+
+Return JSON only.`;
+
+  const response = await client.messages.create({
+    model: "claude-sonnet-4-6-20250514",
+    max_tokens: 8000,
+    messages: [{ role: "user", content: userPrompt }],
+    system: systemPrompt,
+  });
+
+  const content = response.content[0];
+  if (content.type !== "text") throw new Error("Unexpected response type");
+
+  let jsonStr = content.text;
+  const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+  if (jsonMatch) jsonStr = jsonMatch[0];
+
+  return JSON.parse(jsonStr);
+}
+
 export async function iterateCard(
   currentCard: {
     tag: string;

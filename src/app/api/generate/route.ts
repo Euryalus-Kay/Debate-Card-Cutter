@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchEvidence, deepSearchSource } from "@/lib/perplexity";
-import { generateCard, selectBestSource } from "@/lib/anthropic";
+import { generateCard, generateCardFast, selectBestSource } from "@/lib/anthropic";
 import { scrapeArticle } from "@/lib/scraper";
 import { supabase } from "@/lib/supabase";
 import { v4 as uuid } from "uuid";
@@ -9,14 +9,14 @@ export const maxDuration = 120;
 
 export async function POST(req: NextRequest) {
   try {
-    const { query, context, authorName, argumentId } = await req.json();
+    const { query, context, authorName, argumentId, rapid } = await req.json();
 
     if (!query) {
       return NextResponse.json({ error: "Query is required" }, { status: 400 });
     }
 
     // Step 1: Search for evidence using Perplexity
-    const searchResults = await searchEvidence(query, context || "");
+    const searchResults = await searchEvidence(query, context || "", rapid);
 
     if (!searchResults.sources.length) {
       return NextResponse.json(
@@ -25,9 +25,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Step 2: Use Claude to select the best source
+    // Step 2: Select best source (skip in rapid mode — just use first)
     let selectedUrl = searchResults.sources[0].url;
-    if (searchResults.sources.length > 1) {
+    if (!rapid && searchResults.sources.length > 1) {
       try {
         const selection = await selectBestSource(
           query,
@@ -40,25 +40,24 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Step 3: Get full article text (try scraping first, then Perplexity deep search)
+    // Step 3: Get full article text
     let fullText = await scrapeArticle(selectedUrl);
     if (fullText.length < 500) {
       fullText = await deepSearchSource(selectedUrl, query);
     }
-
     if (fullText.length < 100) {
-      // If scraping and deep search both fail, use the Perplexity answer as fallback
       fullText = searchResults.answer;
     }
 
-    // Step 4: Use Claude to generate the card
+    // Step 4: Generate card (rapid uses fast model)
     const sourceInfo = searchResults.answer;
-    const card = await generateCard(query, fullText, selectedUrl, sourceInfo, context || "");
+    const cardGen = rapid ? generateCardFast : generateCard;
+    const card = await cardGen(query, fullText, selectedUrl, sourceInfo, context || "");
 
-    // Step 5: Build the full citation string
+    // Step 5: Build citation
     const cite = `${card.cite_author} (${card.cite_credentials}. "${card.cite_title}" ${card.cite_date}. ${card.cite_url}) ${card.cite_initials}`;
 
-    // Step 6: Save to Supabase
+    // Step 6: Save
     const cardId = uuid();
     const now = new Date().toISOString();
 
@@ -85,10 +84,7 @@ export async function POST(req: NextRequest) {
       updated_at: now,
     });
 
-    if (dbError) {
-      console.error("DB error:", dbError);
-      // Still return the card even if DB save fails
-    }
+    if (dbError) console.error("DB error:", dbError);
 
     return NextResponse.json({
       id: cardId,
@@ -100,6 +96,7 @@ export async function POST(req: NextRequest) {
       author_name: authorName || "Anonymous",
       sources_found: searchResults.sources.length,
       selected_source: selectedUrl,
+      rapid: !!rapid,
     });
   } catch (error) {
     console.error("Generate error:", error);

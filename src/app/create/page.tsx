@@ -22,6 +22,7 @@ export default function CreatePage() {
   const [error, setError] = useState("");
   const [card, setCard] = useState<GeneratedCard | null>(null);
   const [iteratingId, setIteratingId] = useState<string | null>(null);
+  const [rapid, setRapid] = useState(false);
 
   useEffect(() => {
     if (!userName) return;
@@ -60,6 +61,7 @@ export default function CreatePage() {
           query,
           context,
           authorName: userName || "Anonymous",
+          rapid,
         }),
       });
 
@@ -147,7 +149,19 @@ export default function CreatePage() {
           >
             {loading ? "Generating..." : "Cut Card"}
           </button>
-          <span className="text-[11px] text-[#333]">Cmd+Enter</span>
+          <button
+            onClick={() => setRapid(!rapid)}
+            className={`px-3 py-2 text-[11px] rounded-lg border transition-colors ${
+              rapid
+                ? "border-amber-500/50 text-amber-400 bg-amber-950/30"
+                : "border-[#1a1a1a] text-[#444] hover:text-[#666]"
+            }`}
+          >
+            {rapid ? "Rapid" : "Standard"}
+          </button>
+          <span className="text-[11px] text-[#333]">
+            {rapid ? "Faster, uses Sonnet" : "Cmd+Enter"}
+          </span>
         </div>
 
         {error && (
@@ -161,7 +175,7 @@ export default function CreatePage() {
             <div className="animate-spin w-4 h-4 border-2 border-[#333] border-t-white rounded-full" />
             <div className="text-[13px]">
               <span className="text-[#999]">Searching and formatting...</span>
-              <span className="text-[#444] ml-2">~30-60s</span>
+              <span className="text-[#444] ml-2">{rapid ? "~10-20s" : "~30-60s"}</span>
             </div>
           </div>
         )}
