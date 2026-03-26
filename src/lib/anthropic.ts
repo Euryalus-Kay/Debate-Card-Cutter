@@ -65,26 +65,12 @@ CARD FORMAT RULES:
    - Non-highlighted text should be present but will appear smaller/lighter
    - Include as much surrounding context as possible
 
-HIGHLIGHTING RULES - THIS IS CRITICAL:
-- Highlighting is SURGICAL and SPARSE. You highlight individual WORDS and SHORT PHRASES (2-5 words), NOT entire sentences or clauses.
-- Typically only 10-20% of the evidence text should be highlighted. Leave 80-90% unhighlighted.
-- The highlighted words/phrases, when read in sequence, must form grammatically coherent sentences that prove the tag.
-- You are essentially picking out the minimum words needed to construct the argument from within the source text.
-- Sometimes you highlight a single word to complete a grammatical connection between two highlighted phrases.
-- DO NOT highlight entire sentences. Instead, pick the 2-4 key words FROM each relevant sentence.
-- It is fine to leave entire paragraphs with zero highlighting if they don't contribute to the core argument.
-
-EXAMPLE of good highlighting (the <mark> words read as a sentence):
-"Finally, <mark>no party exists to administer</mark> such <mark>licenses, nor is it likely that an appropriate party or parties will emerge</mark>."
-
-EXAMPLE of BAD highlighting (too much):
-"<mark>Finally, no party exists to administer such licenses, nor is it likely that an appropriate party or parties will emerge.</mark>"
-
-Another GOOD example:
-"<mark>The costs of an ECL system</mark> broad enough to address <mark>the scope and scale of materials used for AI training</mark> datasets <mark>would</mark> likely <mark>dwarf the costs of any similar system we have seen to date.</mark>"
-
-- Think like a competitive debater who needs to speed-read ONLY the highlighted words in 15 seconds to make the argument.
-- Fewer highlights = better. Only highlight what PROVES THE POINT.
+HIGHLIGHTING RULES:
+- Use <mark> tags to highlight the parts of the evidence that prove the argument.
+- The highlighted portions, when read in sequence, should form coherent sentences.
+- Highlight however much or little is right for this specific card — use your judgment.
+- You can highlight single words, short phrases, or longer runs — whatever makes the best reading of the card.
+- Non-highlighted text provides context but is not read aloud in a debate round.
 
 EVIDENCE TEXT RULES:
 - NEVER modify the source text. Copy it exactly as written.
@@ -161,9 +147,8 @@ Rules:
 - Tag: bold claim summarizing the argument
 - Citation: author last name + year, credentials, title, date, url
 - Evidence: LARGE continuous block of VERBATIM source text with <mark> tags around key parts
-- HIGHLIGHTING IS SURGICAL: only highlight individual WORDS and SHORT PHRASES (2-5 words), NOT whole sentences
-- Only 10-20% of text should be highlighted. The highlighted words read as coherent sentences proving the tag.
-- Think like a debater speed-reading only the bold words in 15 seconds.
+- Highlight whatever proves the argument — use your judgment on how much or little to highlight
+- Highlighted portions should read as coherent sentences when read in sequence
 - NEVER modify source text, only add <mark> tags
 - Return valid JSON only`;
 
