@@ -475,6 +475,7 @@ export default function RoundWorkspacePage({ params }: { params: Promise<{ id: s
                   </div>
                 ) : (
                   <DocumentUpload
+                    key={activeSlot}
                     onSubmit={(content, sourceType, filename, hasHighlights) =>
                       handleSpeechSubmit(activeSlot, content, sourceType, filename, hasHighlights)
                     }
