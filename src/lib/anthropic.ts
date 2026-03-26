@@ -746,7 +746,7 @@ export async function planSpeech(
   sections: Array<{ label: string; action: string; card_source: string; search_query?: string; card_id?: string; analytics: string }>;
 }> {
   const speechInfo: Record<string, string> = {
-    '1AC': `FIRST AFFIRMATIVE CONSTRUCTIVE — 8 minutes (480 words/min ≈ 3800 words max)
+    '1AC': `FIRST AFFIRMATIVE CONSTRUCTIVE — 8 minutes (you read highlighted portions of cards aloud + analytics)
 Present the affirmative case. Structure:
 - Plan text (formal policy proposal: agent, mandate, enforcement, funding, timeline)
 - Contention 1: Inherency (1-2 cards showing SQ fails)
@@ -756,7 +756,7 @@ Present the affirmative case. Structure:
 Every advantage needs a clear causal chain: plan → internal link → impact.
 Impacts should have magnitude, timeframe, and probability framing.`,
 
-    '1NC': `FIRST NEGATIVE CONSTRUCTIVE — 8 minutes (≈3800 words max)
+    '1NC': `FIRST NEGATIVE CONSTRUCTIVE — 8 minutes (cards can be long but only highlighted parts are read aloud)
 Present ALL negative off-case positions plus case attacks. This is your only chance to introduce new arguments.
 STRATEGIC STRUCTURE (order matters):
 1. Topicality (if applicable) — interpretation, violation, standards, voters
@@ -774,7 +774,7 @@ HOW TO COUNTER SPECIFIC AFF TYPES:
 SHELLS should be concise — just enough to establish the argument. Extensions come in the block.
 Read 4-7 off-case positions to create strategic pressure. Don't over-commit to any single argument.`,
 
-    '2AC': `SECOND AFFIRMATIVE CONSTRUCTIVE — 8 minutes (≈3800 words max)
+    '2AC': `SECOND AFFIRMATIVE CONSTRUCTIVE — 8 minutes (cards can be long but only highlighted parts are read aloud)
 Answer EVERY argument from the 1NC. Dropping = conceding. This speech makes or breaks the round.
 MUST cover in order (off-case first, then case):
 - Each DA: no link, no uniqueness, link turn, impact turn, impact defense (pick 2-3)
@@ -793,12 +793,19 @@ HOW TO ANSWER SPECIFIC ARGUMENTS:
 
 Use 4-5 analytics per off-case position + 1-2 cards. Efficiency is key.`,
 
-    '2NC': `SECOND NEGATIVE CONSTRUCTIVE — 8 minutes (≈3800 words max)
+    '2NC': `SECOND NEGATIVE CONSTRUCTIVE — 8 minutes (cards can be long but only highlighted parts are read aloud)
 First half of the "negative block" (2NC + 1NR = 13 min to the aff's 5-min 1AR).
 STRATEGY: Split the block with the 1NR. The 2NC covers the MOST IMPORTANT off-case positions in depth.
 - Pick 2-3 positions to cover thoroughly
 - Extend and deepen each one: answer 2AC responses, read new evidence, do impact comparison
 - This speech should make your best arguments feel unbeatable
+
+KICKING ARGUMENTS:
+- Evaluate which 1NC arguments are winning vs losing after the 2AC. If the 2AC crushed a DA or CP, it may be strategic to KICK IT (stop going for it) and invest that time in your winners.
+- Kicking is especially smart when: the 2AC had devastating answers (link turn + impact turn), the argument was only there to spread them thin, or you have stronger positions to go deep on.
+- If you had 5 off-case positions in the 1NC, the neg block should probably go deep on 2-3 and kick the rest.
+- Kicking requires conditionality — if they read condo bad and you're worried about it, don't kick.
+- Signal your kicks: "We're going to focus on the [DA] and [CP] — the rest of the flow speaks for itself" — or just don't mention the kicked positions at all.
 
 HOW TO EXTEND SPECIFIC ARGUMENTS:
 - DA extensions: New uniqueness evidence, answer link defense, impact comparison (timeframe, magnitude, probability), turns case argument
@@ -809,13 +816,15 @@ HOW TO EXTEND SPECIFIC ARGUMENTS:
 CRITICAL: Read impact comparison evidence/analytics. "Even if they win [X], our [Y] outweighs because..."
 The 2NC sets up the 2NR — whatever you go for here is likely what you'll collapse to.`,
 
-    '1NR': `FIRST NEGATIVE REBUTTAL — 5 minutes (≈2400 words max)
+    '1NR': `FIRST NEGATIVE REBUTTAL — 5 minutes (cards can be long but only highlighted parts are read aloud)
 Second half of the neg block. Cover the positions NOT covered in the 2NC.
 STRATEGY:
 - Cover remaining off-case positions AND case attacks
 - Be thorough but efficient — you have less time than the 2NC
 - This speech should clean up everything the 2NC didn't touch
 - Focus on rebuilding arguments the 2AC tried to answer
+- If the 2NC kicked some arguments, DO NOT extend those — they're gone. Focus your time on what's still live.
+- Evaluate what's worth keeping: if a position is weak after the 2AC, it's better to kick it here and go deeper on your strong arguments than to waste time on a loser.
 
 COMMON ALLOCATION:
 - If 2NC covered DA + CP: 1NR covers T, K, case attacks
@@ -824,7 +833,7 @@ COMMON ALLOCATION:
 
 TECHNIQUE: Line-by-line refutation. "They said [X], but [Y]." Go down the 2AC flow point by point.`,
 
-    '1AR': `FIRST AFFIRMATIVE REBUTTAL — 5 minutes (≈2400 words max)
+    '1AR': `FIRST AFFIRMATIVE REBUTTAL — 5 minutes (cards can be long but only highlighted parts are read aloud)
 THE HARDEST SPEECH IN DEBATE. You have 5 minutes to answer 13 minutes of neg block arguments.
 STRATEGY:
 - You CANNOT go line-by-line on everything — you must be efficient
@@ -841,7 +850,7 @@ PRIORITIZATION:
 
 TECHNIQUE: Group, cross-apply, extend, compare. Don't re-read evidence from the 2AC — reference it.`,
 
-    '2NR': `SECOND NEGATIVE REBUTTAL — 5 minutes (≈2400 words max)
+    '2NR': `SECOND NEGATIVE REBUTTAL — 5 minutes (cards can be long but only highlighted parts are read aloud)
 COLLAPSE. Go for 1-2 arguments only. This is the neg's final speech.
 STRATEGY:
 - Pick your best argument(s) and go ALL IN. Reading 5 arguments for 1 minute each = losing strategy.
@@ -862,7 +871,7 @@ HOW TO COLLAPSE ON SPECIFIC ARGUMENTS:
 - K: "The K is a prior question — the framework of the 1AC is [flawed] which means the plan reproduces [harm]. The alt solves."
 - T: "T is a voter for fairness and education. Their interp allows [infinite affs] which destroys neg ground."`,
 
-    '2AR': `SECOND AFFIRMATIVE REBUTTAL — 5 minutes (≈2400 words max)
+    '2AR': `SECOND AFFIRMATIVE REBUTTAL — 5 minutes (cards can be long but only highlighted parts are read aloud)
 FINAL SPEECH. Tell the judge why aff wins. Must directly answer the 2NR.
 STRATEGY:
 - Focus ONLY on what the 2NR went for — everything else is already won by the aff (they dropped it)
@@ -993,20 +1002,20 @@ export async function assembleSpeech(
   roundContext: string
 ): Promise<string> {
   const speechTimeLimits: Record<string, string> = {
-    '1AC': '8 minutes (~3800 words at 480 wpm)',
-    '1NC': '8 minutes (~3800 words)',
-    '2AC': '8 minutes (~3800 words)',
-    '2NC': '8 minutes (~3800 words)',
-    '1NR': '5 minutes (~2400 words)',
-    '1AR': '5 minutes (~2400 words)',
-    '2NR': '5 minutes (~2400 words)',
-    '2AR': '5 minutes (~2400 words)',
+    '1AC': '8 minutes',
+    '1NC': '8 minutes',
+    '2AC': '8 minutes',
+    '2NC': '8 minutes',
+    '1NR': '5 minutes',
+    '1AR': '5 minutes',
+    '2NR': '5 minutes',
+    '2AR': '5 minutes',
   };
 
   const systemPrompt = `You are an expert policy debate speech writer assembling a complete ${speechType} speech for the ${side === 'aff' ? 'affirmative' : 'negative'}.
 
 TIME LIMIT: ${speechTimeLimits[speechType] || '5-8 minutes'}
-The speech MUST fit within this time. Prioritize the most important arguments if space is tight.
+Note: Cards contain long evidence blocks but debaters only READ the highlighted (marked) portions aloud. The full text is on the page for the judge to read. So a speech can contain many cards — what matters is that the highlighted portions + analytics fit the time.
 
 FORMAT AS A REAL DEBATE SPEECH:
 - Start with a roadmap: "I'll be going [order of off-case/on-case positions]"
