@@ -746,19 +746,188 @@ export async function planSpeech(
   sections: Array<{ label: string; action: string; card_source: string; search_query?: string; card_id?: string; analytics: string }>;
 }> {
   const speechInfo: Record<string, string> = {
-    '1AC': 'Present the affirmative case: plan text, advantages with inherency/harms/solvency. 8 minutes.',
-    '1NC': 'Present all negative positions: DAs, CPs, Ks, T, case attacks. 8 minutes.',
-    '2AC': 'Answer EVERY argument from 1NC. Extend case advantages. 8 minutes. Must not drop anything.',
-    '2NC': 'First half of neg block. Cover some off-case positions in depth. 8 minutes.',
-    '1NR': 'Second half of neg block. Cover remaining positions not in 2NC. 5 minutes.',
-    '1AR': 'Answer the ENTIRE neg block (2NC + 1NR). 5 minutes. Most time-pressured speech.',
-    '2NR': 'Collapse to 1-2 strongest arguments. Extend thoroughly with impact comparison. 5 minutes.',
-    '2AR': 'Final speech. Weigh arguments. Explain why judge should vote aff. 5 minutes.',
+    '1AC': `FIRST AFFIRMATIVE CONSTRUCTIVE — 8 minutes (480 words/min ≈ 3800 words max)
+Present the affirmative case. Structure:
+- Plan text (formal policy proposal: agent, mandate, enforcement, funding, timeline)
+- Contention 1: Inherency (1-2 cards showing SQ fails)
+- Contention 2: Advantage 1 [Name] — internal links + impact cards
+- Contention 3: Advantage 2 [Name] if applicable
+- Solvency (2-3 cards showing plan fixes the problem)
+Every advantage needs a clear causal chain: plan → internal link → impact.
+Impacts should have magnitude, timeframe, and probability framing.`,
+
+    '1NC': `FIRST NEGATIVE CONSTRUCTIVE — 8 minutes (≈3800 words max)
+Present ALL negative off-case positions plus case attacks. This is your only chance to introduce new arguments.
+STRATEGIC STRUCTURE (order matters):
+1. Topicality (if applicable) — interpretation, violation, standards, voters
+2. Counterplan(s) — CP text, solvency, net benefit, competition
+3. Disadvantage(s) — uniqueness, link, internal link, impact
+4. Kritik (if running one) — link, impact, alternative, framework/ROTB
+5. Case attacks — solvency takeouts, impact defense, internal link turns
+
+HOW TO COUNTER SPECIFIC AFF TYPES:
+- Against a K aff: Framework (must defend a topical plan), T-USFG, case turns
+- Against a big-stick aff (large impacts): Impact defense, DA outweighs, CP solves better
+- Against a small aff: T (not substantial), CP captures advantages
+- Against advantage CPs: Theory, perm, solvency deficit
+
+SHELLS should be concise — just enough to establish the argument. Extensions come in the block.
+Read 4-7 off-case positions to create strategic pressure. Don't over-commit to any single argument.`,
+
+    '2AC': `SECOND AFFIRMATIVE CONSTRUCTIVE — 8 minutes (≈3800 words max)
+Answer EVERY argument from the 1NC. Dropping = conceding. This speech makes or breaks the round.
+MUST cover in order (off-case first, then case):
+- Each DA: no link, no uniqueness, link turn, impact turn, impact defense (pick 2-3)
+- Each CP: permutation (do both), solvency deficit, theory (if applicable), net benefit answers
+- Topicality: we meet, counter-interp, standards turns, reasonability
+- Kritik: framework (util > K), permutation, no link, alt fails, case outweighs
+- Case defense: extend advantages, answer case attacks
+
+HOW TO ANSWER SPECIFIC ARGUMENTS:
+- DAs: "No link — our plan doesn't [X]" + link turn + impact comparison
+- CPs: Perm do both (always), solvency deficit (CP can't access advantage), theory (condo bad, PICs bad)
+- T: We meet (best answer), counter-interp + standards, reasonability voter
+- Ks: Framework first (judge should evaluate policy outcomes), perm (embrace alt + do plan), alt fails (no solvency), case outweighs
+- Theory: Counter-interp, "not a voter — just reject the arg"
+- Case attacks: Extend warrant from 1AC, new evidence if needed, impact comparison
+
+Use 4-5 analytics per off-case position + 1-2 cards. Efficiency is key.`,
+
+    '2NC': `SECOND NEGATIVE CONSTRUCTIVE — 8 minutes (≈3800 words max)
+First half of the "negative block" (2NC + 1NR = 13 min to the aff's 5-min 1AR).
+STRATEGY: Split the block with the 1NR. The 2NC covers the MOST IMPORTANT off-case positions in depth.
+- Pick 2-3 positions to cover thoroughly
+- Extend and deepen each one: answer 2AC responses, read new evidence, do impact comparison
+- This speech should make your best arguments feel unbeatable
+
+HOW TO EXTEND SPECIFIC ARGUMENTS:
+- DA extensions: New uniqueness evidence, answer link defense, impact comparison (timeframe, magnitude, probability), turns case argument
+- CP extensions: Answer perms (severance, intrinsic), extend solvency, strengthen net benefit
+- K extensions: Extend framework, answer perms, root cause argument, new link evidence, alt solvency
+- T extensions: Answer counter-interps, extend standards, impact T (limits collapse = no education)
+
+CRITICAL: Read impact comparison evidence/analytics. "Even if they win [X], our [Y] outweighs because..."
+The 2NC sets up the 2NR — whatever you go for here is likely what you'll collapse to.`,
+
+    '1NR': `FIRST NEGATIVE REBUTTAL — 5 minutes (≈2400 words max)
+Second half of the neg block. Cover the positions NOT covered in the 2NC.
+STRATEGY:
+- Cover remaining off-case positions AND case attacks
+- Be thorough but efficient — you have less time than the 2NC
+- This speech should clean up everything the 2NC didn't touch
+- Focus on rebuilding arguments the 2AC tried to answer
+
+COMMON ALLOCATION:
+- If 2NC covered DA + CP: 1NR covers T, K, case attacks
+- If 2NC covered K: 1NR covers DA, CP, case
+- Case attacks are crucial — don't let the aff's advantages go unchallenged
+
+TECHNIQUE: Line-by-line refutation. "They said [X], but [Y]." Go down the 2AC flow point by point.`,
+
+    '1AR': `FIRST AFFIRMATIVE REBUTTAL — 5 minutes (≈2400 words max)
+THE HARDEST SPEECH IN DEBATE. You have 5 minutes to answer 13 minutes of neg block arguments.
+STRATEGY:
+- You CANNOT go line-by-line on everything — you must be efficient
+- Group arguments: "On the DA, group their 4 uniqueness extensions — they all assume [X] which our [Y] evidence answers"
+- Cross-apply: "Cross-apply our 2AC #3 — they never answered it"
+- Extend key 2AC answers rather than making new arguments
+- Smart drops: If they extended T but not well, quick coverage. If the DA is their A-game, spend time there.
+
+PRIORITIZATION:
+1. Whatever the 2NR will likely go for — answer that thoroughly
+2. Case extensions — extend at least one advantage with impact comparison
+3. Quick coverage of everything else — at least reference every flow
+4. Impact comparison — "Even if they win [X], [Y] outweighs on [timeframe/magnitude/probability]"
+
+TECHNIQUE: Group, cross-apply, extend, compare. Don't re-read evidence from the 2AC — reference it.`,
+
+    '2NR': `SECOND NEGATIVE REBUTTAL — 5 minutes (≈2400 words max)
+COLLAPSE. Go for 1-2 arguments only. This is the neg's final speech.
+STRATEGY:
+- Pick your best argument(s) and go ALL IN. Reading 5 arguments for 1 minute each = losing strategy.
+- Classic collapses: DA + case turns, CP + net benefit, K + case turns, T (rare but strong if extended well)
+- Must answer 1AR responses thoroughly — this is a rebuttal, not a re-read of the block
+- Impact comparison is EVERYTHING in this speech
+
+COLLAPSE FRAMEWORK:
+1. FRAMING: "The question in this round is..." — set up the judge's decision calculus
+2. EXTEND your argument: re-explain the story with 1AR answers in mind
+3. ANSWER 1AR: line-by-line on what they said about your collapse positions
+4. IMPACT COMPARISON: magnitude, timeframe, probability, reversibility
+5. CASE OUTWEIGHS/TURNS: explain why your argument matters more than their advantages
+
+HOW TO COLLAPSE ON SPECIFIC ARGUMENTS:
+- DA + case: "The DA turns the case — even if they solve, the DA means [impact]. And their advantage is non-unique because [X]"
+- CP + DA: "The CP solves 100% of the aff + avoids the DA. Perm fails because [severance/intrinsic]. Vote neg on presumption."
+- K: "The K is a prior question — the framework of the 1AC is [flawed] which means the plan reproduces [harm]. The alt solves."
+- T: "T is a voter for fairness and education. Their interp allows [infinite affs] which destroys neg ground."`,
+
+    '2AR': `SECOND AFFIRMATIVE REBUTTAL — 5 minutes (≈2400 words max)
+FINAL SPEECH. Tell the judge why aff wins. Must directly answer the 2NR.
+STRATEGY:
+- Focus ONLY on what the 2NR went for — everything else is already won by the aff (they dropped it)
+- Point out drops: "They dropped [advantage 2] in the 2NR — that's a conceded impact of [X]"
+- Do the judge's work: explain the decision in your favor step by step
+- Impact comparison: "Even if they win every argument on the [DA], our [advantage] outweighs because..."
+
+STRUCTURE:
+1. BIG PICTURE FRAMING: "This round comes down to [X] vs [Y]"
+2. ANSWER 2NR: point-by-point on their collapse arguments
+3. EXTEND CASE: re-impact your advantages with comparison
+4. WEIGH: magnitude, timeframe, probability, reversibility, scope
+5. CLOSE: "For these reasons, an affirmative ballot is warranted"
+
+KEY TECHNIQUE: "Even if" arguments — "Even if you buy their [X], you still vote aff because [Y]"
+DO NOT introduce new arguments — only extend and compare.`,
   };
 
-  const systemPrompt = `You are an elite policy debate strategist planning a ${speechType} speech for the ${side === 'aff' ? 'affirmative' : 'negative'}.
+  const systemPrompt = `You are an elite policy debate strategist and coach with extensive experience at top debate camps (Michigan, Georgetown, Northwestern). You are planning a ${speechType} speech for the ${side === 'aff' ? 'affirmative' : 'negative'}.
 
-SPEECH REQUIREMENTS: ${speechInfo[speechType] || 'Respond to existing arguments.'}
+SPEECH REQUIREMENTS:
+${speechInfo[speechType] || 'Respond to existing arguments.'}
+
+ADVANCED DEBATE STRATEGY KNOWLEDGE:
+
+ANSWERING DISADVANTAGES:
+- No link (plan doesn't trigger the DA), no internal link, no impact
+- Link turn (plan actually HELPS, not hurts), impact turn (the DA's impact is actually GOOD)
+- Non-unique (impact happening regardless of plan), uniqueness overwhelms (SQ trends are too strong)
+- Never link turn AND impact turn the same DA (double turn = you've made their argument for them)
+
+ANSWERING COUNTERPLANS:
+- Perm do both (always the first answer — tests competition, CP must be net beneficial)
+- Perm do the CP (if the CP is topical, this proves it's not competitive)
+- Solvency deficit (CP can't access aff advantages because [specific mechanism])
+- Theory: Condo bad (they can kick it, unfair), PICs bad (plan-inclusive CPs are unfair), 50 state fiat bad, international fiat bad, consult CPs bad (delay is bad process)
+- Net benefit answers (the DA that's the net benefit has [problems])
+
+ANSWERING KRITIKS:
+- Framework/ROTB: judge should evaluate consequences of policy proposals (util framework), fairness args
+- Permutation: "endorse the alt while doing the plan" — tests competition
+- No link: our aff doesn't assume/rely on [problematic framework]
+- Alt fails: no solvency — rejecting the aff doesn't solve the K's impacts, structural problems persist
+- Alt causes: the alternative leads to worse outcomes (totalitarianism, paralysis)
+- Case outweighs: material conditions of [aff harm] are more urgent than discursive/epistemological concerns
+- Link of omission: their K links to everything including the SQ — not unique to the aff
+
+ANSWERING TOPICALITY:
+- We meet: the aff IS topical under their interpretation (strongest answer)
+- Counter-interpretation: our definition of [term] from [source] — proves we're topical
+- Standards: their limits are too strict (over-limits kills education), our interp has better ground/predictability
+- Reasonability: as long as the aff is reasonably topical, reject T (prevents frivolous T args)
+
+ANSWERING THEORY:
+- Counter-interpretation: "the neg may run [X]" — our practice is fine
+- Not a voter: reject the argument, not the team
+- No abuse: they had sufficient ground despite our practice
+- Standards outweigh: our interp promotes better debates
+
+WRITING ANALYTICS:
+- Cross-applications: "cross-apply our 2AC #3 which says [X]"
+- Grouping: "group their 3 uniqueness cards — they all assume [Y] which..."
+- Turns: "this turns the [DA] because [X] means the impact goes our direction"
+- Even-if: "even if you buy their [X], you still vote [aff/neg] because..."
+- Impact calc: "our [impact] outweighs on [timeframe/magnitude/probability] because..."
 
 You have access to a card library. For each section of the speech, decide:
 1. Use an existing library card (specify card_id)
@@ -767,11 +936,13 @@ You have access to a card library. For each section of the speech, decide:
 
 Selected cards the user wants included: ${selectedCardIds.length > 0 ? selectedCardIds.join(', ') : 'None specified'}
 
-Be SPECIFIC and STRATEGIC. Think like an experienced debater:
+Be SPECIFIC and STRATEGIC. Think like a top-16-at-TOC debater:
 - Don't make broad generic arguments — target specific claims the opponent made
 - For the 2NR, collapse strategically — don't go for everything
 - For the 1AR, be efficient — you only have 5 minutes to answer 13+ minutes of neg arguments
 - For the 2AC, have a specific answer to every off-case position
+- For constructives, read enough off-case/on-case to create strategic flexibility
+- Think about what you're setting up for later speeches
 
 Return JSON:
 {
@@ -821,24 +992,46 @@ export async function assembleSpeech(
   sections: Array<{ label: string; action: string; content: string; tag?: string; cite?: string; evidence_html?: string }>,
   roundContext: string
 ): Promise<string> {
-  const systemPrompt = `You are an expert policy debate speech writer. Assemble a complete ${speechType} speech for the ${side === 'aff' ? 'affirmative' : 'negative'}.
+  const speechTimeLimits: Record<string, string> = {
+    '1AC': '8 minutes (~3800 words at 480 wpm)',
+    '1NC': '8 minutes (~3800 words)',
+    '2AC': '8 minutes (~3800 words)',
+    '2NC': '8 minutes (~3800 words)',
+    '1NR': '5 minutes (~2400 words)',
+    '1AR': '5 minutes (~2400 words)',
+    '2NR': '5 minutes (~2400 words)',
+    '2AR': '5 minutes (~2400 words)',
+  };
 
-FORMAT THE SPEECH IN PROPER DEBATE FORMAT:
-- Each argument section starts with the section label as a heading
-- Cards must have: tag (bold), citation, evidence (with <mark> highlighting preserved)
-- Analytics are written as regular bold assertions
-- Include transitions between sections
-- Include time allocation suggestions as comments
+  const systemPrompt = `You are an expert policy debate speech writer assembling a complete ${speechType} speech for the ${side === 'aff' ? 'affirmative' : 'negative'}.
 
-The speech should read like an actual debate speech that could be delivered in a round.
+TIME LIMIT: ${speechTimeLimits[speechType] || '5-8 minutes'}
+The speech MUST fit within this time. Prioritize the most important arguments if space is tight.
+
+FORMAT AS A REAL DEBATE SPEECH:
+- Start with a roadmap: "I'll be going [order of off-case/on-case positions]"
+- Each argument section starts with signposting: "On the [DA/CP/K/Case]..."
+- Cards: tag (bold) → citation → evidence (with highlighting preserved)
+- Analytics: bold assertions written as a debater would say them aloud
+- Transitions: "Next, on the..." / "Turning to the..."
+- Line-by-line numbering within each section: "First... Second... Third... Next..."
+
+DEBATE SPEECH CONVENTIONS:
+- Refer to opponent arguments by number/position: "Their 1NC #3 said [X]..."
+- Cross-applications: "Cross-apply our earlier [X] argument"
+- Grouping: "Group their [X] responses — they all fail because..."
+- Impact framing: "Weigh this on [timeframe/magnitude/probability]"
+- Tag evidence before reading it: "And our [Author Year] evidence says..."
+
+The speech should be ready to read aloud in a competitive round. A debater should be able to print this and read it at the tournament.
 
 OUTPUT: Return the complete speech as HTML. Use:
-- <h3> for section headers
+- <h3> for section headers (e.g., "On the Spending DA")
 - <div class="card-block"> around each card
 - <div class="card-tag"> for tags
 - <div class="card-cite"> for citations
 - <div class="card-evidence"> for evidence
-- <p class="analytic"> for analytics
+- <p class="analytic"> for analytics (bold, numbered)
 - <mark> preserved for highlighted evidence`;
 
   const text = await streamMessage({
