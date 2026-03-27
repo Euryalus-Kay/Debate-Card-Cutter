@@ -149,20 +149,37 @@ export default function LibraryPage() {
     const decoder = new TextDecoder();
 
     if (reader) {
+      let buffer = '';
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const text = decoder.decode(value);
-        const lines = text.split('\n');
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        let eventType = '';
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
+          if (line.startsWith('event: ')) {
+            eventType = line.slice(7);
+          } else if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6));
-              if (data.label) setUploadProgress(data.label);
-              if (data.count !== undefined) {
-                setUploadProgress(`Imported ${data.count} cards`);
+              if (eventType === 'progress' && data.label) {
+                setUploadProgress(data.label);
+              } else if (eventType === 'done' && data.count !== undefined) {
+                setUploadProgress(`✓ Imported ${data.count} cards — saved to Arguments`);
                 await loadCards();
-                // Refresh arguments
+                const argRes = await fetch('/api/argument?list=true');
+                if (argRes.ok) {
+                  const args = await argRes.json();
+                  setArguments(args || []);
+                }
+              } else if (eventType === 'error') {
+                setUploadProgress(`✕ Error: ${data.message || 'Upload failed'}`);
+              } else if (data.label) {
+                setUploadProgress(data.label);
+              } else if (data.count !== undefined) {
+                setUploadProgress(`✓ Imported ${data.count} cards — saved to Arguments`);
+                await loadCards();
                 const argRes = await fetch('/api/argument?list=true');
                 if (argRes.ok) {
                   const args = await argRes.json();
@@ -175,7 +192,7 @@ export default function LibraryPage() {
       }
     }
     setUploading(false);
-    setTimeout(() => setUploadProgress(''), 3000);
+    setTimeout(() => setUploadProgress(''), 8000);
   };
 
   const handleIterate = async (cardId: string, instruction: string) => {
@@ -251,9 +268,17 @@ export default function LibraryPage() {
       </div>
 
       {uploadProgress && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-[#111] rounded-lg border border-[#1a1a1a]">
+        <div className={`flex items-center gap-2 px-4 py-3 rounded-lg border ${
+          uploadProgress.startsWith('✓')
+            ? 'bg-green-950/30 border-green-500/30'
+            : uploadProgress.startsWith('✕')
+            ? 'bg-red-950/30 border-red-500/30'
+            : 'bg-blue-950/30 border-blue-500/30'
+        }`}>
           {uploading && <div className="animate-spin w-3.5 h-3.5 border-2 border-blue-500/30 border-t-blue-400 rounded-full" />}
-          <span className="text-[12px] text-[#ccc]">{uploadProgress}</span>
+          <span className={`text-[13px] ${
+            uploadProgress.startsWith('✓') ? 'text-green-300' : uploadProgress.startsWith('✕') ? 'text-red-300' : 'text-blue-300'
+          }`}>{uploadProgress}</span>
         </div>
       )}
 

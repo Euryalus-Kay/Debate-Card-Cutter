@@ -85,7 +85,12 @@ export async function POST(req: NextRequest) {
 
         send('progress', { step: 4, total: 4, label: 'Creating argument collection...', icon: 'save' });
 
-        // Save as a combined argument
+        // Save as a combined argument (strip evidence_html to keep payload small)
+        const slimComponents = components.map(c => {
+          const slim = { ...c };
+          delete slim.evidence_html;
+          return slim;
+        });
         await supabase.from('arguments').insert({
           id: argumentId,
           title: collectionName,
@@ -95,7 +100,7 @@ export async function POST(req: NextRequest) {
           argument_type: 'custom',
           strategy_overview: '',
           file_notes: '',
-          components,
+          components: slimComponents,
           created_at: now,
         });
 

@@ -1263,21 +1263,25 @@ export async function parseBulkCards(
   evidence_html: string;
 }>> {
   const text = await streamMessage({
-    model: 'claude-opus-4-20250514',
+    model: 'claude-sonnet-4-20250514',
     max_tokens: 64000,
-    system: `You are an expert at parsing debate card collections. Given a document that contains multiple debate cards (like a camp file, theory bible, or evidence packet), split it into individual cards.
+    system: `You split debate documents into individual cards. STRUCTURED EXTRACTION — do NOT rewrite evidence.
 
 Each card has:
-- A tag (bold claim/argument heading)
-- A citation (author, year, credentials, title, URL)
-- Evidence body (the quoted text, often with highlighting)
+- A tag (the bold heading/claim before the citation)
+- A citation line (Author Year, credentials, title, date, URL, initials)
+- Evidence body (the quoted text block after the citation)
 
-For each card, extract the structured fields. If evidence has bold/underline text, convert those to <mark> tags.
+RULES:
+- Extract cards EXACTLY as written — do NOT modify evidence text
+- Preserve bold/underline as <mark> tags
+- Parse citation into structured fields
+- Skip analytics (non-carded arguments without citations)
 
-Return a JSON array of card objects with: tag, cite_author, cite_year, cite_credentials, cite_title, cite_date, cite_url, cite_initials, evidence_html`,
+Return JSON array: [{"tag":"...","cite_author":"Last","cite_year":"YY","cite_credentials":"...","cite_title":"...","cite_date":"...","cite_url":"...","cite_initials":"...","evidence_html":"..."}]`,
     messages: [{
       role: 'user',
-      content: `Parse all individual debate cards from this ${collectionName} document:\n\n${documentText.substring(0, 60000)}`,
+      content: `Split into individual debate cards. JSON array only:\n\n${documentText}`,
     }],
   });
 
