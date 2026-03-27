@@ -245,15 +245,20 @@ export async function POST(req: NextRequest) {
         const originalIndices = cardComponents.map(c => allComponents.indexOf(c));
         await Promise.all(cardComponents.map((comp, idx) => generateOneCard(comp, originalIndices[idx])));
 
-        // Update the argument with completed components
+        // Update the argument with completed components (strip evidence_html to keep payload small)
+        const slimComponents = generatedComponents.map(c => {
+          const slim = { ...c };
+          delete slim.evidence_html;
+          return slim;
+        });
         const { error: argUpdateError } = await supabase.from("arguments")
           .update({
             card_ids: cardIds,
-            components: generatedComponents,
+            components: slimComponents,
           })
           .eq("id", argumentId);
         if (argUpdateError) {
-          console.error("Failed to update argument:", argUpdateError);
+          console.error("Failed to update argument:", argUpdateError.message);
         }
 
         send("done", {

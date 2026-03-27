@@ -1014,10 +1014,13 @@ Round context: ${roundContext}
 ${additionalInstructions ? `Additional instructions: ${additionalInstructions}` : ''}
 
 Previous speeches and their arguments:
-${JSON.stringify(previousSpeeches, null, 2)}
+${previousSpeeches.map(s => {
+  const args = (s.parsed_content || []) as Array<{type?: string; arg_type?: string; label?: string; tag?: string; summary?: string}>;
+  return `=== ${s.speech_type} ===\n${args.map((a, i) => `${i+1}. [${a.type || 'unknown'}] ${a.label || ''} — ${a.tag || a.summary || 'no summary'}`).join('\n')}`;
+}).join('\n\n')}
 
 Current flow state:
-${JSON.stringify(flowEntries, null, 2)}
+${flowEntries.length > 0 ? (flowEntries as Array<{category?: string; label?: string; entries?: Record<string, unknown>}>).map(e => `[${e.category}] ${e.label}`).join('\n') : 'No flow generated yet'}
 
 Available cards in library (${availableCards.length} total):
 ${availableCards.slice(0, 50).map(c => `- [${c.id}] ${c.tag} (${c.cite_author})`).join('\n')}
