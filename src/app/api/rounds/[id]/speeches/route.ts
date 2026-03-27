@@ -31,14 +31,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
       }
 
+      // Keepalive: send a comment every 10s to prevent connection drop
+      const keepalive = setInterval(() => {
+        try {
+          controller.enqueue(encoder.encode(': keepalive\n\n'));
+        } catch {
+          // stream already closed
+        }
+      }, 10000);
+
       try {
-        send('progress', { step: 1, total: 3, label: 'Processing document...', icon: 'doc' });
+        send('progress', { step: 1, total: 4, label: 'Processing document...', icon: 'doc' });
 
         const speechId = uuid();
         const now = new Date().toISOString();
 
         // Step 1: Save the speech IMMEDIATELY so the user sees it
-        send('progress', { step: 2, total: 3, label: 'Saving speech...', icon: 'save' });
+        send('progress', { step: 2, total: 4, label: 'Saving speech...', icon: 'save' });
 
         const { data: speech, error: saveError } = await supabase
           .from('speeches')
@@ -60,38 +69,45 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           .single();
 
         if (saveError) {
+          clearInterval(keepalive);
           send('error', { message: saveError.message });
           controller.close();
           return;
         }
 
+        // Tell frontend the speech is saved — UI can update immediately
         send('done', speech);
 
-        // Step 2: Parse with AI in background (update the record after)
-        send('progress', { step: 3, total: 3, label: 'AI analyzing arguments (background)...', icon: 'brain' });
+        // Step 2: Parse with AI — full content, no truncation
+        send('progress', { step: 3, total: 4, label: 'AI analyzing arguments — this may take a minute for long speeches...', icon: 'brain' });
 
         try {
-          // Truncate extremely long speeches for parsing (keep first ~30000 chars)
-          const parseContent = content.length > 30000 ? content.substring(0, 30000) + '\n\n[... truncated for analysis ...]' : content;
-
           const parsed = await parseSpeech(
-            parseContent,
+            content,
             speech_type,
             round?.side || 'aff',
             round?.round_context || '',
             hasHighlights || false
           );
 
+          send('progress', { step: 4, total: 4, label: 'Saving analysis...', icon: 'save' });
+
           await supabase
             .from('speeches')
             .update({ parsed_content: parsed })
             .eq('id', speechId);
+
+          // Send updated speech with parsed content
+          send('parsed', { id: speechId, parsed_content: parsed });
         } catch (e) {
           console.error('Parse error (non-fatal, speech already saved):', e);
+          send('parse_error', { message: 'AI analysis failed but your speech is saved. You can still use it.' });
         }
 
+        clearInterval(keepalive);
         controller.close();
       } catch (error) {
+        clearInterval(keepalive);
         send('error', { message: error instanceof Error ? error.message : 'Speech processing failed' });
         controller.close();
       }

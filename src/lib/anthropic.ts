@@ -671,9 +671,10 @@ Return a JSON array of objects with these fields:
 
 Return ONLY a JSON array, no other text.`;
 
+  // Use Sonnet for parsing — faster and handles large inputs well
   const text = await streamMessage({
-    model: 'claude-opus-4-20250514',
-    max_tokens: 16000,
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 32000,
     system: systemPrompt,
     messages: [{
       role: 'user',
@@ -683,7 +684,12 @@ Return ONLY a JSON array, no other text.`;
 
   const match = text.match(/\[[\s\S]*\]/);
   if (!match) return [];
-  return JSON.parse(match[0]);
+  try {
+    return JSON.parse(match[0]);
+  } catch {
+    console.error('Failed to parse speech analysis JSON');
+    return [];
+  }
 }
 
 export async function generateFlow(

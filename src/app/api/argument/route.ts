@@ -42,6 +42,15 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      // Keepalive every 15s to prevent connection drop on Railway
+      const keepalive = setInterval(() => {
+        try {
+          controller.enqueue(encoder.encode(': keepalive\n\n'));
+        } catch {
+          // stream closed
+        }
+      }, 15000);
+
       try {
         // Step 1: Plan the camp file
         send("progress", {
@@ -333,10 +342,12 @@ export async function POST(req: NextRequest) {
           section_count: plan.sections.length,
         });
 
+        clearInterval(keepalive);
         // Small delay to ensure the done event is flushed to the client
         await new Promise(resolve => setTimeout(resolve, 100));
         controller.close();
       } catch (error) {
+        clearInterval(keepalive);
         console.error("Argument generation error:", error);
         send("error", {
           message: error instanceof Error ? error.message : "Argument generation failed",
