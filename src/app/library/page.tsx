@@ -310,7 +310,7 @@ export default function LibraryPage() {
         onChange={e => setSearch(e.target.value)}
         placeholder={tab === 'cards' ? 'Search cards by tag, author, citation...' : 'Search arguments by title or description...'}
         className="w-full px-4 py-2.5 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#999] focus:outline-none focus:border-[#333]"
-      />}
+      />
 
       {/* Collections */}
       {tab === 'cards' && collections.length > 0 && (
