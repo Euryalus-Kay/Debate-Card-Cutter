@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useApp } from '@/components/AppShell';
 import CardDisplay from '@/components/CardDisplay';
+import FolderView from '@/components/FolderView';
 
 interface CardLib {
   id: string;
@@ -89,7 +90,7 @@ function typeLabel(argType?: string): string {
 
 export default function LibraryPage() {
   const { userName } = useApp();
-  const [tab, setTab] = useState<'cards' | 'arguments'>('cards');
+  const [tab, setTab] = useState<'cards' | 'arguments' | 'folders'>('cards');
   const [collections, setCollections] = useState<CardLib[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
   const [arguments_, setArguments] = useState<Argument[]>([]);
@@ -300,15 +301,32 @@ export default function LibraryPage() {
         >
           Arguments ({filteredArgs.length})
         </button>
+        <button
+          onClick={() => setTab('folders')}
+          className={`px-4 py-2 text-[13px] rounded-t-lg transition-colors ${
+            tab === 'folders' ? 'bg-[#1a1a1a] text-white' : 'text-[#888] hover:text-white'
+          }`}
+        >
+          Folders
+        </button>
       </div>
 
-      {/* Search */}
-      <input
+      {/* Folders tab */}
+      {tab === 'folders' && (
+        <FolderView
+          cards={cards.map(c => ({ id: c.id, tag: c.tag, cite_author: c.cite_author, cite_year: c.cite_year }))}
+          userName={userName}
+          onCardClick={(id) => setExpandedCardId(expandedCardId === id ? null : id)}
+        />
+      )}
+
+      {/* Search (only for cards/arguments tabs) */}
+      {tab !== 'folders' && <input
         value={search}
         onChange={e => setSearch(e.target.value)}
         placeholder={tab === 'cards' ? 'Search cards by tag, author, citation...' : 'Search arguments by title or description...'}
         className="w-full px-4 py-2.5 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#999] focus:outline-none focus:border-[#333]"
-      />
+      />}
 
       {/* Collections */}
       {tab === 'cards' && collections.length > 0 && (
