@@ -350,7 +350,7 @@ export default function LibraryPage() {
       {/* Folder view inside cards tab */}
       {tab === 'cards' && viewMode === 'folders' && (
         <FolderView
-          cards={cards.map(c => ({ id: c.id, tag: c.tag, cite_author: c.cite_author, cite_year: c.cite_year }))}
+          cards={cards.map(c => ({ id: c.id, tag: c.tag, cite_author: c.cite_author, cite_year: c.cite_year, cite: c.cite, evidence_html: c.evidence_html }))}
           userName={userName}
           onCardClick={(id) => setExpandedCardId(expandedCardId === id ? null : id)}
         />

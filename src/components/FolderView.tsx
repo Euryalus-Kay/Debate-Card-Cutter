@@ -21,6 +21,8 @@ interface Card {
   tag: string;
   cite_author: string;
   cite_year: string;
+  cite?: string;
+  evidence_html?: string;
 }
 
 interface Props {
@@ -40,6 +42,7 @@ export default function FolderView({ cards, userName, onCardClick }: Props) {
   const [customRules, setCustomRules] = useState("");
   const [dragCard, setDragCard] = useState<string | null>(null);
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
+  const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
   const loadFolders = async () => {
     const res = await fetch(`/api/folders?profile=${activeProfile}`);
@@ -202,31 +205,41 @@ export default function FolderView({ cards, userName, onCardClick }: Props) {
           <>
             {childFolders.map(cf => renderFolder(cf))}
             {folderCards.map(card => (
-              <div
-                key={card.id}
-                draggable
-                onDragStart={() => setDragCard(card.id)}
-                className="flex items-center group hover:bg-white/[0.03] transition-colors py-1.5 px-3"
-                style={{ paddingLeft: 12 + (folder.depth + 1) * 24 + 20 }}
-              >
-                <svg className="w-3 h-3 mr-2.5 text-[#333] shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
-                </svg>
-                <span
-                  className="text-[12px] text-[#888] flex-1 truncate cursor-pointer hover:text-white transition-colors"
-                  onClick={() => onCardClick(card.id)}
+              <div key={card.id}>
+                <div
+                  draggable
+                  onDragStart={() => setDragCard(card.id)}
+                  className="flex items-center group hover:bg-white/[0.03] transition-colors py-1.5 px-3 cursor-pointer"
+                  style={{ paddingLeft: 12 + (folder.depth + 1) * 24 + 20 }}
+                  onClick={() => setExpandedCard(expandedCard === card.id ? null : card.id)}
                 >
-                  {card.tag}
-                </span>
-                <span className="text-[11px] text-[#444] shrink-0 ml-2">{card.cite_author} {card.cite_year}</span>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleRemoveFromFolder(card.id, folder.id); }}
-                  className="ml-2 text-[#333] hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-                >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <svg className="w-3 h-3 mr-2.5 text-[#333] shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
                   </svg>
-                </button>
+                  <span className={`text-[12px] flex-1 truncate transition-colors ${expandedCard === card.id ? 'text-white' : 'text-[#888] hover:text-white'}`}>
+                    {card.tag}
+                  </span>
+                  <span className="text-[11px] text-[#444] shrink-0 ml-2">{card.cite_author} {card.cite_year}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleRemoveFromFolder(card.id, folder.id); }}
+                    className="ml-2 text-[#333] hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                {/* Expanded card preview */}
+                {expandedCard === card.id && card.evidence_html && (
+                  <div
+                    className="mx-4 my-1 p-3 bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg overflow-auto card-evidence"
+                    style={{ marginLeft: 12 + (folder.depth + 1) * 24 + 20, maxHeight: 400, fontSize: 11, lineHeight: '1.5' }}
+                  >
+                    <div className="text-[12px] font-bold text-white mb-1" style={{ fontFamily: 'Georgia, serif' }}>{card.tag}</div>
+                    {card.cite && <div className="text-[10px] text-[#888] mb-2" style={{ fontFamily: 'Georgia, serif' }}>{card.cite}</div>}
+                    <div dangerouslySetInnerHTML={{ __html: card.evidence_html }} />
+                  </div>
+                )}
               </div>
             ))}
           </>
