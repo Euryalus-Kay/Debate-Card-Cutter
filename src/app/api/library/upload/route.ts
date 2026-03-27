@@ -40,8 +40,10 @@ export async function POST(req: NextRequest) {
 
         const libraryId = library?.id;
 
-        // Use AI to parse individual cards
-        const cards = await parseBulkCards(parsed.html || parsed.text, collectionName);
+        // Use AI to parse individual cards (chunked for large files)
+        const cards = await parseBulkCards(parsed.html || parsed.text, collectionName, (done, total) => {
+          send('progress', { step: 2, total: 4, label: `AI splitting cards — chunk ${done + 1}/${total}...`, icon: 'brain' });
+        });
 
         send('progress', { step: 3, total: 4, label: `Saving ${cards.length} cards...`, icon: 'save' });
 

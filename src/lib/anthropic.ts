@@ -1250,7 +1250,8 @@ Return the complete updated speech HTML.`,
 
 export async function parseBulkCards(
   documentText: string,
-  collectionName: string
+  collectionName: string,
+  onProgress?: (done: number, total: number) => void
 ): Promise<Array<{
   tag: string;
   cite_author: string;
@@ -1262,10 +1263,7 @@ export async function parseBulkCards(
   cite_initials: string;
   evidence_html: string;
 }>> {
-  const text = await streamMessage({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 64000,
-    system: `You split debate documents into individual cards. STRUCTURED EXTRACTION — do NOT rewrite evidence.
+  const SYSTEM = `You split debate documents into individual cards. STRUCTURED EXTRACTION — do NOT rewrite evidence.
 
 Each card has:
 - A tag (the bold heading/claim before the citation)
@@ -1273,19 +1271,70 @@ Each card has:
 - Evidence body (the quoted text block after the citation)
 
 RULES:
-- Extract cards EXACTLY as written — do NOT modify evidence text
+- Extract cards EXACTLY as written — do NOT modify or summarize evidence text
 - Preserve bold/underline as <mark> tags
 - Parse citation into structured fields
-- Skip analytics (non-carded arguments without citations)
+- Skip analytics/section headers (non-carded arguments without citations)
+- Include the FULL evidence body for each card — do not truncate
 
-Return JSON array: [{"tag":"...","cite_author":"Last","cite_year":"YY","cite_credentials":"...","cite_title":"...","cite_date":"...","cite_url":"...","cite_initials":"...","evidence_html":"..."}]`,
-    messages: [{
-      role: 'user',
-      content: `Split into individual debate cards. JSON array only:\n\n${documentText}`,
-    }],
-  });
+Return JSON array: [{"tag":"...","cite_author":"Last","cite_year":"YY","cite_credentials":"...","cite_title":"...","cite_date":"...","cite_url":"...","cite_initials":"...","evidence_html":"..."}]`;
 
-  const match = text.match(/\[[\s\S]*\]/);
-  if (!match) return [];
-  return JSON.parse(match[0]);
+  // Chunk the document into ~15k char segments at paragraph boundaries
+  const CHUNK_SIZE = 15000;
+  const chunks: string[] = [];
+
+  if (documentText.length <= CHUNK_SIZE) {
+    chunks.push(documentText);
+  } else {
+    let remaining = documentText;
+    while (remaining.length > 0) {
+      if (remaining.length <= CHUNK_SIZE) {
+        chunks.push(remaining);
+        break;
+      }
+      // Find a good break point (double newline near the chunk boundary)
+      let breakAt = remaining.lastIndexOf('\n\n', CHUNK_SIZE);
+      if (breakAt < CHUNK_SIZE * 0.5) breakAt = remaining.lastIndexOf('\n', CHUNK_SIZE);
+      if (breakAt < CHUNK_SIZE * 0.5) breakAt = CHUNK_SIZE;
+      chunks.push(remaining.substring(0, breakAt));
+      remaining = remaining.substring(breakAt);
+    }
+  }
+
+  const allCards: Array<{
+    tag: string; cite_author: string; cite_year: string; cite_credentials: string;
+    cite_title: string; cite_date: string; cite_url: string; cite_initials: string;
+    evidence_html: string;
+  }> = [];
+
+  for (let i = 0; i < chunks.length; i++) {
+    if (onProgress) onProgress(i, chunks.length);
+
+    try {
+      const text = await streamMessage({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 32000,
+        system: SYSTEM,
+        messages: [{
+          role: 'user',
+          content: `Extract all debate cards from this section (chunk ${i + 1}/${chunks.length}) of "${collectionName}". JSON array only:\n\n${chunks[i]}`,
+        }],
+      });
+
+      const match = text.match(/\[[\s\S]*\]/);
+      if (match) {
+        try {
+          const parsed = JSON.parse(match[0]);
+          allCards.push(...parsed);
+        } catch (e) {
+          console.error(`Failed to parse chunk ${i + 1} JSON:`, e);
+        }
+      }
+    } catch (e) {
+      console.error(`Failed to process chunk ${i + 1}:`, e);
+    }
+  }
+
+  if (onProgress) onProgress(chunks.length, chunks.length);
+  return allCards;
 }
