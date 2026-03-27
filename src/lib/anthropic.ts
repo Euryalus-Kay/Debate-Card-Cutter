@@ -1279,8 +1279,8 @@ RULES:
 
 Return JSON array: [{"tag":"...","cite_author":"Last","cite_year":"YY","cite_credentials":"...","cite_title":"...","cite_date":"...","cite_url":"...","cite_initials":"...","evidence_html":"..."}]`;
 
-  // Chunk the document into ~15k char segments at paragraph boundaries
-  const CHUNK_SIZE = 15000;
+  // Chunk the document into ~40k char segments at paragraph boundaries
+  const CHUNK_SIZE = 40000;
   const chunks: string[] = [];
 
   if (documentText.length <= CHUNK_SIZE) {
