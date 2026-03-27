@@ -21,6 +21,18 @@ export async function GET(req: NextRequest) {
   return new Response(JSON.stringify([]), { headers: { 'Content-Type': 'application/json' } });
 }
 
+export async function DELETE(req: NextRequest) {
+  const { id } = await req.json();
+  if (!id) return Response.json({ error: "ID required" }, { status: 400 });
+
+  // Unlink cards from this argument (don't delete the cards themselves)
+  await supabase.from("cards").update({ argument_id: null }).eq("argument_id", id);
+  // Delete the argument
+  const { error } = await supabase.from("arguments").delete().eq("id", id);
+  if (error) return Response.json({ error: error.message }, { status: 500 });
+  return Response.json({ success: true });
+}
+
 export async function POST(req: NextRequest) {
   const { query, context, authorName, argument_type } = await req.json();
 

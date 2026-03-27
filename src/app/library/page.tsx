@@ -392,6 +392,24 @@ export default function LibraryPage() {
                           <span className="text-[10px] text-[#666] bg-[#1a1a1a] px-2 py-0.5 rounded">
                             {argCardList.length} cards
                           </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm(`Delete "${arg.title}"? Cards will be kept in the library.`)) {
+                                fetch('/api/argument', {
+                                  method: 'DELETE',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ id: arg.id }),
+                                }).then(() => {
+                                  setArguments(prev => prev.filter(a => a.id !== arg.id));
+                                });
+                              }
+                            }}
+                            className="text-[10px] text-[#555] hover:text-red-400 transition-colors px-1.5 py-0.5 rounded hover:bg-red-950/30"
+                            title="Delete argument"
+                          >
+                            ✕
+                          </button>
                           <span className={`text-[#999] transition-transform ${isExpanded ? 'rotate-90' : ''}`}>&#9654;</span>
                         </div>
                       </div>
