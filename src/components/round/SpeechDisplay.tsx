@@ -23,10 +23,17 @@ export default function SpeechDisplay({ speechType, html, rawContent, sourceType
   const wordCount = (rawContent || '').split(/\s+/).filter(Boolean).length;
 
   const copyToClipboard = async () => {
+    // Convert <mark> to inline styles for Google Docs compatibility
+    const styledHtml = content
+      .replace(/<mark>/gi, '<span style="background-color:#00ffff;font-weight:bold;text-decoration:underline;">')
+      .replace(/<\/mark>/gi, '</span>')
+      .replace(/<u>/gi, '<span style="text-decoration:underline;">')
+      .replace(/<\/u>/gi, '</span>');
+
     try {
       await navigator.clipboard.write([
         new ClipboardItem({
-          'text/html': new Blob([content], { type: 'text/html' }),
+          'text/html': new Blob([styledHtml], { type: 'text/html' }),
           'text/plain': new Blob([contentRef.current?.innerText || ''], { type: 'text/plain' }),
         }),
       ]);

@@ -1088,10 +1088,10 @@ OUTPUT: Return the complete speech as HTML. Use:
   const roadmapText = await streamMessage({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 500,
-    system: 'You write debate speech roadmaps. Output a single short paragraph starting with "I\'ll be going..." listing the order of arguments. No HTML tags, just plain text.',
+    system: `You write debate speech roadmaps exactly as a debater would say them at the start of a speech. Format: "I'll be going [order]" — list the major argument categories in order, NOT every individual card. For example: "I'll be going T, the States CP, the Spending DA, then case" or "I'll be going off-case then on-case: Topicality, the counterplan, two disadvantages, then case defense." Keep it to 1-2 sentences max. No HTML tags, just plain text.`,
     messages: [{
       role: 'user',
-      content: `Write a roadmap for a ${speechType} (${side}) covering: ${sectionLabels.join(', ')}`,
+      content: `Write a roadmap for a ${speechType} (${side}). The speech covers these argument groups: ${sectionLabels.join(', ')}`,
     }],
   });
 
@@ -1108,15 +1108,15 @@ OUTPUT: Return the complete speech as HTML. Use:
     }
 
     if (section.action === 'card' && section.tag && section.evidence_html) {
-      html += `<div class="card-block" style="margin-bottom:12px;">`;
-      html += `<div class="card-tag" style="font-weight:bold;font-size:13px;">${section.tag}</div>`;
+      html += `<div class="card-block" style="margin-bottom:16px;page-break-inside:avoid;">`;
+      html += `<div class="card-tag" style="font-weight:bold;font-size:13px;text-decoration:underline;">${section.tag}</div>`;
       if (section.cite) {
-        html += `<div class="card-cite" style="font-size:11px;color:#999;margin:2px 0 4px;">${section.cite}</div>`;
+        html += `<div class="card-cite" style="font-size:12px;margin:4px 0 6px;">${section.cite}</div>`;
       }
-      html += `<div class="card-evidence" style="font-size:11px;line-height:1.4;">${section.evidence_html}</div>`;
+      html += `<div class="card-evidence" style="font-size:11px;line-height:1.5;">${section.evidence_html}</div>`;
       html += `</div>\n`;
     } else if (section.content) {
-      html += `<p class="analytic" style="font-weight:bold;font-size:12px;margin:6px 0;"><strong>${section.label}:</strong> ${section.content}</p>\n`;
+      html += `<p class="analytic" style="font-weight:bold;font-size:12px;margin:8px 0;"><strong>${section.label}:</strong> ${section.content}</p>\n`;
     }
   }
 

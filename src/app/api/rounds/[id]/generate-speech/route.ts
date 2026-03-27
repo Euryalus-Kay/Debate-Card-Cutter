@@ -95,7 +95,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                 is_shared: true,
               });
 
-              cardResultMap.set(index, { tag: card.tag, cite: card.cite_author, evidence_html: card.evidence_html });
+              cardResultMap.set(index, { tag: card.tag, cite, evidence_html: card.evidence_html });
             }
           } catch (e) {
             console.error('Card gen error for section:', section.label, e);
