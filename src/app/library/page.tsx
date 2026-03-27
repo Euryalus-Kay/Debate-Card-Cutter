@@ -90,7 +90,8 @@ function typeLabel(argType?: string): string {
 
 export default function LibraryPage() {
   const { userName } = useApp();
-  const [tab, setTab] = useState<'cards' | 'arguments' | 'folders'>('cards');
+  const [tab, setTab] = useState<'cards' | 'arguments'>('cards');
+  const [viewMode, setViewMode] = useState<'list' | 'folders'>('list');
   const [collections, setCollections] = useState<CardLib[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
   const [arguments_, setArguments] = useState<Argument[]>([]);
@@ -301,27 +302,10 @@ export default function LibraryPage() {
         >
           Arguments ({filteredArgs.length})
         </button>
-        <button
-          onClick={() => setTab('folders')}
-          className={`px-4 py-2 text-[13px] rounded-t-lg transition-colors ${
-            tab === 'folders' ? 'bg-[#1a1a1a] text-white' : 'text-[#888] hover:text-white'
-          }`}
-        >
-          Folders
-        </button>
       </div>
 
-      {/* Folders tab */}
-      {tab === 'folders' && (
-        <FolderView
-          cards={cards.map(c => ({ id: c.id, tag: c.tag, cite_author: c.cite_author, cite_year: c.cite_year }))}
-          userName={userName}
-          onCardClick={(id) => setExpandedCardId(expandedCardId === id ? null : id)}
-        />
-      )}
-
-      {/* Search (only for cards/arguments tabs) */}
-      {tab !== 'folders' && <input
+      {/* Search */}
+      <input
         value={search}
         onChange={e => setSearch(e.target.value)}
         placeholder={tab === 'cards' ? 'Search cards by tag, author, citation...' : 'Search arguments by title or description...'}
@@ -339,8 +323,41 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {/* Cards tab — compact grid previews */}
+      {/* View mode toggle (inside cards tab) */}
       {tab === 'cards' && (
+        <div className="flex items-center gap-2">
+          <div className="flex bg-[#111] border border-[#1a1a1a] rounded-lg p-0.5">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-3 py-1 text-[11px] rounded-md transition-colors ${
+                viewMode === 'list' ? 'bg-[#222] text-white' : 'text-[#888] hover:text-white'
+              }`}
+            >
+              List
+            </button>
+            <button
+              onClick={() => setViewMode('folders')}
+              className={`px-3 py-1 text-[11px] rounded-md transition-colors ${
+                viewMode === 'folders' ? 'bg-[#222] text-white' : 'text-[#888] hover:text-white'
+              }`}
+            >
+              Folders
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Folder view inside cards tab */}
+      {tab === 'cards' && viewMode === 'folders' && (
+        <FolderView
+          cards={cards.map(c => ({ id: c.id, tag: c.tag, cite_author: c.cite_author, cite_year: c.cite_year }))}
+          userName={userName}
+          onCardClick={(id) => setExpandedCardId(expandedCardId === id ? null : id)}
+        />
+      )}
+
+      {/* Cards tab — compact grid previews */}
+      {tab === 'cards' && viewMode === 'list' && (
         <>
           {loading ? (
             <div className="text-center py-12 text-[#666] text-[13px]">Loading...</div>

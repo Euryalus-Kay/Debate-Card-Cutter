@@ -15,18 +15,23 @@ async function classifyCards(
     : `Sort these debate cards into a hierarchical folder structure for a high school policy debate library.
 
 FOLDER HIERARCHY:
-Level 1: Side (Affirmative / Negative / Neutral)
-Level 2: Argument type (Case, Disadvantages, Counterplans, Kritiks, Topicality, Theory, Framework, Impact Defense, Solvency, Evidence Indicts)
-Level 3: Specific argument (e.g., "Spending DA", "States CP", "Capitalism K", "T-Substantial")
+Level 1: Side — classify by WHICH SIDE READS THIS CARD:
+  - "Affirmative" = cards the AFF team reads (case advantages, plan solvency, inherency, 2AC answers to neg args, aff extensions)
+  - "Negative" = cards the NEG team reads (DAs, CPs, Ks, T shells, case defense, neg extensions)
+  - "Flexible" = cards either side could use (impact defense, generic framework, evidence indicts)
 
-RULES:
-- A card can go in multiple folders if it applies to multiple arguments
-- Use the tag and author to determine classification
-- Uniqueness/Link/Impact cards go under their specific DA
-- Perm/Theory/Solvency deficit cards go under their specific CP
-- Link/Alt/Framework cards go under their specific K
-- Generic impact defense goes under "Impact Defense"
-- Case cards go under "Case" with sub-folders by advantage name if identifiable
+CRITICAL CLASSIFICATION RULES:
+- Disadvantages (DAs) are ALWAYS Negative — the neg reads DAs against the aff plan
+- Counterplans (CPs) are ALWAYS Negative — the neg reads CPs as alternatives to the aff plan
+- Kritiks (Ks) are ALWAYS Negative (unless it's a K aff, which goes under Affirmative/Case)
+- Topicality is ALWAYS Negative — neg argues aff is not topical
+- Case advantages, plan text, solvency, inherency are ALWAYS Affirmative
+- Answers TO DAs (like "no link to spending DA") are Affirmative — the aff reads those answers
+- Answers TO CPs (like "perm do both") are Affirmative
+- Impact defense cards are Flexible
+
+Level 2: Argument type (Case, Disadvantages, Counterplans, Kritiks, Topicality, Theory, Framework, Impact Defense, Answers)
+Level 3: Specific argument (e.g., "Spending DA", "States CP", "Capitalism K", "T-Substantial")
 
 Return JSON array only.`;
 
