@@ -93,7 +93,7 @@ OUTPUT FORMAT: Return a JSON object with these exact fields:
 
   const text = await streamMessage({
     model: "claude-opus-4-20250514",
-    max_tokens: 64000,
+    max_tokens: 16000,
     system: systemPrompt,
     messages: [
       {
@@ -204,7 +204,7 @@ Return JSON with "tag" and "evidence_html" fields only.`;
 
   const text = await streamMessage({
     model: "claude-opus-4-20250514",
-    max_tokens: 64000,
+    max_tokens: 16000,
     system: systemPrompt,
     messages: [
       {
@@ -676,7 +676,7 @@ Return ONLY a JSON array, no other text.`;
   // Stream to track progress via token output
   const stream = client.messages.stream({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 64000,
+    max_tokens: 16000,
     system: systemPrompt,
     messages: [{
       role: 'user',
@@ -741,7 +741,7 @@ Return a JSON array of row objects:
 
   const text = await streamMessage({
     model: 'claude-opus-4-20250514',
-    max_tokens: 64000,
+    max_tokens: 16000,
     system: systemPrompt,
     messages: [{
       role: 'user',
@@ -1225,7 +1225,7 @@ export async function iterateSpeech(
 ): Promise<string> {
   const text = await streamMessage({
     model: 'claude-opus-4-20250514',
-    max_tokens: 64000,
+    max_tokens: 16000,
     system: `You refine policy debate speeches. You can:
 - Reorder arguments
 - Adjust highlighting (<mark> tags)
@@ -1313,7 +1313,7 @@ Return JSON array: [{"tag":"...","cite_author":"Last","cite_year":"YY","cite_cre
     try {
       const text = await streamMessage({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 32000,
+        max_tokens: 16000,
         system: SYSTEM,
         messages: [{
           role: 'user',
