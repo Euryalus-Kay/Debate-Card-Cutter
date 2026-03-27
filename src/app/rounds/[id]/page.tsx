@@ -167,6 +167,13 @@ export default function RoundWorkspacePage({ params }: { params: Promise<{ id: s
                   setSpeechProgress(data);
                 } else if (eventType === 'done' || data.id) {
                   await loadRound();
+                  // Auto-regenerate flow when a speech is added
+                  autoUpdateFlow();
+                } else if (eventType === 'parsed') {
+                  // AI parsing finished — reload to get parsed content
+                  await loadRound();
+                } else if (eventType === 'parse_error') {
+                  console.warn('Parse warning:', data.message);
                 }
               } catch {}
             }
@@ -179,6 +186,37 @@ export default function RoundWorkspacePage({ params }: { params: Promise<{ id: s
       setProcessingSlot(null);
       setSpeechProgress(null);
     }
+  };
+
+  // Auto-update flow when speeches change
+  const autoUpdateFlow = async () => {
+    // Only auto-generate if we have at least 2 speeches (need something to flow)
+    const currentSpeeches = await fetch(`/api/rounds/${roundId}/speeches`).then(r => r.json()).catch(() => []);
+    if (!currentSpeeches || currentSpeeches.length < 2) return;
+
+    // Check if any speeches have parsed content
+    const hasParsed = currentSpeeches.some((s: Speech) => s.parsed_content && (s.parsed_content as unknown[]).length > 0);
+    if (!hasParsed) return;
+
+    setFlowGenerating(true);
+    try {
+      const res = await fetch(`/api/rounds/${roundId}/flow`, { method: 'POST' });
+      const reader = res.body?.getReader();
+      if (reader) {
+        const decoder = new TextDecoder();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const text = decoder.decode(value);
+          if (text.includes('"row_index"')) {
+            await loadRound();
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Auto flow update error:', err);
+    }
+    setFlowGenerating(false);
   };
 
   // Generate speech

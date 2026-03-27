@@ -82,12 +82,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         send('progress', { step: 3, total: 4, label: 'AI analyzing arguments — this may take a minute for long speeches...', icon: 'brain' });
 
         try {
+          const contentLen = content.length;
+          send('progress', { step: 3, total: 4, label: `AI analyzing ${Math.round(contentLen / 1000)}k characters — finding arguments...`, icon: 'brain' });
+
           const parsed = await parseSpeech(
             content,
             speech_type,
             round?.side || 'aff',
             round?.round_context || '',
-            hasHighlights || false
+            hasHighlights || false,
+            (argCount: number) => {
+              send('progress', { step: 3, total: 4, label: `Found ${argCount} argument${argCount !== 1 ? 's' : ''} so far...`, icon: 'brain' });
+            }
           );
 
           send('progress', { step: 4, total: 4, label: 'Saving analysis...', icon: 'save' });

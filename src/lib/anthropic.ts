@@ -93,7 +93,7 @@ OUTPUT FORMAT: Return a JSON object with these exact fields:
 
   const text = await streamMessage({
     model: "claude-opus-4-20250514",
-    max_tokens: 16000,
+    max_tokens: 32000,
     system: systemPrompt,
     messages: [
       {
@@ -204,7 +204,7 @@ Return JSON with "tag" and "evidence_html" fields only.`;
 
   const text = await streamMessage({
     model: "claude-opus-4-20250514",
-    max_tokens: 16000,
+    max_tokens: 32000,
     system: systemPrompt,
     messages: [
       {
@@ -618,7 +618,8 @@ export async function parseSpeech(
   speechType: string,
   side: string,
   roundContext: string,
-  hasHighlights: boolean
+  hasHighlights: boolean,
+  onProgress?: (argCount: number) => void
 ): Promise<Array<{
   id: string;
   type: string;
@@ -672,15 +673,30 @@ Return a JSON array of objects with these fields:
 Return ONLY a JSON array, no other text.`;
 
   // Use Sonnet for parsing — faster and handles large inputs well
-  const text = await streamMessage({
+  // Stream to track progress via token output
+  const stream = client.messages.stream({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 32000,
+    max_tokens: 64000,
     system: systemPrompt,
     messages: [{
       role: 'user',
       content: `${roundContext ? `Round context: ${roundContext}\n\n` : ''}Identify every argument in this ${speechType} speech:\n\n${speechText}`,
     }],
   });
+
+  let text = '';
+  let argCount = 0;
+  for await (const event of stream) {
+    if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+      text += event.delta.text;
+      // Count how many complete argument objects we've seen so far
+      const newCount = (text.match(/"arg-\d+"/g) || []).length;
+      if (newCount > argCount) {
+        argCount = newCount;
+        if (onProgress) onProgress(argCount);
+      }
+    }
+  }
 
   const match = text.match(/\[[\s\S]*\]/);
   if (!match) return [];
@@ -725,7 +741,7 @@ Return a JSON array of row objects:
 
   const text = await streamMessage({
     model: 'claude-opus-4-20250514',
-    max_tokens: 16000,
+    max_tokens: 32000,
     system: systemPrompt,
     messages: [{
       role: 'user',
@@ -1051,7 +1067,7 @@ OUTPUT: Return the complete speech as HTML. Use:
 
   const text = await streamMessage({
     model: 'claude-opus-4-20250514',
-    max_tokens: 16000,
+    max_tokens: 32000,
     system: systemPrompt,
     messages: [{
       role: 'user',
@@ -1173,7 +1189,7 @@ export async function iterateSpeech(
 ): Promise<string> {
   const text = await streamMessage({
     model: 'claude-opus-4-20250514',
-    max_tokens: 16000,
+    max_tokens: 32000,
     system: `You refine policy debate speeches. You can:
 - Reorder arguments
 - Adjust highlighting (<mark> tags)
@@ -1212,7 +1228,7 @@ export async function parseBulkCards(
 }>> {
   const text = await streamMessage({
     model: 'claude-opus-4-20250514',
-    max_tokens: 16000,
+    max_tokens: 32000,
     system: `You are an expert at parsing debate card collections. Given a document that contains multiple debate cards (like a camp file, theory bible, or evidence packet), split it into individual cards.
 
 Each card has:
