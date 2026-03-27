@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
         } catch {
           // stream closed
         }
-      }, 15000);
+      }, 5000);
 
       try {
         // Step 1: Plan the camp file
@@ -128,20 +128,10 @@ export async function POST(req: NextRequest) {
           console.error("Failed to create argument shell:", argInsertError);
         }
 
+        // Immediately emit all analytics/plan_text/interp_text components
+        const cardComponents: typeof allComponents = [];
         for (let i = 0; i < allComponents.length; i++) {
           const comp = allComponents[i];
-
-          send("progress", {
-            step: "component",
-            index: i,
-            total: allComponents.length,
-            sectionIndex: comp.sectionIndex,
-            sectionHeader: comp.sectionHeader,
-            label: `[${comp.sectionHeader}] ${comp.label}`,
-            icon: comp.type === "card" ? "search" : "pen",
-            type: comp.type,
-          });
-
           if (comp.type === "analytic" || comp.type === "plan_text" || comp.type === "interp_text") {
             generatedComponents.push({
               index: i,
@@ -152,173 +142,108 @@ export async function POST(req: NextRequest) {
               purpose: comp.purpose,
               content: comp.content || "",
             });
-
             send("component_done", {
-              index: i,
-              sectionIndex: comp.sectionIndex,
-              sectionHeader: comp.sectionHeader,
-              type: comp.type,
-              label: comp.label,
-              purpose: comp.purpose,
-              content: comp.content || "",
+              index: i, sectionIndex: comp.sectionIndex, sectionHeader: comp.sectionHeader,
+              type: comp.type, label: comp.label, purpose: comp.purpose, content: comp.content || "",
             });
-            continue;
+          } else {
+            cardComponents.push(comp);
           }
+        }
 
-          // Card component: search, scrape, generate
+        // Generate ALL cards in parallel
+        send("progress", {
+          step: "generating_cards",
+          label: `Generating ${cardComponents.length} cards in parallel...`,
+          total: cardComponents.length,
+          icon: "sparkle",
+          cards: cardComponents.map(c => ({ label: c.label, section: c.sectionHeader })),
+        });
+
+        let cardsDone = 0;
+
+        async function generateOneCard(comp: typeof allComponents[0], i: number) {
           try {
-            send("progress", {
-              step: "searching",
-              index: i,
-              total: allComponents.length,
-              sectionHeader: comp.sectionHeader,
-              label: `Searching evidence for: ${comp.label}`,
-              icon: "search",
-            });
-
             const searchResults = await searchEvidence(comp.query || comp.label, context || "");
 
             if (!searchResults.sources.length) {
               generatedComponents.push({
-                index: i,
-                sectionIndex: comp.sectionIndex,
-                sectionHeader: comp.sectionHeader,
-                type: "analytic",
-                label: comp.label,
-                purpose: comp.purpose,
+                index: i, sectionIndex: comp.sectionIndex, sectionHeader: comp.sectionHeader,
+                type: "analytic", label: comp.label, purpose: comp.purpose,
                 content: `[No evidence found -- write your own warrant here for: ${comp.label}]`,
               });
               send("component_done", {
-                index: i,
-                sectionIndex: comp.sectionIndex,
-                sectionHeader: comp.sectionHeader,
-                type: "analytic",
-                label: comp.label,
-                purpose: comp.purpose,
-                content: `[No evidence found -- write your own warrant here for: ${comp.label}]`,
-                fallback: true,
+                index: i, sectionIndex: comp.sectionIndex, sectionHeader: comp.sectionHeader,
+                type: "analytic", label: comp.label, purpose: comp.purpose,
+                content: `[No evidence found]`, fallback: true,
               });
-              continue;
+              return;
             }
 
-            // Select best source
             let selectedUrl = searchResults.sources[0].url;
             if (searchResults.sources.length > 1) {
               try {
-                const selection = await selectBestSource(
-                  comp.query || comp.label,
-                  searchResults.answer,
-                  searchResults.sources
-                );
+                const selection = await selectBestSource(comp.query || comp.label, searchResults.answer, searchResults.sources);
                 selectedUrl = selection.selectedUrl;
-              } catch {
-                // Use first source
-              }
+              } catch { /* use first */ }
             }
-
-            send("progress", {
-              step: "scraping",
-              index: i,
-              total: allComponents.length,
-              sectionHeader: comp.sectionHeader,
-              label: `Fetching source for: ${comp.label}`,
-              icon: "download",
-            });
 
             let fullText = await scrapeArticle(selectedUrl);
-            if (fullText.length < 500) {
-              fullText = await deepSearchSource(selectedUrl, comp.query || comp.label);
-            }
-            if (fullText.length < 100) {
-              fullText = searchResults.answer;
-            }
+            if (fullText.length < 500) fullText = await deepSearchSource(selectedUrl, comp.query || comp.label);
+            if (fullText.length < 100) fullText = searchResults.answer;
 
-            send("progress", {
-              step: "generating",
-              index: i,
-              total: allComponents.length,
-              sectionHeader: comp.sectionHeader,
-              label: `Cutting card: ${comp.label}`,
-              icon: "sparkle",
-            });
-
-            const card = await generateCard(
-              comp.query || comp.label,
-              fullText,
-              selectedUrl,
-              searchResults.answer,
-              context || ""
-            );
+            const card = await generateCard(comp.query || comp.label, fullText, selectedUrl, searchResults.answer, context || "");
 
             const cardId = uuid();
             const cite = `${card.cite_author} (${card.cite_credentials}. "${card.cite_title}" ${card.cite_date}. ${card.cite_url}) ${card.cite_initials}`;
-
             const now = new Date().toISOString();
+
             const { error: cardInsertError } = await supabase.from("cards").insert({
-              id: cardId,
-              tag: card.tag,
-              cite,
-              cite_author: card.cite_author,
-              cite_year: card.cite_year,
-              cite_credentials: card.cite_credentials,
-              cite_title: card.cite_title,
-              cite_date: card.cite_date,
-              cite_url: card.cite_url,
-              cite_access_date: new Date().toLocaleDateString("en-US", {
-                month: "numeric",
-                day: "numeric",
-                year: "numeric",
-              }),
-              cite_initials: card.cite_initials,
-              evidence_html: card.evidence_html,
-              author_name: authorName || "Anonymous",
-              argument_id: argumentId,
-              created_at: now,
-              updated_at: now,
+              id: cardId, tag: card.tag, cite, cite_author: card.cite_author,
+              cite_year: card.cite_year, cite_credentials: card.cite_credentials,
+              cite_title: card.cite_title, cite_date: card.cite_date, cite_url: card.cite_url,
+              cite_access_date: new Date().toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" }),
+              cite_initials: card.cite_initials, evidence_html: card.evidence_html,
+              author_name: authorName || "Anonymous", argument_id: argumentId,
+              created_at: now, updated_at: now,
             });
 
-            if (cardInsertError) {
-              console.error(`Failed to save card ${comp.label}:`, cardInsertError.message);
-            }
+            if (cardInsertError) console.error(`Failed to save card ${comp.label}:`, cardInsertError.message);
+
             cardIds.push(cardId);
             generatedComponents.push({
-              index: i,
-              sectionIndex: comp.sectionIndex,
-              sectionHeader: comp.sectionHeader,
-              type: "card",
-              id: cardId,
-              label: comp.label,
-              purpose: comp.purpose,
-              tag: card.tag,
-              cite,
-              cite_author: card.cite_author,
-              evidence_html: card.evidence_html,
+              index: i, sectionIndex: comp.sectionIndex, sectionHeader: comp.sectionHeader,
+              type: "card", id: cardId, label: comp.label, purpose: comp.purpose,
+              tag: card.tag, cite, cite_author: card.cite_author, evidence_html: card.evidence_html,
             });
 
             send("component_done", {
-              index: i,
-              sectionIndex: comp.sectionIndex,
-              sectionHeader: comp.sectionHeader,
-              type: "card",
-              id: cardId,
-              label: comp.label,
-              purpose: comp.purpose,
-              tag: card.tag,
-              cite,
-              cite_author: card.cite_author,
-              evidence_html: card.evidence_html,
+              index: i, sectionIndex: comp.sectionIndex, sectionHeader: comp.sectionHeader,
+              type: "card", id: cardId, label: comp.label, purpose: comp.purpose,
+              tag: card.tag, cite, cite_author: card.cite_author, evidence_html: card.evidence_html,
             });
           } catch (cardError) {
             console.error(`Failed to generate card for: ${comp.label}`, cardError);
             send("component_error", {
-              index: i,
-              sectionIndex: comp.sectionIndex,
-              sectionHeader: comp.sectionHeader,
-              label: comp.label,
-              error: cardError instanceof Error ? cardError.message : "Card generation failed",
+              index: i, sectionIndex: comp.sectionIndex, sectionHeader: comp.sectionHeader,
+              label: comp.label, error: cardError instanceof Error ? cardError.message : "Card generation failed",
+            });
+          } finally {
+            cardsDone++;
+            send("progress", {
+              step: "generating_cards",
+              label: `Generated ${cardsDone}/${cardComponents.length} cards...`,
+              done: cardsDone,
+              total: cardComponents.length,
+              justCompleted: comp.label,
+              icon: "sparkle",
             });
           }
         }
+
+        // Fire all card tasks simultaneously
+        const originalIndices = cardComponents.map(c => allComponents.indexOf(c));
+        await Promise.all(cardComponents.map((comp, idx) => generateOneCard(comp, originalIndices[idx])));
 
         // Update the argument with completed components
         const { error: argUpdateError } = await supabase.from("arguments")

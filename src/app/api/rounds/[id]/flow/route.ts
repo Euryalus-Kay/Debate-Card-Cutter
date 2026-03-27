@@ -37,6 +37,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
       }
 
+      const keepalive = setInterval(() => {
+        try { controller.enqueue(encoder.encode(': keepalive\n\n')); } catch {}
+      }, 5000);
+
       try {
         send('progress', { step: 1, total: 2, label: 'AI is generating the flow...', icon: 'flow' });
 
@@ -72,8 +76,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           .order('row_index', { ascending: true });
 
         send('done', saved);
+        clearInterval(keepalive);
         controller.close();
       } catch (error) {
+        clearInterval(keepalive);
         send('error', { message: error instanceof Error ? error.message : 'Flow generation failed' });
         controller.close();
       }

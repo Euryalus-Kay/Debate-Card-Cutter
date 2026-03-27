@@ -27,6 +27,10 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      const keepalive = setInterval(() => {
+        try { controller.enqueue(encoder.encode(': keepalive\n\n')); } catch {}
+      }, 5000);
+
       try {
         // Step 1
         send("progress", { step: 1, total: 5, label: "Searching for evidence...", icon: "search" });
@@ -118,8 +122,10 @@ export async function POST(req: NextRequest) {
           rapid: !!rapid,
         });
 
+        clearInterval(keepalive);
         controller.close();
       } catch (error) {
+        clearInterval(keepalive);
         send("error", { message: error instanceof Error ? error.message : "Card generation failed" });
         controller.close();
       }

@@ -38,7 +38,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         } catch {
           // stream already closed
         }
-      }, 10000);
+      }, 5000);
 
       try {
         send('progress', { step: 1, total: 4, label: 'Processing document...', icon: 'doc' });

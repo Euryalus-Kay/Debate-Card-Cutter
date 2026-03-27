@@ -19,6 +19,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
       }
 
+      const keepalive = setInterval(() => {
+        try { controller.enqueue(encoder.encode(': keepalive\n\n')); } catch {}
+      }, 5000);
+
       try {
         send('progress', { step: 1, total: 5, label: 'Loading round context...', icon: 'load' });
 
@@ -51,69 +55,89 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           additional_instructions || ''
         );
 
-        // Generate cards where needed
-        const sections: Array<{ label: string; action: string; content: string; tag?: string; cite?: string; evidence_html?: string }> = [];
-        const cardGenSections = plan.sections.filter(s => s.card_source === 'generate');
+        // Generate ALL cards in parallel
+        const cardGenSections = plan.sections.filter((s: { card_source: string }) => s.card_source === 'generate');
         const totalCards = cardGenSections.length;
         let cardsDone = 0;
 
-        for (const section of plan.sections) {
+        send('progress', {
+          step: 3, total: 5,
+          label: `Generating ${totalCards} cards in parallel...`,
+          icon: 'sparkle',
+          cardProgress: { done: 0, total: totalCards, cards: cardGenSections.map((s: { label: string }) => ({ label: s.label, status: 'generating' })) },
+        });
+
+        // Build parallel tasks for all card-generation sections
+        const cardResultMap = new Map<number, { tag: string; cite: string; evidence_html: string }>();
+
+        const cardPromises = plan.sections.map(async (section: { card_source: string; card_id?: string; search_query?: string; label: string; analytics?: string }, index: number) => {
+          if (section.card_source !== 'generate' || !section.search_query) return;
+
+          try {
+            const searchResults = await searchEvidence(section.search_query, round?.round_context || '', rapid);
+            if (searchResults.sources.length > 0) {
+              const selectedUrl = searchResults.sources[0].url;
+              let fullText = await scrapeArticle(selectedUrl);
+              if (fullText.length < 200) fullText = searchResults.answer;
+
+              const cardGen = rapid ? generateCardFast : generateCard;
+              const card = await cardGen(section.search_query, fullText, selectedUrl, searchResults.answer, round?.round_context || '');
+
+              // Save generated card
+              const cardId = uuid();
+              const cite = `${card.cite_author} (${card.cite_credentials}. "${card.cite_title}" ${card.cite_date}. ${card.cite_url}) ${card.cite_initials}`;
+              await supabase.from('cards').insert({
+                id: cardId, tag: card.tag, cite, cite_author: card.cite_author,
+                cite_year: card.cite_year, cite_credentials: card.cite_credentials,
+                cite_title: card.cite_title, cite_date: card.cite_date, cite_url: card.cite_url,
+                cite_access_date: new Date().toLocaleDateString(), cite_initials: card.cite_initials,
+                evidence_html: card.evidence_html, author_name: round?.user_name || 'AI',
+                is_shared: true,
+              });
+
+              cardResultMap.set(index, { tag: card.tag, cite: card.cite_author, evidence_html: card.evidence_html });
+            }
+          } catch (e) {
+            console.error('Card gen error for section:', section.label, e);
+          }
+
+          cardsDone++;
+          send('progress', {
+            step: 3, total: 5,
+            label: `Generated ${cardsDone}/${totalCards} cards...`,
+            icon: 'sparkle',
+            cardProgress: { done: cardsDone, total: totalCards, justCompleted: section.label },
+          });
+        });
+
+        // Wait for ALL cards to finish
+        await Promise.all(cardPromises);
+
+        // Assemble sections in order, using card results
+        const sections: Array<{ label: string; action: string; content: string; tag?: string; cite?: string; evidence_html?: string }> = [];
+
+        plan.sections.forEach((section: { card_source: string; card_id?: string; label: string; analytics?: string }, index: number) => {
           if (section.card_source === 'library' && section.card_id) {
-            // Use existing card
             const card = (allCards || []).find((c: { id: string }) => c.id === section.card_id);
             if (card) {
               sections.push({
-                label: section.label,
-                action: 'card',
-                content: '',
+                label: section.label, action: 'card', content: '',
                 tag: (card as { tag: string }).tag,
                 cite: (card as { cite_author: string }).cite_author,
                 evidence_html: (card as { evidence_html: string }).evidence_html,
               });
             }
-          } else if (section.card_source === 'generate' && section.search_query) {
-            cardsDone++;
-            send('progress', {
-              step: 3, total: 5,
-              label: `Generating card ${cardsDone}/${totalCards}: ${section.label}...`,
-              icon: 'sparkle',
-            });
-
-            try {
-              const searchResults = await searchEvidence(section.search_query, round?.round_context || '', rapid);
-              if (searchResults.sources.length > 0) {
-                const selectedUrl = searchResults.sources[0].url;
-                let fullText = await scrapeArticle(selectedUrl);
-                if (fullText.length < 200) fullText = searchResults.answer;
-
-                const cardGen = rapid ? generateCardFast : generateCard;
-                const card = await cardGen(section.search_query, fullText, selectedUrl, searchResults.answer, round?.round_context || '');
-
-                // Save generated card
-                const cardId = uuid();
-                const cite = `${card.cite_author} (${card.cite_credentials}. "${card.cite_title}" ${card.cite_date}. ${card.cite_url}) ${card.cite_initials}`;
-                await supabase.from('cards').insert({
-                  id: cardId, tag: card.tag, cite, cite_author: card.cite_author,
-                  cite_year: card.cite_year, cite_credentials: card.cite_credentials,
-                  cite_title: card.cite_title, cite_date: card.cite_date, cite_url: card.cite_url,
-                  cite_access_date: new Date().toLocaleDateString(), cite_initials: card.cite_initials,
-                  evidence_html: card.evidence_html, author_name: round?.user_name || 'AI',
-                  is_shared: true,
-                });
-
-                sections.push({
-                  label: section.label, action: 'card', content: '',
-                  tag: card.tag, cite: card.cite_author, evidence_html: card.evidence_html,
-                });
-              }
-            } catch (e) {
-              console.error('Card gen error for section:', section.label, e);
+          } else if (section.card_source === 'generate') {
+            const result = cardResultMap.get(index);
+            if (result) {
+              sections.push({ label: section.label, action: 'card', content: '', ...result });
+            } else {
               sections.push({ label: section.label, action: 'analytic', content: section.analytics || `[Card generation failed for: ${section.label}]` });
             }
           } else {
             sections.push({ label: section.label, action: 'analytic', content: section.analytics || '' });
           }
-        }
+        });
 
         send('progress', { step: 4, total: 5, label: 'Assembling speech...', icon: 'doc' });
 
@@ -154,8 +178,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           .single();
 
         send('done', savedSpeech);
+        clearInterval(keepalive);
         controller.close();
       } catch (error) {
+        clearInterval(keepalive);
         send('error', { message: error instanceof Error ? error.message : 'Speech generation failed' });
         controller.close();
       }
