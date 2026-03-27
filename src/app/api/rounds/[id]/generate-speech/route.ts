@@ -69,6 +69,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         // Build parallel tasks for all card-generation sections
         const cardResultMap = new Map<number, { tag: string; cite: string; evidence_html: string }>();
+        const generatedCardIds: string[] = [];
 
         const cardPromises = plan.sections.map(async (section: { card_source: string; card_id?: string; search_query?: string; label: string; analytics?: string }, index: number) => {
           if (section.card_source !== 'generate' || !section.search_query) return;
@@ -96,6 +97,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
               });
 
               cardResultMap.set(index, { tag: card.tag, cite, evidence_html: card.evidence_html });
+              generatedCardIds.push(cardId);
             }
           } catch (e) {
             console.error('Card gen error for section:', section.label, e);
@@ -176,6 +178,41 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           })
           .select()
           .single();
+
+        // Save as a combined argument in the library
+        if (generatedCardIds.length > 0) {
+          const opponent = round?.opponent_name || 'Unknown';
+          const tournament = round?.tournament || '';
+          const roundNum = round?.round_number || '';
+          const argTitle = `${speech_type} — vs ${opponent}${tournament ? ` at ${tournament}` : ''}${roundNum ? ` R${roundNum}` : ''}`;
+
+          const slimComponents = sections.map((s, i) => ({
+            index: i,
+            type: s.action === 'card' ? 'card' : 'analytic',
+            label: s.label,
+            tag: s.tag || s.label,
+            cite: s.cite || '',
+            content: s.action === 'analytic' ? s.content : '',
+          }));
+
+          const argumentId = uuid();
+          await supabase.from('arguments').insert({
+            id: argumentId,
+            title: argTitle,
+            description: plan.strategy || `Generated ${speech_type} speech`,
+            argument_type: speech_type.includes('A') ? 'aff' : 'da',
+            strategy_overview: plan.strategy || '',
+            author_name: round?.user_name || 'AI',
+            card_ids: generatedCardIds,
+            components: slimComponents,
+            created_at: new Date().toISOString(),
+          });
+
+          // Link the cards to this argument
+          for (const cardId of generatedCardIds) {
+            await supabase.from('cards').update({ argument_id: argumentId }).eq('id', cardId);
+          }
+        }
 
         send('done', savedSpeech);
         clearInterval(keepalive);
