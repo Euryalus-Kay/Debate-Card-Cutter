@@ -1077,26 +1077,47 @@ OUTPUT: Return the complete speech as HTML. Use:
 - <p class="analytic"> for analytics (bold, numbered)
 - <mark> preserved for highlighted evidence`;
 
-  const text = await streamMessage({
-    model: 'claude-opus-4-20250514',
-    max_tokens: 32000,
-    system: systemPrompt,
+  // Fast assembly: build the HTML directly from sections, only use AI for roadmap/transitions
+  let html = '';
+
+  // Build roadmap with AI (quick, small task)
+  const sectionLabels = sections.filter(s => s.action === 'card' || s.tag).map(s => s.label);
+  const roadmapText = await streamMessage({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 500,
+    system: 'You write debate speech roadmaps. Output a single short paragraph starting with "I\'ll be going..." listing the order of arguments. No HTML tags, just plain text.',
     messages: [{
       role: 'user',
-      content: `Assemble this ${speechType} speech.
-
-Strategy: ${strategy}
-Context: ${roundContext}
-
-Sections to include:
-${JSON.stringify(sections, null, 2)}
-
-Write the complete speech HTML.`,
+      content: `Write a roadmap for a ${speechType} (${side}) covering: ${sectionLabels.join(', ')}`,
     }],
   });
 
-  // Return the HTML content (strip any markdown code fences)
-  return text.replace(/```html\n?/g, '').replace(/```\n?/g, '').trim();
+  html += `<p class="analytic" style="font-weight:bold;margin-bottom:12px;">${roadmapText.trim()}</p>\n`;
+
+  // Assemble sections directly — no need for AI to rewrite cards
+  let currentSection = '';
+  for (const section of sections) {
+    // Add section header if the section label suggests a new argument group
+    const sectionGroup = section.label.split(' - ')[0].split(' — ')[0].trim();
+    if (sectionGroup !== currentSection) {
+      currentSection = sectionGroup;
+      html += `<h3 style="font-weight:bold;font-size:14px;margin-top:16px;margin-bottom:8px;border-bottom:1px solid #333;padding-bottom:4px;">${currentSection}</h3>\n`;
+    }
+
+    if (section.action === 'card' && section.tag && section.evidence_html) {
+      html += `<div class="card-block" style="margin-bottom:12px;">`;
+      html += `<div class="card-tag" style="font-weight:bold;font-size:13px;">${section.tag}</div>`;
+      if (section.cite) {
+        html += `<div class="card-cite" style="font-size:11px;color:#999;margin:2px 0 4px;">${section.cite}</div>`;
+      }
+      html += `<div class="card-evidence" style="font-size:11px;line-height:1.4;">${section.evidence_html}</div>`;
+      html += `</div>\n`;
+    } else if (section.content) {
+      html += `<p class="analytic" style="font-weight:bold;font-size:12px;margin:6px 0;"><strong>${section.label}:</strong> ${section.content}</p>\n`;
+    }
+  }
+
+  return html.trim();
 }
 
 export async function generateCXQuestions(
