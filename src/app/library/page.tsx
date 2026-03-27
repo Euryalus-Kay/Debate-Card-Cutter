@@ -312,17 +312,6 @@ export default function LibraryPage() {
         className="w-full px-4 py-2.5 text-[13px] bg-[#111] border border-[#1a1a1a] rounded-lg text-white placeholder:text-[#999] focus:outline-none focus:border-[#333]"
       />
 
-      {/* Collections */}
-      {tab === 'cards' && collections.length > 0 && (
-        <div className="flex gap-2 flex-wrap">
-          {collections.map(c => (
-            <span key={c.id} className="text-[11px] px-2 py-1 bg-[#111] border border-[#1a1a1a] rounded text-[#888]">
-              {c.collection_name} <span className="text-[#999]">by {c.uploaded_by}</span>
-            </span>
-          ))}
-        </div>
-      )}
-
       {/* View mode toggle (inside cards tab) */}
       {tab === 'cards' && (
         <div className="flex items-center gap-2">
