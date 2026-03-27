@@ -160,6 +160,7 @@ export default function ArgumentPage() {
   const [context, setContext] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [plan, setPlan] = useState<ArgumentPlan | null>(null);
   const [progress, setProgress] = useState<ProgressUpdate | null>(null);
   const [components, setComponents] = useState<GeneratedComponent[]>([]);
@@ -195,6 +196,9 @@ export default function ArgumentPage() {
     setProgress(null);
     componentCountRef.current = 0;
 
+    const controller = new AbortController();
+    setAbortController(controller);
+
     try {
       const res = await fetch("/api/argument", {
         method: "POST",
@@ -205,6 +209,7 @@ export default function ArgumentPage() {
           authorName: userName || "Anonymous",
           argument_type: argumentType,
         }),
+        signal: controller.signal,
       });
 
       if (!res.ok) {
@@ -265,16 +270,21 @@ export default function ArgumentPage() {
         setProgress(null);
       }
     } catch (err) {
-      // Only show error if we got NO components at all
-      if (componentCountRef.current === 0) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        // User stopped — keep any components already generated
+        if (componentCountRef.current > 0) {
+          setDone(true);
+        }
+        setProgress(null);
+      } else if (componentCountRef.current === 0) {
         setError(err instanceof Error ? err.message : "Something went wrong");
       } else {
-        // We have components — just mark done despite the error
         setDone(true);
         setProgress(null);
       }
     } finally {
       setLoading(false);
+      setAbortController(null);
     }
   };
 
@@ -463,11 +473,15 @@ export default function ArgumentPage() {
 
         {/* Generate button */}
         <button
-          onClick={generateArgument}
-          disabled={loading || !query.trim()}
-          className="px-5 py-2.5 bg-white text-black text-[13px] font-medium rounded-lg hover:bg-[#e5e5e5] disabled:opacity-30 transition-colors"
+          onClick={loading ? () => abortController?.abort() : generateArgument}
+          disabled={!loading && !query.trim()}
+          className={`px-5 py-2.5 text-[13px] font-medium rounded-lg transition-colors ${
+            loading
+              ? "bg-red-600 text-white hover:bg-red-700"
+              : "bg-white text-black hover:bg-[#e5e5e5] disabled:opacity-30"
+          }`}
         >
-          {loading ? "Building..." : `Build ${selectedTypeInfo?.label || "Argument"}`}
+          {loading ? "Stop" : `Build ${selectedTypeInfo?.label || "Argument"}`}
         </button>
 
         {error && (

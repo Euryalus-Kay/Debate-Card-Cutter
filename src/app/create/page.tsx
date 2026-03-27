@@ -32,6 +32,7 @@ export default function CreatePage() {
   const [iteratingId, setIteratingId] = useState<string | null>(null);
   const [rapid, setRapid] = useState(false);
   const [progress, setProgress] = useState<ProgressStep | null>(null);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   useEffect(() => {
     if (!userName) return;
@@ -63,6 +64,9 @@ export default function CreatePage() {
     setCard(null);
     setProgress(null);
 
+    const controller = new AbortController();
+    setAbortController(controller);
+
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -73,6 +77,7 @@ export default function CreatePage() {
           authorName: userName || "Anonymous",
           rapid,
         }),
+        signal: controller.signal,
       });
 
       if (!res.ok) {
@@ -113,10 +118,15 @@ export default function CreatePage() {
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-      setProgress(null);
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setProgress(null);
+      } else {
+        setError(err instanceof Error ? err.message : "Something went wrong");
+        setProgress(null);
+      }
     } finally {
       setLoading(false);
+      setAbortController(null);
     }
   };
 
@@ -183,13 +193,22 @@ export default function CreatePage() {
 
         {/* Generate */}
         <div className="flex items-center gap-3">
-          <button
-            onClick={generateCard}
-            disabled={loading || !query.trim()}
-            className="px-5 py-2 bg-white text-black text-[13px] font-medium rounded-lg hover:bg-[#e5e5e5] disabled:opacity-30 transition-colors"
-          >
-            {loading ? "Generating..." : "Cut Card"}
-          </button>
+          {loading ? (
+            <button
+              onClick={() => abortController?.abort()}
+              className="px-5 py-2 bg-red-600 text-white text-[13px] font-medium rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Stop
+            </button>
+          ) : (
+            <button
+              onClick={generateCard}
+              disabled={!query.trim()}
+              className="px-5 py-2 bg-white text-black text-[13px] font-medium rounded-lg hover:bg-[#e5e5e5] disabled:opacity-30 transition-colors"
+            >
+              Cut Card
+            </button>
+          )}
           <button
             onClick={() => setRapid(!rapid)}
             className={`px-3 py-2 text-[11px] rounded-lg border transition-colors ${

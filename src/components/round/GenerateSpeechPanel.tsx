@@ -5,12 +5,13 @@ import { useState } from 'react';
 interface Props {
   speechTypes: string[];
   onGenerate: (speechType: string, cardIds: string[], instructions: string, rapid: boolean) => void;
+  onStop?: () => void;
   isGenerating: boolean;
   progress: { step: number; total: number; label: string } | null;
   cards: Array<{ id: string; tag: string; cite_author: string }>;
 }
 
-export default function GenerateSpeechPanel({ speechTypes, onGenerate, isGenerating, progress, cards }: Props) {
+export default function GenerateSpeechPanel({ speechTypes, onGenerate, onStop, isGenerating, progress, cards }: Props) {
   const [selectedType, setSelectedType] = useState(speechTypes[0] || '2AC');
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [instructions, setInstructions] = useState('');
@@ -93,11 +94,14 @@ export default function GenerateSpeechPanel({ speechTypes, onGenerate, isGenerat
       </div>
 
       <button
-        onClick={() => onGenerate(selectedType, selectedCards, instructions, rapid)}
-        disabled={isGenerating}
-        className="w-full px-4 py-2.5 text-[13px] bg-white text-black rounded-lg hover:bg-[#e5e5e5] disabled:opacity-30 transition-colors font-medium"
+        onClick={isGenerating ? onStop : () => onGenerate(selectedType, selectedCards, instructions, rapid)}
+        className={`w-full px-4 py-2.5 text-[13px] rounded-lg transition-colors font-medium ${
+          isGenerating
+            ? 'bg-red-600 text-white hover:bg-red-700'
+            : 'bg-white text-black hover:bg-[#e5e5e5]'
+        }`}
       >
-        {isGenerating ? 'Generating...' : `Generate ${selectedType}`}
+        {isGenerating ? 'Stop' : `Generate ${selectedType}`}
       </button>
 
       {progress && (

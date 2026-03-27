@@ -82,6 +82,7 @@ export default function RoundWorkspacePage({ params }: { params: Promise<{ id: s
   const [showExplain, setShowExplain] = useState(false);
   const [genProgress, setGenProgress] = useState<{ step: number; total: number; label: string } | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [genAbort, setGenAbort] = useState<AbortController | null>(null);
   const [flowGenerating, setFlowGenerating] = useState(false);
   const [roundContext, setRoundContext] = useState('');
   const [contextSaved, setContextSaved] = useState(false);
@@ -221,6 +222,8 @@ export default function RoundWorkspacePage({ params }: { params: Promise<{ id: s
 
   // Generate speech
   const handleGenerateSpeech = async (speechType: string, cardIds: string[], instructions: string, rapid: boolean) => {
+    const controller = new AbortController();
+    setGenAbort(controller);
     setIsGenerating(true);
     setGenProgress({ step: 1, total: 5, label: 'Starting...' });
 
@@ -228,6 +231,7 @@ export default function RoundWorkspacePage({ params }: { params: Promise<{ id: s
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ speech_type: speechType, card_ids: cardIds, additional_instructions: instructions, rapid }),
+      signal: controller.signal,
     });
 
     const reader = res.body?.getReader();
@@ -253,6 +257,7 @@ export default function RoundWorkspacePage({ params }: { params: Promise<{ id: s
     }
     setIsGenerating(false);
     setGenProgress(null);
+    setGenAbort(null);
   };
 
   // Generate flow
@@ -558,6 +563,7 @@ export default function RoundWorkspacePage({ params }: { params: Promise<{ id: s
               <GenerateSpeechPanel
                 speechTypes={availableSpeechTypes.filter(t => !filledSpeechTypes.includes(t))}
                 onGenerate={handleGenerateSpeech}
+                onStop={() => genAbort?.abort()}
                 isGenerating={isGenerating}
                 progress={genProgress}
                 cards={cards}
