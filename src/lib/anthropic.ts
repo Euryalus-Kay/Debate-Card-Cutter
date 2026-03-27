@@ -109,7 +109,7 @@ ${sourceInfo}
 SOURCE URL: ${sourceUrl}
 
 FULL SOURCE TEXT:
-${sourceText}
+${sourceText.substring(0, 80000)}
 
 Remember:
 1. The evidence_html must contain a MASSIVE continuous block of the source text (not just a few sentences)
