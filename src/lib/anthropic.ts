@@ -779,46 +779,44 @@ Every advantage needs a clear causal chain: plan → internal link → impact.
 Impacts should have magnitude, timeframe, and probability framing.`,
 
     '1NC': `FIRST NEGATIVE CONSTRUCTIVE — 8 minutes (cards can be long but only highlighted parts are read aloud)
-Present ALL negative off-case positions plus case attacks. This is your only chance to introduce new arguments.
+Present ALL negative off-case positions plus case attacks. This is your ONLY chance to introduce new arguments.
+
+THIS IS A FULL 8-MINUTE SPEECH. You need 15-25+ cards total across all positions. This speech should be ~20 pages when printed. Do NOT under-produce.
+
 STRATEGIC STRUCTURE (order matters):
-1. Topicality (if applicable) — interpretation, violation, standards, voters
-2. Counterplan(s) — CP text, solvency, net benefit, competition
-3. Disadvantage(s) — uniqueness, link, internal link, impact
-4. Kritik (if running one) — link, impact, alternative, framework/ROTB
-5. Case attacks — solvency takeouts, impact defense, internal link turns
+1. Topicality (if applicable) — interpretation card, violation analytic, 2-3 standards cards, voters analytic
+2. Counterplan(s) — CP text analytic, 2-3 solvency cards, 1-2 net benefit cards, competition analytic
+3. Disadvantage(s) — EACH DA needs: 2 uniqueness cards, 1-2 link cards, 1 internal link card, 1-2 impact cards + analytics explaining the story
+4. Kritik (if running one) — 2 link cards, 1-2 impact cards, alternative card, framework/ROTB card
+5. Case attacks — solvency takeouts (2-3 cards), impact defense (1-2 cards), internal link turns
 
 HOW TO COUNTER SPECIFIC AFF TYPES:
 - Against a K aff: Framework (must defend a topical plan), T-USFG, case turns
 - Against a big-stick aff (large impacts): Impact defense, DA outweighs, CP solves better
 - Against a small aff: T (not substantial), CP captures advantages
-- Against advantage CPs: Theory, perm, solvency deficit
 
-SHELLS should be concise — just enough to establish the argument. Extensions come in the block.
-Read 4-7 off-case positions to create strategic pressure. Don't over-commit to any single argument.`,
+Run 3-5 off-case positions to create strategic pressure. Each position needs its own shell with MULTIPLE cards.
+The 1NC must address EVERY advantage the aff read — do not leave any advantage without at least 1-2 cards of defense.`,
 
     '2AC': `SECOND AFFIRMATIVE CONSTRUCTIVE — 8 minutes (cards can be long but only highlighted parts are read aloud)
 Answer EVERY argument from the 1NC. Dropping = conceding. This speech makes or breaks the round.
 MUST cover in order (off-case first, then case):
-- Each DA: no link, no uniqueness, link turn, impact turn, impact defense (pick 2-3)
-- Each CP: permutation (do both), solvency deficit, theory (if applicable), net benefit answers
-- Topicality: we meet, counter-interp, standards turns, reasonability
-- Kritik: framework (util > K), permutation, no link, alt fails, case outweighs
-- Case defense: extend advantages, answer case attacks
+- Each DA: no link card, uniqueness defense card, link turn card, impact turn card, impact defense card (3-5 responses per DA)
+- Each CP: permutation analytic, solvency deficit card, theory shell if applicable, net benefit answers (2-3 cards per CP)
+- Topicality: we meet analytic, counter-interp card, standards answers (2-3 cards), reasonability card
+- Kritik: framework card, permutation analytic, no link card, alt fails card, case outweighs analytic (4-6 responses)
+- Case defense: extend each advantage with new cards, answer case attacks with evidence
 
-HOW TO ANSWER SPECIFIC ARGUMENTS:
-- DAs: "No link — our plan doesn't [X]" + link turn + impact comparison
-- CPs: Perm do both (always), solvency deficit (CP can't access advantage), theory (condo bad, PICs bad)
-- T: We meet (best answer), counter-interp + standards, reasonability voter
-- Ks: Framework first (judge should evaluate policy outcomes), perm (embrace alt + do plan), alt fails (no solvency), case outweighs
-- Theory: Counter-interp, "not a voter — just reject the arg"
-- Case attacks: Extend warrant from 1AC, new evidence if needed, impact comparison
-
-Use 4-5 analytics per off-case position + 1-2 cards. Efficiency is key.`,
+THIS IS A FULL 8-MINUTE SPEECH. You need 12-20+ cards total. You must answer EVERY argument from the 1NC.
+For each off-case position, plan 3-5 cards + analytics. Do NOT just write 1-2 cards per position.
+The 2AC that only reads a few cards loses — you need depth AND breadth.`,
 
     '2NC': `SECOND NEGATIVE CONSTRUCTIVE — 8 minutes (cards can be long but only highlighted parts are read aloud)
 First half of the "negative block" (2NC + 1NR = 13 min to the aff's 5-min 1AR).
 STRATEGY: Split the block with the 1NR. The 2NC covers the MOST IMPORTANT off-case positions in depth.
 - Pick 2-3 positions to cover thoroughly
+- For EACH position you cover: read 3-5 NEW extension cards answering 2AC responses, plus analytics
+- Total speech should have 8-15 cards. This is a FULL 8-minute speech.
 - Extend and deepen each one: answer 2AC responses, read new evidence, do impact comparison
 - This speech should make your best arguments feel unbeatable
 
@@ -842,6 +840,8 @@ The 2NC sets up the 2NR — whatever you go for here is likely what you'll colla
 Second half of the neg block. Cover the positions NOT covered in the 2NC.
 STRATEGY:
 - Cover remaining off-case positions AND case attacks
+- Plan 5-10 cards across all positions you're covering
+- For case attacks specifically: read 2-4 new cards (solvency takeouts, advantage answers)
 - Be thorough but efficient — you have less time than the 2NC
 - This speech should clean up everything the 2NC didn't touch
 - Focus on rebuilding arguments the 2AC tried to answer
@@ -967,6 +967,18 @@ You have access to a card library. For each section of the speech, decide:
 
 Selected cards the user wants included: ${selectedCardIds.length > 0 ? selectedCardIds.join(', ') : 'None specified'}
 
+CRITICAL — SECTION COUNT MINIMUMS:
+- 1AC: 10-15 sections (inherency + plan text + 2 advantages + solvency)
+- 1NC: 15-25 sections (multiple off-case shells + case attacks). Each DA shell alone needs 4-6 cards.
+- 2AC: 12-20 sections (must answer EVERY 1NC position with multiple responses each)
+- 2NC: 8-15 sections (deep extensions on 2-3 positions)
+- 1NR: 5-10 sections (remaining positions + case)
+- 1AR: 8-12 sections (efficient grouping + extensions)
+- 2NR: 5-10 sections (collapsed to 1-2 positions with depth)
+- 2AR: 5-8 sections (final framing + extensions)
+
+A speech with only 3 sections is COMPLETELY WRONG. Real debate speeches have dozens of arguments.
+
 Be SPECIFIC and STRATEGIC. Think like a top-16-at-TOC debater:
 - Don't make broad generic arguments — target specific claims the opponent made
 - For the 2NR, collapse strategically — don't go for everything
@@ -992,11 +1004,11 @@ Return JSON:
 
   const text = await streamMessage({
     model: 'claude-opus-4-20250514',
-    max_tokens: 8000,
+    max_tokens: 16000,
     system: systemPrompt,
     messages: [{
       role: 'user',
-      content: `Plan the ${speechType} speech.
+      content: `Plan the ${speechType} speech. Remember: you MUST plan at least 8-15+ sections for constructives and 5-10+ for rebuttals. A 3-section plan is unacceptable.
 
 Round context: ${roundContext}
 ${additionalInstructions ? `Additional instructions: ${additionalInstructions}` : ''}
