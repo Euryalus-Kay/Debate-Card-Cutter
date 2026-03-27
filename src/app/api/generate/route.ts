@@ -3,6 +3,7 @@ import { searchEvidence, deepSearchSource } from "@/lib/perplexity";
 import { generateCard, generateCardFast, selectBestSource } from "@/lib/anthropic";
 import { scrapeArticle } from "@/lib/scraper";
 import { supabase } from "@/lib/supabase";
+import { autoSortCard } from "@/lib/auto-sort";
 import { v4 as uuid } from "uuid";
 
 export const maxDuration = 120;
@@ -108,6 +109,9 @@ export async function POST(req: NextRequest) {
           created_at: now,
           updated_at: now,
         }).then(() => {});
+
+        // Auto-sort into folders (fire and forget)
+        autoSortCard(cardId, card.tag, card.cite_author);
 
         send("done", {
           id: cardId,

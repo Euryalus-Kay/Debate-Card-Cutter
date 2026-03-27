@@ -4,6 +4,7 @@ import type { ArgumentType, CampFilePlan } from "@/lib/anthropic";
 import { searchEvidence, deepSearchSource } from "@/lib/perplexity";
 import { scrapeArticle } from "@/lib/scraper";
 import { supabase } from "@/lib/supabase";
+import { autoSortCard } from "@/lib/auto-sort";
 import { v4 as uuid } from "uuid";
 
 export const maxDuration = 300;
