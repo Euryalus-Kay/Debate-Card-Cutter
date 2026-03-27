@@ -18,6 +18,7 @@ export default function Navbar({
     { href: "/create", label: "Cut Card" },
     { href: "/argument", label: "Build Argument" },
     { href: "/rounds", label: "Rounds" },
+    { href: "/strategy", label: "Strategist" },
     { href: "/library", label: "Library" },
   ];
 
