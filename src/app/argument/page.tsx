@@ -170,8 +170,14 @@ export default function ArgumentPage() {
   const [iteratingId, setIteratingId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState<Record<number, string>>({});
   const [copied, setCopied] = useState(false);
+  const [activeBuilds, setActiveBuilds] = useState<Array<{
+    id: string; title: string; status: string; total_components: number;
+    completed_components: number; failed_components: number; current_label: string;
+    argument_id: string | null; created_at: string;
+  }>>([]);
   const resultsRef = useRef<HTMLDivElement>(null);
 
+  // Load context
   useEffect(() => {
     if (!userName) return;
     fetch(`/api/context?user=${encodeURIComponent(userName)}`)
@@ -180,6 +186,20 @@ export default function ArgumentPage() {
         if (data.context) setContext(data.context);
       })
       .catch(() => {});
+  }, [userName]);
+
+  // Poll active builds
+  useEffect(() => {
+    if (!userName) return;
+    const fetchBuilds = () => {
+      fetch(`/api/build-jobs?user=${encodeURIComponent(userName)}`)
+        .then(r => r.json())
+        .then(data => { if (Array.isArray(data)) setActiveBuilds(data); })
+        .catch(() => {});
+    };
+    fetchBuilds();
+    const interval = setInterval(fetchBuilds, 4000);
+    return () => clearInterval(interval);
   }, [userName]);
 
   const componentCountRef = useRef(0);
@@ -404,6 +424,63 @@ export default function ArgumentPage() {
         </p>
       </div>
 
+      {/* Active/recent builds */}
+      {activeBuilds.filter(b => b.status === 'building').length > 0 && (
+        <div className="space-y-2 mb-5">
+          {activeBuilds.filter(b => b.status === 'building').map(build => (
+            <div key={build.id} className="px-4 py-3 bg-blue-950/30 border border-blue-500/30 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin w-3.5 h-3.5 border-2 border-blue-400/30 border-t-blue-400 rounded-full" />
+                  <span className="text-[13px] font-medium text-blue-300">{build.title}</span>
+                </div>
+                <span className="text-[11px] text-blue-400/70">
+                  Building in background
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-1.5 bg-blue-950 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                    style={{ width: build.total_components > 0 ? `${(build.completed_components / build.total_components) * 100}%` : '0%' }}
+                  />
+                </div>
+                <span className="text-[11px] text-blue-400">
+                  {build.completed_components}/{build.total_components} cards
+                </span>
+              </div>
+              <p className="text-[11px] text-blue-400/60 mt-1">
+                {build.current_label}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Recently completed builds */}
+      {activeBuilds.filter(b => b.status === 'done' && Date.now() - new Date(b.created_at).getTime() < 300000).length > 0 && !loading && !done && (
+        <div className="space-y-2 mb-5">
+          {activeBuilds.filter(b => b.status === 'done' && Date.now() - new Date(b.created_at).getTime() < 300000).map(build => (
+            <div key={build.id} className="px-4 py-2.5 bg-green-950/30 border border-green-500/30 rounded-lg flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-[13px] text-green-300">{build.title}</span>
+                <span className="text-[11px] text-green-500/60">
+                  {build.completed_components} cards · {build.failed_components > 0 ? `${build.failed_components} failed` : 'all succeeded'}
+                </span>
+              </div>
+              {build.argument_id && (
+                <a href={`/library`} className="text-[11px] text-green-400 hover:text-green-300">
+                  View in Library →
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="space-y-5">
         {/* Argument type selector */}
         <div>
@@ -617,7 +694,7 @@ export default function ArgumentPage() {
               <span className="text-[#999]">
                 {progress?.label || "Planning argument structure..."}
               </span>
-              <span className="text-[#444] ml-2">This may take a few minutes</span>
+              <span className="text-[#444] ml-2">You can leave this page — building continues in background</span>
             </div>
           </div>
         )}

@@ -77,7 +77,7 @@ export async function chatWithDebateAI(
   resolution?: string
 ): Promise<string> {
   const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash-preview-05-20",
+    model: "gemini-2.0-flash",
     systemInstruction: DEBATE_STRATEGY_SYSTEM +
       (resolution ? `\n\nCURRENT RESOLUTION: ${resolution}` : '') +
       (userContext ? `\n\nUSER'S DEBATE CONTEXT: ${userContext}` : ''),
@@ -101,7 +101,7 @@ export async function streamDebateAI(
   resolution?: string
 ): Promise<AsyncGenerator<string>> {
   const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash-preview-05-20",
+    model: "gemini-2.0-flash",
     systemInstruction: DEBATE_STRATEGY_SYSTEM +
       (resolution ? `\n\nCURRENT RESOLUTION: ${resolution}` : '') +
       (userContext ? `\n\nUSER'S DEBATE CONTEXT: ${userContext}` : ''),

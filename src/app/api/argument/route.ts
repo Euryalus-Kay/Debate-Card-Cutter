@@ -51,7 +51,23 @@ export async function POST(req: NextRequest) {
         }
       }, 5000);
 
+      let buildJobId: string | undefined;
       try {
+        // Create a build job so the user can track it even if they leave the page
+        const { data: buildJob } = await supabase.from("build_jobs").insert({
+          type: "argument",
+          title: `Building ${argType.toUpperCase()}...`,
+          status: "building",
+          author_name: authorName || "Anonymous",
+          total_components: 0,
+          completed_components: 0,
+          failed_components: 0,
+          current_label: "Planning...",
+        }).select().single();
+        buildJobId = buildJob?.id;
+
+        send("build_job", { id: buildJobId });
+
         // Step 1: Plan the camp file
         send("progress", {
           step: "planning",
@@ -151,6 +167,15 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        // Update build job with plan info
+        if (buildJobId) {
+          await supabase.from("build_jobs").update({
+            title: plan.title || `${argType.toUpperCase()} Argument`,
+            total_components: cardComponents.length,
+            current_label: `Generating ${cardComponents.length} cards...`,
+          }).eq("id", buildJobId);
+        }
+
         // Generate ALL cards in parallel
         send("progress", {
           step: "generating_cards",
@@ -244,6 +269,13 @@ export async function POST(req: NextRequest) {
               justCompleted: comp.label,
               icon: "sparkle",
             });
+            // Update build job progress
+            if (buildJobId) {
+              supabase.from("build_jobs").update({
+                completed_components: cardsDone,
+                current_label: comp.label,
+              }).eq("id", buildJobId).then(() => {});
+            }
           }
         }
 
@@ -272,6 +304,18 @@ export async function POST(req: NextRequest) {
           console.error("Failed to update argument:", argUpdateError.message);
         }
 
+        // Mark build job as complete
+        if (buildJobId) {
+          await supabase.from("build_jobs").update({
+            status: "done",
+            argument_id: argumentId,
+            current_label: "Complete",
+            completed_components: cardsDone,
+            failed_components: cardComponents.length - cardIds.length,
+            updated_at: new Date().toISOString(),
+          }).eq("id", buildJobId);
+        }
+
         send("done", {
           argument_id: argumentId,
           title: plan.title,
@@ -290,6 +334,14 @@ export async function POST(req: NextRequest) {
       } catch (error) {
         clearInterval(keepalive);
         console.error("Argument generation error:", error);
+        // Mark build job as failed
+        if (buildJobId) {
+          await supabase.from("build_jobs").update({
+            status: "failed",
+            error_message: error instanceof Error ? error.message : "Argument generation failed",
+            updated_at: new Date().toISOString(),
+          }).eq("id", buildJobId);
+        }
         send("error", {
           message: error instanceof Error ? error.message : "Argument generation failed",
         });
