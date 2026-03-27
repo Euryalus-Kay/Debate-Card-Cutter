@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
 
         let cardsDone = 0;
 
-        async function generateOneCard(comp: typeof allComponents[0], i: number) {
+        async function generateOneCard(comp: typeof allComponents[0], i: number, retryCount = 0) {
           try {
             const searchResults = await searchEvidence(comp.query || comp.label, context || "");
 
@@ -223,6 +223,12 @@ export async function POST(req: NextRequest) {
               tag: card.tag, cite, cite_author: card.cite_author, evidence_html: card.evidence_html,
             });
           } catch (cardError) {
+            // Retry once on failure (rate limit, transient error)
+            if (retryCount < 1) {
+              console.log(`Retrying card: ${comp.label} (attempt ${retryCount + 2})`);
+              await new Promise(r => setTimeout(r, 2000 + Math.random() * 3000));
+              return generateOneCard(comp, i, retryCount + 1);
+            }
             console.error(`Failed to generate card for: ${comp.label}`, cardError);
             send("component_error", {
               index: i, sectionIndex: comp.sectionIndex, sectionHeader: comp.sectionHeader,
@@ -241,9 +247,14 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Fire all card tasks simultaneously
+        // Fire card tasks in batches of 3 to avoid rate limits
+        const BATCH_SIZE = 3;
         const originalIndices = cardComponents.map(c => allComponents.indexOf(c));
-        await Promise.all(cardComponents.map((comp, idx) => generateOneCard(comp, originalIndices[idx])));
+        for (let batch = 0; batch < cardComponents.length; batch += BATCH_SIZE) {
+          const batchComps = cardComponents.slice(batch, batch + BATCH_SIZE);
+          const batchIndices = originalIndices.slice(batch, batch + BATCH_SIZE);
+          await Promise.all(batchComps.map((comp, idx) => generateOneCard(comp, batchIndices[idx])));
+        }
 
         // Update the argument with completed components (strip evidence_html to keep payload small)
         const slimComponents = generatedComponents.map(c => {
