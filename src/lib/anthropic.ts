@@ -533,7 +533,14 @@ CAMP FILE PLANNING RULES:
 4. "analytic" components are debater-written arguments — write the FULL text as an experienced debater would.
 5. "plan_text" is the formal policy text. "interp_text" is the formal interpretation.
 6. Search queries must be SPECIFIC — include author names, specific claims, journal-quality keywords.
-7. Analytics should sound like a top-level debater wrote them: concise, strategic, persuasive.
+7. Analytics should sound like a top TOC debater wrote them. They should be SUBSTANTIAL — 3-8 sentences each, not one-liners. Good analytics include:
+   - A clear claim/assertion
+   - A warrant explaining WHY (logical reasoning, not just assertion)
+   - Application to the specific round context
+   - "Even if" layers or preemptive responses
+   - Impact comparison where relevant
+   Example of a GOOD analytic: "Permutation: do the plan and endorse the alternative. The permutation is legitimate because the plan's policy action and the alt's methodological shift are not mutually exclusive — you can change material conditions while also shifting epistemological frameworks. This is not severance because we are not severing any part of the plan text. Even if they win some risk of a link, the perm demonstrates the alt alone is insufficient — you need the plan to address the material conditions the K identifies. Prefer the perm because it captures the best of both worlds and avoids the alt's solvency deficit."
+   Example of a BAD analytic: "Perm do both — plan and alt can coexist."
 8. Include AT (Answers To) sections — these are CRITICAL for camp files.
 9. Label cards like camp files do: "1nc --- [topic] link", "2nc --- [topic] link", "AT: [argument name]".
 10. Generate 15-35 components total across all sections. More for Ks and DAs, fewer for Theory.
@@ -953,12 +960,16 @@ ANSWERING THEORY:
 - No abuse: they had sufficient ground despite our practice
 - Standards outweigh: our interp promotes better debates
 
-WRITING ANALYTICS:
-- Cross-applications: "cross-apply our 2AC #3 which says [X]"
-- Grouping: "group their 3 uniqueness cards — they all assume [Y] which..."
-- Turns: "this turns the [DA] because [X] means the impact goes our direction"
-- Even-if: "even if you buy their [X], you still vote [aff/neg] because..."
-- Impact calc: "our [impact] outweighs on [timeframe/magnitude/probability] because..."
+WRITING ANALYTICS — Analytics are debater-written arguments that don't need evidence. They should be SUBSTANTIAL (3-8 sentences each), not throwaway one-liners. Each analytic must include a CLAIM, a WARRANT (the reasoning), and APPLICATION to the round.
+
+Good analytics include:
+- Cross-applications with explanation: "Cross-apply our 2AC #3 — their Smith evidence assumes the plan is enacted through executive order, but our plan text specifies congressional action. This means their entire link chain is non-responsive because the political capital expenditure they describe doesn't apply to legislative processes where bipartisan support already exists."
+- Grouping with warrants: "Group their three uniqueness cards — they all rely on the assumption that the economy is at a tipping point, but none of them account for the Fed's recent rate adjustments. Even their most recent Krugman evidence predates the March stimulus package, which fundamentally changed the economic baseline they're describing."
+- Impact comparison with layers: "Our advantage outweighs on three independent levels. First, timeframe — climate tipping points are irreversible within 8 years while their DA impact is speculative and decades away. Second, probability — our solvency evidence cites 3 empirical examples of the plan working while their impact relies on a single contested model. Third, magnitude — extinction outweighs economic decline because you can't recover from extinction."
+- Turns with explanation: "This actually turns the DA — their link evidence says federal spending crowds out private investment, but our plan REDUCES net federal spending by eliminating the existing subsidy program. The net effect is more private capital, not less, which means the DA impact goes in our direction."
+- Even-if layering: "Even if you buy their framework that the K is a prior question, we still win. First, the permutation demonstrates the plan and alt are compatible. Second, their alt has zero solvency mechanism — rejecting the 1AC doesn't dismantle capitalism, it just means people die from the harms we identified. Third, our case impacts are empirically verified while their K impacts are theoretical — prefer concrete over abstract."
+
+BAD analytics (too short, no warrant): "Cross-apply our 2AC #3." / "Group and deny." / "Perm do both."
 
 You have access to a card library. For each section of the speech, decide:
 1. Use an existing library card (specify card_id)
@@ -997,7 +1008,7 @@ Return JSON:
       "card_source": "library" | "generate" | "analytic",
       "search_query": "if generating, the search query",
       "card_id": "if using library card, the card id",
-      "analytics": "if analytic, the full text of the analytic argument"
+      "analytics": "if analytic, the FULL TEXT of the analytic argument — must be 3-8 sentences with claim, warrant, and application. No one-liners."
     }
   ]
 }`;
