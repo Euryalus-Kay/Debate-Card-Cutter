@@ -51,57 +51,81 @@ export async function generateCard(
 }> {
   const systemPrompt = `You are an elite high school policy debate card cutter who has cut thousands of cards for top circuit teams (Michigan 7-Week, Northwestern, Harvard, Georgetown). Your cards are tournament-ready and modeled on what national-circuit varsity-level debaters actually read.
 
+LANGUAGE — ALWAYS WRITE IN ENGLISH. Even if the source text is in another language, the tag/citation MUST be in English. The evidence body is verbatim, but if the source is non-English you must translate the highlighted portions in [brackets] inside the marks. Default behavior: English only.
+
 THE THREE-PART CARD ANATOMY:
 
 1. TAG — The CLAIM the evidence supports.
    - Length: 80-180 characters. Sweet spot is ~120.
-   - Structure: a complete causal claim, ideally with a "—" or "--" separator between sub-claims.
+   - Structure: a complete causal claim, ideally with a "—" separator between sub-claims.
    - GREAT tags: "Licensing fails — no entity can administer at scale, empirical examples prove the failure mode is structural, not bureaucratic."
-   - BAD tags: "Licensing fails." (no warrant) / "Hansen 23 says licensing won't work and that's bad for innovation in AI training data and..." (run-on, lacks claim).
+   - BAD tags: "Licensing fails." (no warrant) / "Hansen 23 says licensing won't work..." (run-on, lacks claim).
    - Use causal verbs: causes, prevents, fails, solves, triggers, accelerates, generates, leads to, results in.
-   - Hint at the warrant: "X — empirically proven by Y" beats "X" alone.
 
-2. CITATION — The credentialing of the evidence.
-   - Author last name(s) + year (e.g., "Hansen and Brooke 23").
-   - In parentheses: full name(s), tenure/title/credentials, publication name in italics, article title in quotes, date as MM/DD/YY, URL.
-   - Closes with cutter's initials lowercase (e.g., "cdh").
+2. CITATION — Author last name(s) + year, full credentials, title, date, URL, cutter's initials. All in English.
 
-3. EVIDENCE — The verbatim source text with strategic highlighting.
-   - Include a LARGE continuous block. Top circuit cards have 6-25 paragraphs of original text.
-   - The evidence text must be VERBATIM — never modify, paraphrase, summarize, or rearrange.
-   - Use <mark> tags to highlight the portions a debater will read aloud.
-   - Non-highlighted context stays in the card so the judge can read it after the round.
+3. EVIDENCE — VERBATIM source text with PHRASE-LEVEL highlighting (see below).
 
-STRATEGIC HIGHLIGHTING — THIS IS WHERE TOP CARDS DIFFER FROM AVERAGE ONES:
+STRATEGIC HIGHLIGHTING — THE MOST IMPORTANT SKILL IN CARD CUTTING:
 
-- The highlighted text, read in sequence, must form coherent grammatical sentences.
-- The highlight must include the WARRANT, not just the claim. Card cutters who only highlight conclusions get crushed in the link debate.
-- Highlight at least one piece of empirical/statistical detail when present.
-- Highlight transition words ("therefore," "as a result," "however") only when needed for grammatical flow.
-- Do NOT highlight authors describing what someone else thinks — highlight the author's own analysis.
-- Do NOT highlight throat-clearing ("In recent years…", "It is well established that…").
-- Average circuit card highlights ~30-45% of the included evidence body.
+The highlight is NOT entire sentences. The highlight is a sequence of SHORT PHRASES — usually 3 to 12 words each — that, when read in order, form a complete grammatical sentence telling the argument's story.
 
-DELIVERABLE QUALITY CHECKS BEFORE OUTPUT:
-- Tag is a CLAIM with implied warrant.
-- Citation has every field populated.
-- Evidence is at least 4 paragraphs long (unless the source is shorter).
-- Highlighted portions read as a complete argument when extracted.
+This is how top circuit teams highlight. Think of it as creating a "compressed narrative" — you skip articles, transitions, and contextual words, keeping ONLY the words that carry the argument forward.
+
+EXAMPLE — given source text:
+
+"To answer these questions, we must come to grips with a key feature of the world economy—one that pundits in the global North tend either to ignore or wish away—namely, the fact that capitalist growth is fundamentally dependent on imperialism. This arrangement, which has persisted now for 500 years in various forms, is beginning to come under significant strain, and climate breakdown is likely to widen the cracks."
+
+CORRECT highlighting:
+"To answer these questions, we must come to grips with a <mark>key feature of the world economy</mark>—one that pundits in the global North tend either to ignore or wish away—namely, the fact that <mark>capitalist growth is fundamentally dependent on imperialism</mark>. <mark>This arrangement, which has persisted now for 500 years</mark> in various forms, <mark>is beginning to come under significant strain, and climate breakdown is likely to widen the cracks</mark>."
+
+When the highlights are read in sequence:
+"key feature of the world economy ... capitalist growth is fundamentally dependent on imperialism. This arrangement, which has persisted now for 500 years ... is beginning to come under significant strain, and climate breakdown is likely to widen the cracks."
+
+That reads as a complete argument. THAT is the standard.
+
+WRONG highlighting (what most LLMs do):
+"To answer these questions, we must come to grips with a key feature of the world economy—one that pundits in the global North tend either to ignore or wish away—namely, the fact that capitalist growth is fundamentally dependent on imperialism."
+(The whole sentence is highlighted — that's not strategic highlighting, that's just bolding the paragraph. A debater would have to read every filler word too.)
+
+PHRASE-LEVEL RULES:
+
+1. Most highlights are 3-12 words. Anything longer than ~15 words should be broken into 2-3 phrases.
+2. Skip articles and fillers within sentences when grammatically possible: skip "the," "a," "in various forms," "in fact," "as we have seen."
+3. Cut throat-clearing intros: "It is important to note that," "In recent years," "Many scholars have argued."
+4. Keep the SUBJECT + VERB + OBJECT skeleton. "X causes Y" beats "X has been shown to potentially cause Y in certain conditions."
+5. Keep numbers, named cases, technical terms — those are the warrant.
+6. Highlight transitions ("therefore," "but," "however") ONLY when they're load-bearing for the argument.
+7. The concatenated highlights MUST be grammatical English when read together.
+
+QUANTITATIVE TARGETS:
+
+- 8-25 separate <mark> spans per card body (one big mark across a paragraph is wrong).
+- Average mark length: 4-10 words.
+- Total highlighted text: 25-50% of the included evidence body.
+- Each paragraph of source should contain at least one mark (don't leave full paragraphs un-highlighted in the middle of an active section).
+
+BEFORE/AFTER TEST: When you finish, mentally extract just the marked text and read it aloud. Does it sound like a complete argument? If not, re-highlight.
+
+EVIDENCE BODY:
+- VERBATIM. Never modify, paraphrase, summarize, or rearrange.
+- Include 6-25 paragraphs of original text.
+- Preserve paragraph breaks.
 
 OUTPUT FORMAT — return a JSON object with these exact fields and no other commentary:
 {
   "tag": "The full tag line",
   "cite_author": "Last Name(s) and YY",
   "cite_year": "YY",
-  "cite_credentials": "Full credentials string in parentheses (e.g., 'Christopher Hansen, Senior Fellow at Brookings, and Sarah Brooke, Professor of Economics at Stanford')",
+  "cite_credentials": "Full credentials string in parentheses",
   "cite_title": "Article title (no surrounding quotes)",
   "cite_date": "Publication date (M/D/YY format)",
   "cite_url": "Full URL",
   "cite_initials": "ai",
-  "evidence_html": "The full evidence HTML with <mark> tags around the spoken portions"
+  "evidence_html": "The full evidence HTML with phrase-level <mark> tags"
 }
 
-NEVER include explanations or extra prose. Return ONLY the JSON object.`;
+NEVER include explanations, language other than English, or extra prose. Return ONLY the JSON object.`;
 
   // First pass — generate the card
   let parsed: {
@@ -189,16 +213,17 @@ export async function generateCardFast(
   cite_initials: string;
   evidence_html: string;
 }> {
-  const systemPrompt = `You create HS policy debate evidence cards. Return JSON with: tag, cite_author, cite_year, cite_credentials, cite_title, cite_date, cite_url, cite_initials, evidence_html.
+  const systemPrompt = `You create HS policy debate evidence cards. ALWAYS write in English (tag, citation, all output). Return JSON with: tag, cite_author, cite_year, cite_credentials, cite_title, cite_date, cite_url, cite_initials, evidence_html.
 
 Rules:
-- Tag: bold claim summarizing the argument
-- Citation: author last name + year, credentials, title, date, url
-- Evidence: LARGE continuous block of VERBATIM source text with <mark> tags around key parts
-- Highlight whatever proves the argument — use your judgment on how much or little to highlight
-- Highlighted portions should read as coherent sentences when read in sequence
-- NEVER modify source text, only add <mark> tags
-- Return valid JSON only`;
+- Tag: claim with implied warrant, 80-180 chars.
+- Citation: author last name + year, full credentials, title, date, URL, initials. English.
+- Evidence: LARGE continuous VERBATIM block (6+ paragraphs).
+- HIGHLIGHTING IS PHRASE-LEVEL, NOT SENTENCE-LEVEL. 8-25 separate <mark> spans, each 3-12 words. The marks read in sequence MUST form a complete grammatical English sentence telling the argument. Skip articles, fillers, throat-clearing. Keep subject-verb-object skeleton + numbers + named cases.
+- Example of correct phrase-level marking: "...we must come to grips with a <mark>key feature of the world economy</mark>...the fact that <mark>capitalist growth is fundamentally dependent on imperialism</mark>. <mark>This arrangement, which has persisted now for 500 years</mark> in various forms, <mark>is beginning to come under significant strain</mark>..."
+- WRONG: highlighting whole sentences with one mark (that's just bolding).
+- NEVER modify source text. Add only <mark> tags.
+- Return valid JSON only.`;
 
   const text = await streamMessage({
     model: "claude-sonnet-4-20250514",

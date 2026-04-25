@@ -48,6 +48,7 @@ export function analyzeHighlights(html: string): HighlightAnalysis {
   const totalChars = stripped.length;
   const totalWords = (stripped.match(WORD_RE) || []).length;
   const matches: string[] = [];
+  MARK_RE.lastIndex = 0;
   let m: RegExpExecArray | null;
   while ((m = MARK_RE.exec(html)) !== null) {
     matches.push(m[1].replace(/<[^>]+>/g, "").trim());
@@ -63,6 +64,8 @@ export function analyzeHighlights(html: string): HighlightAnalysis {
     highlightedSpans.length > 0
       ? highlightedChars / highlightedSpans.length
       : 0;
+  const avgSpanWords =
+    highlightedSpans.length > 0 ? highlightedWords / highlightedSpans.length : 0;
   const readAloud = highlightedSpans.join(" ").replace(/\s+/g, " ").trim();
   const readAloudCoherent = isReadAloudCoherent(readAloud);
 
@@ -75,10 +78,18 @@ export function analyzeHighlights(html: string): HighlightAnalysis {
     warnings.push("Over 70% highlighted — non-strategic, defeats the purpose of underlining.");
   if (highlightedSpans.length > 0 && avgSpan < 12)
     warnings.push("Spans average under 12 chars — likely word-fragment highlighting that won't read aloud.");
+  if (avgSpanWords > 18)
+    warnings.push(
+      `Average mark is ${Math.round(avgSpanWords)} words — too coarse. Top-circuit cards highlight phrase-by-phrase (4-10 words per mark), not whole sentences.`
+    );
   if (!readAloudCoherent && readAloud.length > 50)
     warnings.push("Highlighted spans don't form coherent sentences when read in order.");
-  if (highlightedSpans.some((s) => /^\s*[a-z]/.test(s)))
-    warnings.push("Some highlights start mid-sentence (lowercase opener) — re-anchor to sentence starts.");
+  if (highlightedSpans.length > 0 && totalWords > 200 && highlightedSpans.length < 4)
+    warnings.push(
+      "Only " +
+        highlightedSpans.length +
+        " mark span(s) for a long card — phrase-level highlighting needs 8-25 distinct marks."
+    );
 
   return {
     totalChars,
@@ -122,10 +133,12 @@ export function isReadAloudCoherent(text: string): boolean {
  *
  * - Drop empty <mark></mark> pairs
  * - Trim whitespace inside marks (keeps space outside)
- * - Merge adjacent <mark>X</mark> <mark>Y</mark> into <mark>X Y</mark> when only
- *   whitespace separates them (a common LLM artifact that breaks read-aloud)
- * - Promote partial-word marks to full-word marks (e.g. <mark>importan</mark>t →
- *   <mark>important</mark>)
+ * - Promote partial-word marks to full-word marks
+ * - Split sentence-level marks (>15 words) into phrase-level marks at clause
+ *   boundaries: commas, semicolons, em-dashes, "—", "and", "but", "which".
+ *
+ * NOTE: We deliberately do NOT merge adjacent marks anymore — phrase-level
+ * highlighting *requires* multiple short marks per sentence.
  */
 export function repairHighlights(html: string): string {
   let out = html;
@@ -134,15 +147,110 @@ export function repairHighlights(html: string): string {
   // 2. Trim inner whitespace
   out = out.replace(/<mark>\s+/g, "<mark>");
   out = out.replace(/\s+<\/mark>/g, "</mark>");
-  // 3. Merge whitespace-separated marks
-  for (let i = 0; i < 4; i++) {
-    const next = out.replace(/<\/mark>(\s*)<mark>/gi, "$1");
-    if (next === out) break;
-    out = next;
-  }
-  // 4. Walk the string and extend partial-word marks to full word boundaries.
+  // 3. Walk the string and extend partial-word marks to full word boundaries.
   out = extendMarksToWordBoundaries(out);
+  // 4. Split overly long marks into phrase-level segments.
+  out = splitLongMarks(out);
+  // 5. Drop now-empty marks that may have appeared.
+  out = out.replace(/<mark[^>]*>\s*<\/mark>/gi, "");
   return out;
+}
+
+/**
+ * If a single <mark>...</mark> is longer than ~15 words, break it into
+ * phrase-sized marks at clause boundaries. Keeps the original text intact —
+ * just inserts </mark> + (whitespace) + <mark> at clause separators.
+ *
+ * This is the single biggest quality improvement: it converts the common LLM
+ * failure mode (whole-sentence marks) into the circuit-standard pattern
+ * (phrase-level marks that read as a compressed narrative).
+ */
+export function splitLongMarks(html: string): string {
+  const MAX_WORDS = 15;
+  const MIN_PHRASE_WORDS = 3;
+
+  return html.replace(/<mark>([\s\S]*?)<\/mark>/gi, (full, inner: string) => {
+    const text = inner;
+    const wordCount = (text.match(WORD_RE) || []).length;
+    if (wordCount <= MAX_WORDS) return full;
+
+    // Identify clause-break opportunities. We use offsets within `text`.
+    const breaks: Array<{ start: number; end: number }> = [];
+    // Patterns to split at — order matters (longest first to avoid greedy mis-eats)
+    const patterns: RegExp[] = [
+      /\s*[,;]\s+/g,
+      /\s+—\s+/g,
+      /\s*--\s*/g,
+      /\s+(?:and|but|or|which|because|since|that|while|where|when|whereas|nor|so|yet)\s+/gi,
+    ];
+
+    for (const re of patterns) {
+      let m: RegExpExecArray | null;
+      re.lastIndex = 0;
+      while ((m = re.exec(text)) !== null) {
+        breaks.push({ start: m.index, end: m.index + m[0].length });
+      }
+    }
+    if (breaks.length === 0) return full;
+    breaks.sort((a, b) => a.start - b.start);
+
+    // Walk through and build alternating mark/un-mark segments. Aim for each
+    // mark to be ~4-12 words.
+    const segments: Array<{ start: number; end: number; mark: boolean }> = [];
+    let pos = 0;
+    let curStart = 0;
+    let curWords = 0;
+
+    const tokens = Array.from(text.matchAll(WORD_RE)).map((m) => ({
+      idx: m.index ?? 0,
+      word: m[0],
+    }));
+
+    let nextBreak = 0;
+
+    for (let i = 0; i < tokens.length; i++) {
+      curWords++;
+      const tk = tokens[i];
+      const breakHere = (() => {
+        while (nextBreak < breaks.length && breaks[nextBreak].end <= tk.idx) {
+          // we already passed this break — find first that's after current word
+          nextBreak++;
+        }
+        if (nextBreak >= breaks.length) return null;
+        const cand = breaks[nextBreak];
+        // Trigger break if cand.start is just past current token's end
+        const tokEnd = tk.idx + tk.word.length;
+        if (cand.start >= tokEnd && cand.start <= tokEnd + 4) return cand;
+        return null;
+      })();
+
+      const shouldBreak =
+        curWords >= MIN_PHRASE_WORDS && breakHere && curWords >= 4;
+      const last = i === tokens.length - 1;
+      if (shouldBreak || last) {
+        const segEnd = last ? text.length : breakHere!.start;
+        const gapEnd = last ? text.length : breakHere!.end;
+        segments.push({ start: curStart, end: segEnd, mark: true });
+        if (!last) {
+          segments.push({ start: segEnd, end: gapEnd, mark: false });
+        }
+        pos = gapEnd;
+        curStart = pos;
+        curWords = 0;
+      }
+    }
+    void pos;
+
+    if (segments.length <= 1) return full;
+    let rebuilt = "";
+    for (const s of segments) {
+      const piece = text.slice(s.start, s.end);
+      if (!piece) continue;
+      if (s.mark) rebuilt += `<mark>${piece}</mark>`;
+      else rebuilt += piece;
+    }
+    return rebuilt;
+  });
 }
 
 function extendMarksToWordBoundaries(html: string): string {
@@ -275,21 +383,36 @@ export function autoHighlightFallback(evidenceHtml: string, query: string): stri
 export function scoreHighlighting(html: string): { score: number; analysis: HighlightAnalysis } {
   const a = analyzeHighlights(html);
   let score = 50;
-  // Ratio sweet spot 18-45%
-  if (a.highlightRatio >= 0.18 && a.highlightRatio <= 0.45) score += 25;
+
+  // Ratio sweet spot 25-50% (phrase-level highlighting tends slightly higher
+  // ratio than sentence-level because we keep more substantive content).
+  if (a.highlightRatio >= 0.25 && a.highlightRatio <= 0.5) score += 22;
+  else if (a.highlightRatio >= 0.15 && a.highlightRatio < 0.25) score += 10;
   else if (a.highlightRatio < 0.08) score -= 25;
-  else if (a.highlightRatio > 0.7) score -= 20;
-  else score += 10;
+  else if (a.highlightRatio > 0.75) score -= 22;
+  else score += 5;
 
-  if (a.averageSpanLength >= 25) score += 10;
-  if (a.averageSpanLength < 12) score -= 15;
+  // Phrase-level: average mark should be 4-12 words. Below = fragmented,
+  // above = sentence-level (the failure mode we're fixing).
+  const avgWords = a.totalWords > 0 && a.highlightSpans > 0
+    ? a.highlightedWords / a.highlightSpans
+    : 0;
+  if (avgWords >= 4 && avgWords <= 12) score += 18;
+  else if (avgWords > 12 && avgWords <= 18) score += 4;
+  else if (avgWords > 18) score -= 18;
+  else if (avgWords > 0 && avgWords < 3) score -= 12;
 
-  if (a.readAloudCoherent) score += 20;
-  else if (a.readAloud.length > 50) score -= 25;
+  // Span count: phrase-level needs many marks. For long cards, 8-25 spans is
+  // the target; for short cards, 4-12.
+  const spanTarget = a.totalWords > 200 ? [8, 25] : [3, 14];
+  if (a.highlightSpans >= spanTarget[0] && a.highlightSpans <= spanTarget[1])
+    score += 12;
+  else if (a.highlightSpans < spanTarget[0]) score -= 8;
 
-  if (a.highlightSpans >= 4 && a.highlightSpans <= 14) score += 5;
+  if (a.readAloudCoherent) score += 18;
+  else if (a.readAloud.length > 50) score -= 20;
 
-  score -= Math.min(20, a.warnings.length * 5);
+  score -= Math.min(20, a.warnings.length * 4);
 
   return { score: Math.max(0, Math.min(100, score)), analysis: a };
 }
