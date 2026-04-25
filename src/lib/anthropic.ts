@@ -32,12 +32,58 @@ function extractJson(text: string): string {
   return text;
 }
 
+export type HighlightMode = "low" | "medium" | "high" | "custom";
+
+export interface HighlightOptions {
+  mode?: HighlightMode;
+  /** Free-text instruction. Only used when mode === "custom". */
+  customInstruction?: string;
+}
+
+function highlightModeBlock(opts: HighlightOptions | undefined): string {
+  const mode = opts?.mode ?? "medium";
+  if (mode === "low") {
+    return `HIGHLIGHT INTENSITY: LOW (surgical / sparse).
+- Total highlighted text: 12-22% of the evidence body. ERR ON THE LOW SIDE.
+- Mark count: 5-12 spans across the entire card.
+- Average mark length: 3-7 words.
+- ONLY mark the single strongest claim, the single best warrant, and 1-2 specific empirical hits (numbers, named cases).
+- Skip context, transitions, throat-clearing entirely.
+- The read-aloud should be a tight 15-30 word argument — like reading a tag, not reading a paragraph.`;
+  }
+  if (mode === "high") {
+    return `HIGHLIGHT INTENSITY: HIGH (aggressive / capture-the-paragraph).
+- Total highlighted text: 45-60% of the evidence body.
+- Mark count: 15-30 spans.
+- Average mark length: 6-12 words.
+- Mark every claim sentence, every warrant clause, and every empirical hit.
+- Still skip pure throat-clearing and meta-language ("It is important to note that…").
+- The read-aloud should be a substantive 60-120 word argument that could carry a 2NR overview.`;
+  }
+  if (mode === "custom" && opts?.customInstruction) {
+    return `HIGHLIGHT INTENSITY: CUSTOM.
+
+Follow the user's instruction precisely:
+
+"${opts.customInstruction.replace(/"/g, '\\"').slice(0, 1500)}"
+
+Default to phrase-level marking if the instruction doesn't specify. Skip sentence-level marks unless explicitly requested.`;
+  }
+  // medium / default
+  return `HIGHLIGHT INTENSITY: MEDIUM (default circuit standard).
+- Total highlighted text: 25-40% of the evidence body.
+- Mark count: 8-20 spans.
+- Average mark length: 4-10 words.
+- Mark the claim, the warrant, and at least one empirical hit. Mark connecting clauses only when they're load-bearing.`;
+}
+
 export async function generateCard(
   query: string,
   sourceText: string,
   sourceUrl: string,
   sourceInfo: string,
-  userContext: string
+  userContext: string,
+  highlightOptions?: HighlightOptions
 ): Promise<{
   tag: string;
   cite_author: string;
@@ -98,14 +144,17 @@ PHRASE-LEVEL RULES:
 6. Highlight transitions ("therefore," "but," "however") ONLY when they're load-bearing for the argument.
 7. The concatenated highlights MUST be grammatical English when read together.
 
-QUANTITATIVE TARGETS:
+QUANTITATIVE TARGETS — VARY BY MODE:
 
-- 8-25 separate <mark> spans per card body (one big mark across a paragraph is wrong).
-- Average mark length: 4-10 words.
-- Total highlighted text: 25-50% of the included evidence body.
-- Each paragraph of source should contain at least one mark (don't leave full paragraphs un-highlighted in the middle of an active section).
+${highlightModeBlock(highlightOptions)}
 
-BEFORE/AFTER TEST: When you finish, mentally extract just the marked text and read it aloud. Does it sound like a complete argument? If not, re-highlight.
+The mode-specific targets above OVERRIDE any general guidance. Hit the mode targets exactly.
+
+GENERAL RULES (always apply):
+- One big mark across a paragraph is wrong. Always break long marks at clause boundaries.
+- Each paragraph of evidence should contain at least one mark unless the paragraph is purely contextual.
+
+BEFORE/AFTER TEST: When you finish, mentally extract just the marked text and read it aloud. Does it sound like the argument the tag claims? If not, re-highlight.
 
 EVIDENCE BODY:
 - VERBATIM. Never modify, paraphrase, summarize, or rearrange.
@@ -201,7 +250,8 @@ export async function generateCardFast(
   sourceText: string,
   sourceUrl: string,
   sourceInfo: string,
-  userContext: string
+  userContext: string,
+  highlightOptions?: HighlightOptions
 ): Promise<{
   tag: string;
   cite_author: string;
@@ -219,7 +269,10 @@ Rules:
 - Tag: claim with implied warrant, 80-180 chars.
 - Citation: author last name + year, full credentials, title, date, URL, initials. English.
 - Evidence: LARGE continuous VERBATIM block (6+ paragraphs).
-- HIGHLIGHTING IS PHRASE-LEVEL, NOT SENTENCE-LEVEL. 8-25 separate <mark> spans, each 3-12 words. The marks read in sequence MUST form a complete grammatical English sentence telling the argument. Skip articles, fillers, throat-clearing. Keep subject-verb-object skeleton + numbers + named cases.
+- HIGHLIGHTING IS PHRASE-LEVEL, NOT SENTENCE-LEVEL. The marks read in sequence MUST form a complete grammatical English sentence telling the argument. Skip articles, fillers, throat-clearing. Keep subject-verb-object skeleton + numbers + named cases.
+
+${highlightModeBlock(highlightOptions)}
+
 - Example of correct phrase-level marking: "...we must come to grips with a <mark>key feature of the world economy</mark>...the fact that <mark>capitalist growth is fundamentally dependent on imperialism</mark>. <mark>This arrangement, which has persisted now for 500 years</mark> in various forms, <mark>is beginning to come under significant strain</mark>..."
 - WRONG: highlighting whole sentences with one mark (that's just bolding).
 - NEVER modify source text. Add only <mark> tags.

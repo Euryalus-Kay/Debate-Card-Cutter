@@ -71,7 +71,27 @@ export default function CreatePage() {
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [autosaveDirty, setAutosaveDirty] = useState(false);
+  const [highlightMode, setHighlightMode] = useState<
+    "low" | "medium" | "high" | "custom"
+  >("medium");
+  const [highlightInstruction, setHighlightInstruction] = useState("");
   const queryRef = useRef<HTMLTextAreaElement>(null);
+
+  // Persist highlight mode across sessions
+  useEffect(() => {
+    const saved = localStorage.getItem("highlight-mode");
+    const savedInstr = localStorage.getItem("highlight-instruction");
+    if (saved === "low" || saved === "medium" || saved === "high" || saved === "custom") {
+      setHighlightMode(saved);
+    }
+    if (savedInstr) setHighlightInstruction(savedInstr);
+  }, []);
+  useEffect(() => {
+    localStorage.setItem("highlight-mode", highlightMode);
+  }, [highlightMode]);
+  useEffect(() => {
+    localStorage.setItem("highlight-instruction", highlightInstruction);
+  }, [highlightInstruction]);
 
   // Load context with hard error handling — the bug we fixed lived here.
   useEffect(() => {
@@ -155,6 +175,9 @@ export default function CreatePage() {
           context,
           authorName: userName || "Anonymous",
           rapid,
+          highlightMode,
+          highlightInstruction:
+            highlightMode === "custom" ? highlightInstruction : undefined,
         }),
         signal: controller.signal,
       });
@@ -348,6 +371,71 @@ export default function CreatePage() {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Highlight intensity */}
+        <div>
+          <label className="text-[12px] text-[var(--text-tertiary)] mb-1.5 block">
+            Highlight intensity
+          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            {(
+              [
+                {
+                  id: "low",
+                  label: "Low",
+                  desc: "12-22% · sparse, surgical — only the strongest claim + warrant",
+                },
+                {
+                  id: "medium",
+                  label: "Medium",
+                  desc: "25-40% · circuit standard balance",
+                },
+                {
+                  id: "high",
+                  label: "High",
+                  desc: "45-60% · captures full warrants and context",
+                },
+                {
+                  id: "custom",
+                  label: "Custom",
+                  desc: "Write your own highlight rules",
+                },
+              ] as const
+            ).map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setHighlightMode(m.id)}
+                className={`px-3 py-1.5 text-[11.5px] rounded-md border transition-all ${
+                  highlightMode === m.id
+                    ? "border-[var(--accent-blue)] bg-[var(--accent-blue-glow)] text-white"
+                    : "border-[var(--border-default)] text-[var(--text-tertiary)] hover:text-white"
+                }`}
+                title={m.desc}
+              >
+                {m.label}
+              </button>
+            ))}
+            <span className="text-[10.5px] text-[var(--text-faint)] ml-auto">
+              {highlightMode === "low"
+                ? "Sparse — only strongest claim + warrant"
+                : highlightMode === "medium"
+                ? "Circuit standard balance"
+                : highlightMode === "high"
+                ? "Aggressive — captures full warrants"
+                : "Write your own rules below"}
+            </span>
+          </div>
+          {highlightMode === "custom" && (
+            <textarea
+              value={highlightInstruction}
+              onChange={(e) => setHighlightInstruction(e.target.value)}
+              placeholder='e.g., "Only highlight numerical evidence and named experts. Skip everything else." or "Highlight the entire warrant chain but no claim sentences." or "Mark only sentences that mention extinction, war, or recession."'
+              className="textarea mt-2"
+              rows={2}
+              maxLength={1500}
+            />
+          )}
         </div>
 
         {/* Generate */}

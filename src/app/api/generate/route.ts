@@ -1,15 +1,22 @@
 import { NextRequest } from "next/server";
-import { searchEvidence, deepSearchSource } from "@/lib/perplexity";
+import { searchEvidence } from "@/lib/perplexity";
 import { generateCard, generateCardFast, selectBestSource } from "@/lib/anthropic";
-import { scrapeArticle } from "@/lib/scraper";
+import {
+  fetchSourceText,
+  SourceFetchError,
+  verbatimMatchScore,
+  PREFERRED_SCRAPE_CHARS,
+} from "@/lib/source-fetcher";
 import { supabase } from "@/lib/supabase";
 import { autoSortCard } from "@/lib/auto-sort";
 import { v4 as uuid } from "uuid";
 
 export const maxDuration = 120;
 
+const MIN_VERBATIM_MATCH = 0.6;
+
 export async function POST(req: NextRequest) {
-  const { query, context, authorName, argumentId, rapid } = await req.json();
+  const { query, context, authorName, argumentId, rapid, highlightMode, highlightInstruction } = await req.json();
 
   if (!query) {
     return new Response(JSON.stringify({ error: "Query is required" }), {
@@ -18,7 +25,6 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Stream progress updates via SSE
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
@@ -29,88 +35,205 @@ export async function POST(req: NextRequest) {
       }
 
       const keepalive = setInterval(() => {
-        try { controller.enqueue(encoder.encode(': keepalive\n\n')); } catch {}
+        try {
+          controller.enqueue(encoder.encode(": keepalive\n\n"));
+        } catch {
+          /* ignore */
+        }
       }, 5000);
 
       try {
-        // Step 1
-        send("progress", { step: 1, total: 5, label: "Searching for evidence...", icon: "search" });
-
+        // Step 1 — Search for candidate sources
+        send("progress", {
+          step: 1,
+          total: 5,
+          label: "Searching for sources...",
+          icon: "search",
+        });
         const searchResults = await searchEvidence(query, context || "", rapid);
 
         if (!searchResults.sources.length) {
-          send("error", { message: "No sources found. Try a more specific query." });
+          send("error", {
+            message: "No sources found for this query. Try rephrasing.",
+          });
           controller.close();
+          clearInterval(keepalive);
           return;
         }
 
         send("progress", {
-          step: 2, total: 5,
-          label: `Found ${searchResults.sources.length} sources. Selecting best one...`,
+          step: 2,
+          total: 5,
+          label: `Found ${searchResults.sources.length} candidates. Choosing the strongest...`,
           icon: "filter",
         });
 
-        // Step 2
-        let selectedUrl = searchResults.sources[0].url;
+        // Step 2 — Order candidates: best source first, then the rest as fallbacks
+        let orderedCandidates = [...searchResults.sources];
         if (!rapid && searchResults.sources.length > 1) {
           try {
-            const selection = await selectBestSource(query, searchResults.answer, searchResults.sources);
-            selectedUrl = selection.selectedUrl;
+            const selection = await selectBestSource(
+              query,
+              searchResults.answer,
+              searchResults.sources
+            );
+            const idx = orderedCandidates.findIndex(
+              (s) => s.url === selection.selectedUrl
+            );
+            if (idx > 0) {
+              const chosen = orderedCandidates[idx];
+              orderedCandidates = [
+                chosen,
+                ...orderedCandidates.slice(0, idx),
+                ...orderedCandidates.slice(idx + 1),
+              ];
+            }
           } catch {
-            // Fall back
+            /* fall back to original order */
           }
         }
 
-        send("progress", { step: 3, total: 5, label: "Fetching full article text...", icon: "download" });
+        // Step 3 — Strict source fetch. NO summary fallback. Try direct scrape
+        // on each candidate; fail if none yield real article text.
+        send("progress", {
+          step: 3,
+          total: 5,
+          label: "Fetching verbatim source text...",
+          icon: "download",
+        });
 
-        // Step 3
-        let fullText = await scrapeArticle(selectedUrl);
-        if (fullText.length < 500) {
-          send("progress", { step: 3, total: 5, label: "Deep searching source content...", icon: "download" });
-          fullText = await deepSearchSource(selectedUrl, query);
-        }
-        if (fullText.length < 100) {
-          fullText = searchResults.answer;
+        let fetched;
+        try {
+          fetched = await fetchSourceText(orderedCandidates, {
+            preferred: PREFERRED_SCRAPE_CHARS,
+            onAttempt: (attempt) => {
+              send("progress", {
+                step: 3,
+                total: 5,
+                label:
+                  attempt.chars >= 800
+                    ? `✓ ${attempt.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 50)} — ${attempt.chars} chars`
+                    : `✕ ${attempt.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 50)} — ${attempt.error || `only ${attempt.chars} chars`}`,
+                icon: "download",
+                attempt,
+              });
+            },
+          });
+        } catch (err) {
+          if (err instanceof SourceFetchError) {
+            send("error", {
+              message:
+                err.message +
+                "\n\nNo card was created. Strict mode is enabled — we never fabricate cards from web summaries.",
+              attempts: err.attempts,
+            });
+            controller.close();
+            clearInterval(keepalive);
+            return;
+          }
+          throw err;
         }
 
         send("progress", {
-          step: 4, total: 5,
-          label: rapid ? "Generating card with Sonnet..." : "Generating card with Opus (this takes a moment)...",
+          step: 4,
+          total: 5,
+          label: rapid
+            ? "Cutting card with Sonnet..."
+            : "Cutting card with Opus...",
           icon: "sparkle",
+          source: { url: fetched.url, domain: fetched.domain },
         });
 
-        // Step 4
-        const sourceInfo = searchResults.answer;
+        // Step 4 — Generate
         const cardGen = rapid ? generateCardFast : generateCard;
-        const card = await cardGen(query, fullText, selectedUrl, sourceInfo, context || "");
+        const highlightOpts = {
+          mode: (highlightMode || "medium") as
+            | "low"
+            | "medium"
+            | "high"
+            | "custom",
+          customInstruction: highlightInstruction || undefined,
+        };
+        let card = await cardGen(
+          query,
+          fetched.text,
+          fetched.url,
+          searchResults.answer, // metadata for citation context only
+          context || "",
+          highlightOpts
+        );
 
-        send("progress", { step: 5, total: 5, label: "Saving card...", icon: "save" });
+        // Step 5 — Verbatim integrity check. The evidence_html that ships in
+        // the card MUST mostly appear verbatim in the source text we passed
+        // in. If less than MIN_VERBATIM_MATCH of sampled fragments match,
+        // retry once. If still below threshold, fail rather than save.
+        let integrity = verbatimMatchScore(card.evidence_html, fetched.text);
+        if (integrity.score < MIN_VERBATIM_MATCH) {
+          send("progress", {
+            step: 4,
+            total: 5,
+            label: `Integrity check failed (${Math.round(integrity.score * 100)}% verbatim) — retrying...`,
+            icon: "sparkle",
+          });
+          card = await cardGen(
+            query,
+            fetched.text,
+            fetched.url,
+            searchResults.answer,
+            context || "",
+            highlightOpts
+          );
+          integrity = verbatimMatchScore(card.evidence_html, fetched.text);
+        }
 
-        // Step 5
+        if (integrity.score < MIN_VERBATIM_MATCH) {
+          send("error", {
+            message: `Integrity check failed: only ${Math.round(integrity.score * 100)}% of the generated card text appears verbatim in the source. The model may have paraphrased — refusing to save. Try a more specific query or a different topic.`,
+            integrity,
+            source: { url: fetched.url, domain: fetched.domain },
+          });
+          controller.close();
+          clearInterval(keepalive);
+          return;
+        }
+
+        send("progress", {
+          step: 5,
+          total: 5,
+          label: `Saving (${Math.round(integrity.score * 100)}% verbatim match)...`,
+          icon: "save",
+        });
+
         const cite = `${card.cite_author} (${card.cite_credentials}. "${card.cite_title}" ${card.cite_date}. ${card.cite_url}) ${card.cite_initials}`;
         const cardId = uuid();
         const now = new Date().toISOString();
 
-        await supabase.from("cards").insert({
-          id: cardId,
-          tag: card.tag,
-          cite,
-          cite_author: card.cite_author,
-          cite_year: card.cite_year,
-          cite_credentials: card.cite_credentials,
-          cite_title: card.cite_title,
-          cite_date: card.cite_date,
-          cite_url: card.cite_url,
-          cite_access_date: new Date().toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" }),
-          cite_initials: card.cite_initials,
-          evidence_html: card.evidence_html,
-          author_name: authorName || "Anonymous",
-          argument_id: argumentId || null,
-          created_at: now,
-          updated_at: now,
-        }).then(() => {});
+        await supabase
+          .from("cards")
+          .insert({
+            id: cardId,
+            tag: card.tag,
+            cite,
+            cite_author: card.cite_author,
+            cite_year: card.cite_year,
+            cite_credentials: card.cite_credentials,
+            cite_title: card.cite_title,
+            cite_date: card.cite_date,
+            cite_url: card.cite_url,
+            cite_access_date: new Date().toLocaleDateString("en-US", {
+              month: "numeric",
+              day: "numeric",
+              year: "numeric",
+            }),
+            cite_initials: card.cite_initials,
+            evidence_html: card.evidence_html,
+            author_name: authorName || "Anonymous",
+            argument_id: argumentId || null,
+            created_at: now,
+            updated_at: now,
+          })
+          .then(() => {});
 
-        // Auto-sort into folders (fire and forget)
         autoSortCard(cardId, card.tag, card.cite_author);
 
         send("done", {
@@ -122,7 +245,14 @@ export async function POST(req: NextRequest) {
           evidence_html: card.evidence_html,
           author_name: authorName || "Anonymous",
           sources_found: searchResults.sources.length,
-          selected_source: selectedUrl,
+          selected_source: fetched.url,
+          source_domain: fetched.domain,
+          source_path: fetched.path,
+          integrity: {
+            verbatimScore: integrity.score,
+            matchedSpans: integrity.matchedSpans,
+            totalSpans: integrity.totalSpans,
+          },
           rapid: !!rapid,
         });
 
@@ -130,7 +260,10 @@ export async function POST(req: NextRequest) {
         controller.close();
       } catch (error) {
         clearInterval(keepalive);
-        send("error", { message: error instanceof Error ? error.message : "Card generation failed" });
+        send("error", {
+          message:
+            error instanceof Error ? error.message : "Card generation failed",
+        });
         controller.close();
       }
     },
