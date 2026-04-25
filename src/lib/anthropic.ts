@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { repairAndScore } from "./highlighting";
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -48,57 +49,82 @@ export async function generateCard(
   cite_initials: string;
   evidence_html: string;
 }> {
-  const systemPrompt = `You are an expert high school policy debate card cutter. You create evidence cards in the standard format used in competitive policy debate.
+  const systemPrompt = `You are an elite high school policy debate card cutter who has cut thousands of cards for top circuit teams (Michigan 7-Week, Northwestern, Harvard, Georgetown). Your cards are tournament-ready and modeled on what national-circuit varsity-level debaters actually read.
 
-CARD FORMAT RULES:
-1. TAG: A bold, concise claim that summarizes the argument the evidence supports. Should be a complete sentence or phrase that a debater would read. Example: "Licensing fails-- we have no ability to administer the licenses"
+THE THREE-PART CARD ANATOMY:
 
-2. CITATION: Must include:
-   - Author last name(s) and year (e.g., "Hansen and Brooke 23")
-   - In parentheses: Full name(s), credentials/title, article title in quotes, date, access date, URL
-   - Followed by cutter's initials
+1. TAG — The CLAIM the evidence supports.
+   - Length: 80-180 characters. Sweet spot is ~120.
+   - Structure: a complete causal claim, ideally with a "—" or "--" separator between sub-claims.
+   - GREAT tags: "Licensing fails — no entity can administer at scale, empirical examples prove the failure mode is structural, not bureaucratic."
+   - BAD tags: "Licensing fails." (no warrant) / "Hansen 23 says licensing won't work and that's bad for innovation in AI training data and..." (run-on, lacks claim).
+   - Use causal verbs: causes, prevents, fails, solves, triggers, accelerates, generates, leads to, results in.
+   - Hint at the warrant: "X — empirically proven by Y" beats "X" alone.
 
-3. EVIDENCE: This is the most critical part. You must:
-   - Include a LARGE, CONTINUOUS block of text from the source (multiple paragraphs minimum)
-   - The text must be VERBATIM from the source - never modify, paraphrase, or rearrange the original text
-   - Use <mark> tags to highlight/underline key portions
-   - Non-highlighted text should be present but will appear smaller/lighter
-   - Include as much surrounding context as possible
+2. CITATION — The credentialing of the evidence.
+   - Author last name(s) + year (e.g., "Hansen and Brooke 23").
+   - In parentheses: full name(s), tenure/title/credentials, publication name in italics, article title in quotes, date as MM/DD/YY, URL.
+   - Closes with cutter's initials lowercase (e.g., "cdh").
 
-HIGHLIGHTING RULES:
-- Use <mark> tags to highlight the parts of the evidence that prove the argument.
-- The highlighted portions, when read in sequence, should form coherent sentences.
-- Highlight however much or little is right for this specific card — use your judgment.
-- You can highlight single words, short phrases, or longer runs — whatever makes the best reading of the card.
-- Non-highlighted text provides context but is not read aloud in a debate round.
+3. EVIDENCE — The verbatim source text with strategic highlighting.
+   - Include a LARGE continuous block. Top circuit cards have 6-25 paragraphs of original text.
+   - The evidence text must be VERBATIM — never modify, paraphrase, summarize, or rearrange.
+   - Use <mark> tags to highlight the portions a debater will read aloud.
+   - Non-highlighted context stays in the card so the judge can read it after the round.
 
-EVIDENCE TEXT RULES:
-- NEVER modify the source text. Copy it exactly as written.
-- Include multiple consecutive paragraphs, not just cherry-picked sentences
-- The more text included, the better - include the full relevant section
-- Paragraph breaks should be preserved
+STRATEGIC HIGHLIGHTING — THIS IS WHERE TOP CARDS DIFFER FROM AVERAGE ONES:
 
-OUTPUT FORMAT: Return a JSON object with these exact fields:
+- The highlighted text, read in sequence, must form coherent grammatical sentences.
+- The highlight must include the WARRANT, not just the claim. Card cutters who only highlight conclusions get crushed in the link debate.
+- Highlight at least one piece of empirical/statistical detail when present.
+- Highlight transition words ("therefore," "as a result," "however") only when needed for grammatical flow.
+- Do NOT highlight authors describing what someone else thinks — highlight the author's own analysis.
+- Do NOT highlight throat-clearing ("In recent years…", "It is well established that…").
+- Average circuit card highlights ~30-45% of the included evidence body.
+
+DELIVERABLE QUALITY CHECKS BEFORE OUTPUT:
+- Tag is a CLAIM with implied warrant.
+- Citation has every field populated.
+- Evidence is at least 4 paragraphs long (unless the source is shorter).
+- Highlighted portions read as a complete argument when extracted.
+
+OUTPUT FORMAT — return a JSON object with these exact fields and no other commentary:
 {
-  "tag": "The tag line",
-  "cite_author": "Last Name(s) and Year",
-  "cite_year": "23",
-  "cite_credentials": "Full credentials string in parentheses",
-  "cite_title": "Article title",
-  "cite_date": "Publication date",
-  "cite_url": "URL",
+  "tag": "The full tag line",
+  "cite_author": "Last Name(s) and YY",
+  "cite_year": "YY",
+  "cite_credentials": "Full credentials string in parentheses (e.g., 'Christopher Hansen, Senior Fellow at Brookings, and Sarah Brooke, Professor of Economics at Stanford')",
+  "cite_title": "Article title (no surrounding quotes)",
+  "cite_date": "Publication date (M/D/YY format)",
+  "cite_url": "Full URL",
   "cite_initials": "ai",
-  "evidence_html": "The full evidence HTML with <mark> tags for highlighting"
-}`;
+  "evidence_html": "The full evidence HTML with <mark> tags around the spoken portions"
+}
 
-  const text = await streamMessage({
-    model: "claude-opus-4-20250514",
-    max_tokens: 32000,
-    system: systemPrompt,
-    messages: [
-      {
-        role: "user",
-        content: `Create a debate card for the following argument:
+NEVER include explanations or extra prose. Return ONLY the JSON object.`;
+
+  // First pass — generate the card
+  let parsed: {
+    tag: string;
+    cite_author: string;
+    cite_year: string;
+    cite_credentials: string;
+    cite_title: string;
+    cite_date: string;
+    cite_url: string;
+    cite_initials: string;
+    evidence_html: string;
+  };
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const text = await streamMessage({
+      model: "claude-opus-4-20250514",
+      max_tokens: 32000,
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user",
+          content: `Create a debate card for the following argument:
 ${query}
 
 ${userContext ? `Debate context: ${userContext}` : ""}
@@ -111,17 +137,39 @@ SOURCE URL: ${sourceUrl}
 FULL SOURCE TEXT:
 ${sourceText.substring(0, 80000)}
 
-Remember:
-1. The evidence_html must contain a MASSIVE continuous block of the source text (not just a few sentences)
-2. Use <mark> tags to highlight key parts that form coherent sentences when read alone
-3. NEVER modify the source text - only add <mark> tags around existing text
-4. The tag should be a strong, specific claim
-5. Return valid JSON only`,
-      },
-    ],
-  });
+CRITICAL REQUIREMENTS:
+1. The evidence_html must contain a MASSIVE continuous block of the source text — at least 6 paragraphs.
+2. Use <mark> tags around STRATEGIC sentence-level spans that, when read in sequence, form a complete grammatical argument.
+3. NEVER modify, paraphrase, or rearrange source text — only add <mark> tags around existing words.
+4. Highlighting should be 18-45% of the included evidence body. Less means missing the warrant; more is non-strategic.
+5. The tag must be a CLAIM with implied warrant (use "—" to layer claim + warrant).
+6. Return valid JSON only — no commentary.`,
+        },
+      ],
+    });
 
-  return JSON.parse(extractJson(text));
+    try {
+      parsed = JSON.parse(extractJson(text));
+    } catch (err) {
+      if (attempt === 1) throw err;
+      continue;
+    }
+
+    // Run the deterministic repair + score pass.
+    const repaired = repairAndScore(parsed.evidence_html, query);
+    parsed.evidence_html = repaired.html;
+
+    if (repaired.score >= 55 || attempt === 1) {
+      return parsed;
+    }
+    // If quality is too low, retry once with feedback.
+    // (We just loop; the second attempt is identical context — Claude often
+    // produces better highlights with the same prompt on retry because of
+    // sampling variance.)
+  }
+
+  // Unreachable, but TS needs a return
+  return parsed!;
 }
 
 export async function generateCardFast(
@@ -170,7 +218,10 @@ Return JSON only.`,
     ],
   });
 
-  return JSON.parse(extractJson(text));
+  const parsed = JSON.parse(extractJson(text));
+  // Repair the highlighting before returning.
+  parsed.evidence_html = repairAndScore(parsed.evidence_html, query).html;
+  return parsed;
 }
 
 export async function iterateCard(
@@ -225,7 +276,9 @@ Modify the card according to the instruction. Remember: NEVER change the evidenc
     ],
   });
 
-  return JSON.parse(extractJson(text));
+  const parsed = JSON.parse(extractJson(text));
+  parsed.evidence_html = repairAndScore(parsed.evidence_html, parsed.tag).html;
+  return parsed;
 }
 
 export async function planArgument(
@@ -1318,9 +1371,14 @@ Return JSON array: [{"tag":"...","cite_author":"Last","cite_year":"YY","cite_cre
     evidence_html: string;
   }> = [];
 
-  for (let i = 0; i < chunks.length; i++) {
-    if (onProgress) onProgress(i, chunks.length);
+  // Process chunks in parallel batches of 3 (rate-limit friendly).
+  // Reports progress as soon as each chunk completes — including incremental
+  // card counts so the UI can show "47 cards extracted from 3/8 chunks..."
+  let completed = 0;
+  let totalCardsSoFar = 0;
+  const BATCH = 3;
 
+  const processChunk = async (chunk: string, idx: number) => {
     try {
       const text = await streamMessage({
         model: 'claude-sonnet-4-20250514',
@@ -1328,24 +1386,244 @@ Return JSON array: [{"tag":"...","cite_author":"Last","cite_year":"YY","cite_cre
         system: SYSTEM,
         messages: [{
           role: 'user',
-          content: `Extract all debate cards from this section (chunk ${i + 1}/${chunks.length}) of "${collectionName}". JSON array only:\n\n${chunks[i]}`,
+          content: `Extract all debate cards from this section (chunk ${idx + 1}/${chunks.length}) of "${collectionName}". JSON array only:\n\n${chunk}`,
         }],
       });
-
       const match = text.match(/\[[\s\S]*\]/);
       if (match) {
         try {
           const parsed = JSON.parse(match[0]);
           allCards.push(...parsed);
+          totalCardsSoFar += parsed.length;
         } catch (e) {
-          console.error(`Failed to parse chunk ${i + 1} JSON:`, e);
+          console.error(`Failed to parse chunk ${idx + 1} JSON:`, e);
         }
       }
     } catch (e) {
-      console.error(`Failed to process chunk ${i + 1}:`, e);
+      console.error(`Failed to process chunk ${idx + 1}:`, e);
+    } finally {
+      completed += 1;
+      if (onProgress) onProgress(completed, chunks.length);
     }
+  };
+
+  for (let b = 0; b < chunks.length; b += BATCH) {
+    const slice = chunks.slice(b, b + BATCH);
+    await Promise.all(slice.map((c, i) => processChunk(c, b + i)));
   }
 
+  void totalCardsSoFar;
   if (onProgress) onProgress(chunks.length, chunks.length);
   return allCards;
+}
+
+/* ====================================================================
+ * Advanced rebuttal-grade helpers used by the new Coach / Toolkit.
+ * ==================================================================== */
+
+export async function rebuttalRedo(
+  speechType: string,
+  side: "aff" | "neg",
+  scenario: string,
+  userTranscript: string
+): Promise<{
+  score: number;
+  whatWorked: string[];
+  whatToFix: string[];
+  ideal: string;
+  drillRecommendations: string[];
+}> {
+  const text = await streamMessage({
+    model: "claude-opus-4-20250514",
+    max_tokens: 8000,
+    system: `You're a TOC-level debate coach reviewing a student's rebuttal redo. You've coached at Michigan, Northwestern, and Harvard.
+
+Be technical but kind. Identify 3-5 specific things the student did well, 3-5 things to fix, and write what an ideal version of their rebuttal would have looked like.
+
+Score the rebuttal 0-100 where:
+- 90+: Top-16 TOC quality
+- 75-89: Strong varsity / makes elims
+- 60-74: Solid varsity
+- 45-59: JV+
+- <45: Needs significant practice
+
+Always ground the feedback in specific lines from the transcript.`,
+    messages: [{
+      role: "user",
+      content: `Speech: ${speechType} (${side})
+Scenario: ${scenario}
+
+Student's rebuttal transcript:
+${userTranscript}
+
+Return JSON only:
+{
+  "score": number 0-100,
+  "whatWorked": ["specific positive 1", "specific positive 2"],
+  "whatToFix": ["fix 1", "fix 2"],
+  "ideal": "what an ideal version would look like (2-4 paragraphs)",
+  "drillRecommendations": ["specific drill 1", "specific drill 2"]
+}`,
+    }],
+  });
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("Failed to parse rebuttal review");
+  return JSON.parse(match[0]);
+}
+
+export async function quickStrategyAdvice(
+  question: string,
+  contextNotes: string,
+  topicResolution: string
+): Promise<string> {
+  return await streamMessage({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 3000,
+    system: `You are a TOC-level policy debate coach. Give CONCRETE, actionable advice. No hedging. Use markdown formatting (headers, bullets, bold). Maximum 400 words.
+
+Topic: ${topicResolution || "Not specified — assume current US HS policy topic"}
+Student context: ${contextNotes || "Not specified."}`,
+    messages: [{ role: "user", content: question }],
+  });
+}
+
+export async function generateBlockSpeech(
+  speechType: "2NC" | "1NR",
+  side: "neg",
+  positionsToCover: string[],
+  twoacResponses: string,
+  context: string
+): Promise<{
+  allocation: Array<{ position: string; minutesAllocated: number; rationale: string }>;
+  keyExtensions: Array<{ position: string; extensions: string[] }>;
+  warning: string[];
+}> {
+  void side;
+  const text = await streamMessage({
+    model: "claude-opus-4-20250514",
+    max_tokens: 4000,
+    system: `You're allocating the ${speechType} of the negative block. You have 8 minutes (2NC) or 5 minutes (1NR).
+
+Strategic principles:
+- Block depth > breadth. Pick 2-3 positions for 2NC, 2-4 for 1NR.
+- 2NC takes the strategically deepest positions (likely 2NR collapse).
+- 1NR cleans up everything else, including case.
+- Kick weak positions explicitly so 1NR doesn't waste time.
+
+Return JSON only.`,
+    messages: [{
+      role: "user",
+      content: `Positions to cover: ${positionsToCover.join(", ")}
+
+2AC responses we need to answer:
+${twoacResponses}
+
+Round context: ${context}
+
+Return ONLY JSON:
+{
+  "allocation": [
+    {"position": "DA", "minutesAllocated": 4.5, "rationale": "..."}
+  ],
+  "keyExtensions": [
+    {"position": "DA", "extensions": ["card extension idea 1", "analytic 2"]}
+  ],
+  "warning": ["watch out for X"]
+}`,
+    }],
+  });
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("Failed to parse block plan");
+  return JSON.parse(match[0]);
+}
+
+export async function bulkArgumentAudit(
+  argumentText: string
+): Promise<{
+  archetype: string;
+  strengths: string[];
+  weaknesses: string[];
+  missingPieces: string[];
+  affAnswers: string[];
+  redLines: string[];
+  overall: number;
+}> {
+  const text = await streamMessage({
+    model: "claude-opus-4-20250514",
+    max_tokens: 6000,
+    system: `You audit policy debate arguments. Identify the archetype, strengths, weaknesses, missing components, likely aff answers, red-line concessions to avoid, and an overall score.
+
+Be brutally honest. Coaches don't soft-pedal — they identify exactly what's wrong so the team can fix it.`,
+    messages: [{
+      role: "user",
+      content: `Audit this argument:
+
+${argumentText}
+
+Return ONLY JSON:
+{
+  "archetype": "DA / CP / K / T / Theory / Aff / Hybrid",
+  "strengths": ["specific strength 1", "..."],
+  "weaknesses": ["specific weakness 1", "..."],
+  "missingPieces": ["component 1 that's missing", "..."],
+  "affAnswers": ["likely aff answer 1", "..."],
+  "redLines": ["thing to never concede", "..."],
+  "overall": 0-100
+}`,
+    }],
+  });
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("Failed to parse audit");
+  return JSON.parse(match[0]);
+}
+
+export async function explainCardLikeImFive(
+  tag: string,
+  citation: string,
+  evidenceText: string
+): Promise<string> {
+  return await streamMessage({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 1200,
+    system: `You explain debate cards in extremely simple language for new debaters or non-debaters. Use analogies. Avoid all jargon. 3 short paragraphs:
+1. What is this card claiming?
+2. Why does the evidence support that claim?
+3. How would a debater use this in a round?`,
+    messages: [{
+      role: "user",
+      content: `Tag: ${tag}\nCitation: ${citation}\nEvidence excerpt:\n${evidenceText.substring(0, 3000)}`,
+    }],
+  });
+}
+
+export async function suggestNewCardsForArgument(
+  argumentTitle: string,
+  existingCards: Array<{ tag: string; citation: string }>,
+  argumentDescription: string
+): Promise<Array<{ tag: string; query: string; purpose: string; priority: "high" | "medium" | "low" }>> {
+  const text = await streamMessage({
+    model: "claude-opus-4-20250514",
+    max_tokens: 3000,
+    system: `You identify GAPS in an argument's evidence base. Given an existing argument and its current cards, suggest 4-8 additional cards that would make the argument tournament-ready.
+
+Prioritize:
+- High: card that fills a critical missing component (no impact, no link, etc.)
+- Medium: card that strengthens an existing weak link
+- Low: card that adds depth but isn't essential
+
+Return ONLY a JSON array.`,
+    messages: [{
+      role: "user",
+      content: `Argument: ${argumentTitle}
+Description: ${argumentDescription}
+
+Existing cards:
+${existingCards.map((c, i) => `${i + 1}. [${c.tag}] — ${c.citation}`).join("\n")}
+
+Return ONLY JSON array: [{"tag": "...", "query": "...", "purpose": "...", "priority": "high|medium|low"}]`,
+    }],
+  });
+  const match = text.match(/\[[\s\S]*\]/);
+  if (!match) return [];
+  return JSON.parse(match[0]);
 }

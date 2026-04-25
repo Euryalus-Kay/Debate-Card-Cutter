@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useApp } from "@/components/AppShell";
+import { useToast } from "@/components/ui/Toast";
+import { consumeSSE } from "@/lib/sse-client";
 import CardDisplay from "@/components/CardDisplay";
 
 type ArgumentType = "aff" | "da" | "cp" | "k" | "t" | "theory" | "custom";
@@ -155,6 +157,8 @@ function argumentToGoogleDocsHtml(
 
 export default function ArgumentPage() {
   const { userName } = useApp();
+  const toast = useToast();
+  void toast;
   const [argumentType, setArgumentType] = useState<ArgumentType>("da");
   const [query, setQuery] = useState("");
   const [context, setContext] = useState("");
@@ -237,49 +241,16 @@ export default function ArgumentPage() {
         throw new Error(data.error || "Argument generation failed");
       }
 
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("No response body");
-
-      const decoder = new TextDecoder();
-      let buffer = "";
       let receivedDone = false;
-
       try {
-        while (true) {
-          const { done: streamDone, value } = await reader.read();
-          if (streamDone) break;
-
-          buffer += decoder.decode(value, { stream: true });
-
-          // SSE messages are separated by double newlines
-          const messages = buffer.split("\n\n");
-          buffer = messages.pop() || "";
-
-          for (const message of messages) {
-            if (!message.trim()) continue;
-            const lines = message.split("\n");
-            let eventType = "message";
-            let dataStr = "";
-
-            for (const line of lines) {
-              if (line.startsWith("event: ")) {
-                eventType = line.slice(7).trim();
-              } else if (line.startsWith("data: ")) {
-                dataStr = line.slice(6);
-              }
-            }
-
-            if (dataStr) {
-              try {
-                const data = JSON.parse(dataStr);
-                if (eventType === "done") receivedDone = true;
-                handleSSEEvent(eventType, data);
-              } catch {
-                // skip malformed JSON
-              }
-            }
-          }
-        }
+        await consumeSSE(
+          res,
+          (event, data) => {
+            if (event === "done") receivedDone = true;
+            handleSSEEvent(event, data as Record<string, unknown>);
+          },
+          { signal: controller.signal }
+        );
       } catch {
         // Stream interrupted — if we already got components, that's fine
       }

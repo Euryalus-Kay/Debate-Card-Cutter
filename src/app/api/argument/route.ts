@@ -4,8 +4,8 @@ import type { ArgumentType, CampFilePlan } from "@/lib/anthropic";
 import { searchEvidence, deepSearchSource } from "@/lib/perplexity";
 import { scrapeArticle } from "@/lib/scraper";
 import { supabase } from "@/lib/supabase";
-import { autoSortCard } from "@/lib/auto-sort";
 import { v4 as uuid } from "uuid";
+import { localAnalyticCheck, auditAnalytic } from "@/lib/anthropic-analytics";
 
 export const maxDuration = 300;
 
@@ -157,11 +157,35 @@ export async function POST(req: NextRequest) {
           console.error("Failed to create argument shell:", argInsertError);
         }
 
-        // Immediately emit all analytics/plan_text/interp_text components
+        // Immediately emit all analytics/plan_text/interp_text components.
+        // For analytics, run the local quality check. If it's blippy or missing
+        // a warrant, fix it with a single Claude pass before emitting.
         const cardComponents: typeof allComponents = [];
+
+        const repairAnalytic = async (text: string) => {
+          const local = localAnalyticCheck(text);
+          if (!local.isBlippy && local.hasCausalConnective) return text;
+          try {
+            const audit = await auditAnalytic(text);
+            return audit.improvedVersion || text;
+          } catch {
+            return text;
+          }
+        };
+
         for (let i = 0; i < allComponents.length; i++) {
           const comp = allComponents[i];
-          if (comp.type === "analytic" || comp.type === "plan_text" || comp.type === "interp_text") {
+          if (
+            comp.type === "analytic" ||
+            comp.type === "plan_text" ||
+            comp.type === "interp_text"
+          ) {
+            // Only repair pure analytics. Plan/interp text is meant to be terse.
+            const content =
+              comp.type === "analytic"
+                ? await repairAnalytic(comp.content || "")
+                : comp.content || "";
+
             generatedComponents.push({
               index: i,
               sectionIndex: comp.sectionIndex,
@@ -169,11 +193,16 @@ export async function POST(req: NextRequest) {
               type: comp.type,
               label: comp.label,
               purpose: comp.purpose,
-              content: comp.content || "",
+              content,
             });
             send("component_done", {
-              index: i, sectionIndex: comp.sectionIndex, sectionHeader: comp.sectionHeader,
-              type: comp.type, label: comp.label, purpose: comp.purpose, content: comp.content || "",
+              index: i,
+              sectionIndex: comp.sectionIndex,
+              sectionHeader: comp.sectionHeader,
+              type: comp.type,
+              label: comp.label,
+              purpose: comp.purpose,
+              content,
             });
           } else {
             cardComponents.push(comp);
