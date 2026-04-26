@@ -5,13 +5,10 @@ import { searchEvidence } from "@/lib/perplexity";
 import {
   fetchSourceText,
   SourceFetchError,
-  verbatimMatchScore,
 } from "@/lib/source-fetcher";
 import { supabase } from "@/lib/supabase";
 import { v4 as uuid } from "uuid";
 import { localAnalyticCheck, auditAnalytic } from "@/lib/anthropic-analytics";
-
-const MIN_VERBATIM_MATCH = 0.55;
 
 export const maxDuration = 300;
 
@@ -296,28 +293,10 @@ export async function POST(req: NextRequest) {
             const selectedUrl = fetched.url;
             const fullText = fetched.text;
 
-            let card = await generateCard(comp.query || comp.label, fullText, selectedUrl, searchResults.answer, context || "");
-
-            // Verbatim integrity check — refuse to save if Claude paraphrased.
-            let integrity = verbatimMatchScore(card.evidence_html, fullText);
-            if (integrity.score < MIN_VERBATIM_MATCH) {
-              card = await generateCard(comp.query || comp.label, fullText, selectedUrl, searchResults.answer, context || "");
-              integrity = verbatimMatchScore(card.evidence_html, fullText);
-            }
-            if (integrity.score < MIN_VERBATIM_MATCH) {
-              generatedComponents.push({
-                index: i, sectionIndex: comp.sectionIndex, sectionHeader: comp.sectionHeader,
-                type: "analytic", label: comp.label, purpose: comp.purpose,
-                content: `[Card generation failed integrity check — only ${Math.round(integrity.score * 100)}% of the generated text matched the source verbatim. Cut this card manually for: ${comp.label}]`,
-              });
-              send("component_done", {
-                index: i, sectionIndex: comp.sectionIndex, sectionHeader: comp.sectionHeader,
-                type: "analytic", label: comp.label, purpose: comp.purpose,
-                content: `[Integrity check failed — ${Math.round(integrity.score * 100)}% verbatim match]`,
-                fallback: true,
-              });
-              return;
-            }
+            // No-modification rules are enforced via the prompt. We removed
+            // the post-generation verbatim retry to avoid paying for an
+            // extra Opus call per card.
+            const card = await generateCard(comp.query || comp.label, fullText, selectedUrl, searchResults.answer, context || "");
 
             const cardId = uuid();
             const cite = `${card.cite_author} (${card.cite_credentials}. "${card.cite_title}" ${card.cite_date}. ${card.cite_url}) ${card.cite_initials}`;

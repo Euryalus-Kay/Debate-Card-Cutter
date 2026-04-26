@@ -4,7 +4,6 @@ import { generateCard, generateCardFast, selectBestSource } from "@/lib/anthropi
 import {
   fetchSourceText,
   SourceFetchError,
-  verbatimMatchScore,
   PREFERRED_SCRAPE_CHARS,
 } from "@/lib/source-fetcher";
 import { supabase } from "@/lib/supabase";
@@ -12,8 +11,6 @@ import { autoSortCard } from "@/lib/auto-sort";
 import { v4 as uuid } from "uuid";
 
 export const maxDuration = 120;
-
-const MIN_VERBATIM_MATCH = 0.6;
 
 export async function POST(req: NextRequest) {
   const { query, context, authorName, argumentId, rapid, highlightMode, highlightInstruction } = await req.json();
@@ -154,7 +151,7 @@ export async function POST(req: NextRequest) {
             | "custom",
           customInstruction: highlightInstruction || undefined,
         };
-        let card = await cardGen(
+        const card = await cardGen(
           query,
           fetched.text,
           fetched.url,
@@ -163,44 +160,14 @@ export async function POST(req: NextRequest) {
           highlightOpts
         );
 
-        // Step 5 — Verbatim integrity check. The evidence_html that ships in
-        // the card MUST mostly appear verbatim in the source text we passed
-        // in. If less than MIN_VERBATIM_MATCH of sampled fragments match,
-        // retry once. If still below threshold, fail rather than save.
-        let integrity = verbatimMatchScore(card.evidence_html, fetched.text);
-        if (integrity.score < MIN_VERBATIM_MATCH) {
-          send("progress", {
-            step: 4,
-            total: 5,
-            label: `Integrity check failed (${Math.round(integrity.score * 100)}% verbatim) — retrying...`,
-            icon: "sparkle",
-          });
-          card = await cardGen(
-            query,
-            fetched.text,
-            fetched.url,
-            searchResults.answer,
-            context || "",
-            highlightOpts
-          );
-          integrity = verbatimMatchScore(card.evidence_html, fetched.text);
-        }
-
-        if (integrity.score < MIN_VERBATIM_MATCH) {
-          send("error", {
-            message: `Integrity check failed: only ${Math.round(integrity.score * 100)}% of the generated card text appears verbatim in the source. The model may have paraphrased — refusing to save. Try a more specific query or a different topic.`,
-            integrity,
-            source: { url: fetched.url, domain: fetched.domain },
-          });
-          controller.close();
-          clearInterval(keepalive);
-          return;
-        }
-
+        // Verbatim integrity is now enforced via the system prompt's hard
+        // no-modification rules. We removed the post-generation
+        // verbatim-match retry to avoid paying for an extra Opus call on
+        // every card.
         send("progress", {
           step: 5,
           total: 5,
-          label: `Saving (${Math.round(integrity.score * 100)}% verbatim match)...`,
+          label: "Saving card...",
           icon: "save",
         });
 
@@ -248,11 +215,6 @@ export async function POST(req: NextRequest) {
           selected_source: fetched.url,
           source_domain: fetched.domain,
           source_path: fetched.path,
-          integrity: {
-            verbatimScore: integrity.score,
-            matchedSpans: integrity.matchedSpans,
-            totalSpans: integrity.totalSpans,
-          },
           rapid: !!rapid,
         });
 

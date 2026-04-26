@@ -156,10 +156,34 @@ GENERAL RULES (always apply):
 
 BEFORE/AFTER TEST: When you finish, mentally extract just the marked text and read it aloud. Does it sound like the argument the tag claims? If not, re-highlight.
 
-EVIDENCE BODY:
-- VERBATIM. Never modify, paraphrase, summarize, or rearrange.
-- Include 6-25 paragraphs of original text.
-- Preserve paragraph breaks.
+EVIDENCE BODY — ABSOLUTE NO-MODIFICATION RULES (highest priority — overrides everything else):
+
+You are pasting source text into the card. Treat the source as if it were a legal exhibit — every character is sacred.
+
+WHAT COUNTS AS MODIFICATION (all forbidden):
+- Changing any word, including "the" → "a", "is" → "was", or any tense/article/pronoun shift
+- Removing or adding ANY word
+- Combining two sentences into one (or splitting one into two)
+- Joining two paragraphs (or splitting one paragraph)
+- Reordering sentences — even if both come from the source, never put them in a different order than they appear
+- Removing parentheticals, footnote markers, em-dashes, semicolons, or any punctuation
+- Normalizing curly quotes "…" to ASCII "…" — keep the source's exact quote style
+- Normalizing em-dash — to hyphen - or vice versa — keep the source's exact dash style
+- Replacing ellipsis … with three periods ... or vice versa
+- "Cleaning up" obvious page artifacts (e.g. "Advertisement" between paragraphs) — leave them
+- Translating from another language — if the source is non-English, paste it untranslated and put an English gloss in [brackets] AFTER the verbatim line
+- Adding a header line, summary, or label that wasn't in the source
+- Capitalization changes (the source's case is the card's case)
+
+THE ONLY THING YOU MAY ADD: <mark> tags around existing words. Nothing else.
+
+CONTENT INSTRUCTIONS:
+- Include 6-25 paragraphs of original text, contiguous when possible.
+- Preserve paragraph breaks exactly as they appear in the source.
+- If the article is shorter than 6 paragraphs, paste all of it.
+- Pick a contiguous block when possible. If you must skip text, mark the skip with the source's actual ellipsis style — do NOT mark a skip with "..."  unless that's how the source wrote it.
+
+If you're tempted to fix a typo or smooth out clunky prose: DON'T. Card cutters preserve typos and awkward phrasing because changing anything is grounds for losing the round.
 
 OUTPUT FORMAT — return a JSON object with these exact fields and no other commentary:
 {
@@ -269,6 +293,7 @@ Rules:
 - Tag: claim with implied warrant, 80-180 chars.
 - Citation: author last name + year, full credentials, title, date, URL, initials. English.
 - Evidence: LARGE continuous VERBATIM block (6+ paragraphs).
+- ABSOLUTE NO-MODIFICATION RULE: paste source text exactly as written. Do not change words, articles, tense, capitalization, punctuation, dash/quote style, or paragraph breaks. Do not combine or split sentences. Do not reorder sentences. Do not "clean up" artifacts. The ONLY addition allowed is <mark> tags around existing words. Treat the source like a legal exhibit.
 - HIGHLIGHTING IS PHRASE-LEVEL, NOT SENTENCE-LEVEL. The marks read in sequence MUST form a complete grammatical English sentence telling the argument. Skip articles, fillers, throat-clearing. Keep subject-verb-object skeleton + numbers + named cases.
 
 ${highlightModeBlock(highlightOptions)}
