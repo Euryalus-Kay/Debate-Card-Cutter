@@ -299,7 +299,7 @@ export async function POST(req: NextRequest) {
             const card = await generateCard(comp.query || comp.label, fullText, selectedUrl, searchResults.answer, context || "");
 
             const cardId = uuid();
-            const cite = `${card.cite_author} (${card.cite_credentials}. "${card.cite_title}" ${card.cite_date}. ${card.cite_url}) ${card.cite_initials}`;
+            const cite = `${card.cite_author}, ${card.cite_credentials} ("${card.cite_title}" ${card.cite_date}. ${card.cite_url})//${card.cite_initials}`;
             const now = new Date().toISOString();
 
             const { error: cardInsertError } = await supabase.from("cards").insert({

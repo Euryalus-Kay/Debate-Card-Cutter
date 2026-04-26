@@ -23,6 +23,7 @@ import {
   GavelIcon,
 } from "@/components/ui/icons";
 import { JUDGE_PARADIGMS } from "@/lib/judge-paradigms";
+import Modal from "@/components/ui/Modal";
 
 type ArgumentType = "aff" | "da" | "cp" | "k" | "t" | "theory" | "custom";
 
@@ -179,6 +180,71 @@ export default function ArgumentPage() {
   const componentCountRef = useRef(0);
   const startedAtRef = useRef<number>(0);
 
+  // Approval gate
+  interface BuildRequest {
+    id: string;
+    requester_name: string;
+    argument_type: string;
+    query: string;
+    status: string;
+    status_message: string;
+    approved_by: string | null;
+    rejected_reason: string;
+    argument_id: string | null;
+    estimated_cost_usd_low: number | null;
+    estimated_cost_usd_high: number | null;
+    estimated_cards: number | null;
+    created_at: string;
+    updated_at: string;
+  }
+  const [myRequests, setMyRequests] = useState<BuildRequest[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<BuildRequest[]>([]);
+  const [adminOpen, setAdminOpen] = useState(false);
+  const [adminPasscode, setAdminPasscode] = useState("");
+  const [adminAuthed, setAdminAuthed] = useState(false);
+  const [submittingRequest, setSubmittingRequest] = useState(false);
+
+  // Poll my requests
+  useEffect(() => {
+    if (!userName) return;
+    const fetchMy = () => {
+      fetch(`/api/build-requests?user=${encodeURIComponent(userName)}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (Array.isArray(data)) {
+            // Only show requests from the last 24 hours
+            const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+            setMyRequests(
+              data.filter(
+                (r: BuildRequest) =>
+                  new Date(r.created_at).getTime() > cutoff
+              )
+            );
+          }
+        })
+        .catch(() => {});
+    };
+    fetchMy();
+    const id = setInterval(fetchMy, 4000);
+    return () => clearInterval(id);
+  }, [userName]);
+
+  // Poll pending requests when admin
+  useEffect(() => {
+    if (!adminAuthed) return;
+    const fetchPending = () => {
+      fetch(`/api/build-requests?status=pending`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (Array.isArray(data)) setPendingRequests(data);
+        })
+        .catch(() => {});
+    };
+    fetchPending();
+    const id = setInterval(fetchPending, 3000);
+    return () => clearInterval(id);
+  }, [adminAuthed]);
+
   // Load context
   useEffect(() => {
     if (!userName) return;
@@ -243,6 +309,106 @@ export default function ArgumentPage() {
       return;
     }
     setCostWarningOpen(true);
+  };
+
+  // After cost warning is acknowledged, submit a request (or kick off build
+  // immediately if admin has unlocked direct builds).
+  const onCostConfirmed = async () => {
+    setCostWarningOpen(false);
+    if (adminAuthed) {
+      // Admin: skip the queue and build immediately
+      generateArgument();
+      return;
+    }
+    setSubmittingRequest(true);
+    try {
+      const res = await fetch("/api/build-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requester_name: userName,
+          argument_type: argumentType,
+          query,
+          context,
+          judge_id: selectedJudgeId,
+          highlight_mode: "medium",
+          estimate,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        toast.error("Request failed", data.error || "Unknown error");
+      } else {
+        toast.success(
+          "Request sent to Zain",
+          `He'll get a passcode-protected approval. Cost ~$${estimate.estimatedCostUSD.low.toFixed(2)}-$${estimate.estimatedCostUSD.high.toFixed(2)}.`
+        );
+        setMyRequests((prev) => [data, ...prev]);
+      }
+    } catch (err) {
+      toast.error(
+        "Request failed",
+        err instanceof Error ? err.message : "Unknown"
+      );
+    } finally {
+      setSubmittingRequest(false);
+    }
+  };
+
+  const cancelMyRequest = async (id: string) => {
+    if (!confirm("Cancel this build request?")) return;
+    await fetch(`/api/build-requests?id=${id}`, { method: "DELETE" });
+    setMyRequests((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  const adminApprove = async (id: string) => {
+    const res = await fetch(`/api/build-requests/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "approve",
+        passcode: adminPasscode,
+        approved_by: "Zain Zaidi",
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      toast.error("Approve failed", data.error || "Unknown");
+      return;
+    }
+    toast.success("Approved — build started", "Will appear in the requester's library when complete.");
+    setPendingRequests((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  const adminReject = async (id: string) => {
+    const reason = prompt("Reason for rejection (optional):") || "";
+    const res = await fetch(`/api/build-requests/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "reject",
+        passcode: adminPasscode,
+        approved_by: "Zain Zaidi",
+        reason,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      toast.error("Reject failed", data.error || "Unknown");
+      return;
+    }
+    toast.info("Rejected");
+    setPendingRequests((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  const tryUnlockAdmin = () => {
+    if (adminPasscode === "8867") {
+      setAdminAuthed(true);
+      toast.success("Admin unlocked", "You can approve and bypass the gate.");
+    } else {
+      toast.error("Invalid passcode");
+      setAdminPasscode("");
+    }
   };
 
   const generateArgument = async () => {
@@ -463,8 +629,106 @@ export default function ArgumentPage() {
                 {libraryCardCount} cards in library
               </a>
             )}
+            <button
+              onClick={() => setAdminOpen(true)}
+              className={`text-[11px] flex items-center gap-1.5 px-2 py-1 rounded transition-colors ${
+                adminAuthed
+                  ? "text-[var(--accent-green)] bg-green-500/10"
+                  : "text-[var(--text-tertiary)] hover:text-white"
+              }`}
+              title={
+                adminAuthed
+                  ? "Admin unlocked — direct builds enabled"
+                  : "Open approval queue (admin only)"
+              }
+            >
+              <GavelIcon size={11} />
+              {adminAuthed ? "Admin" : "Approve queue"}
+            </button>
           </div>
         </div>
+
+        {/* Locked-build notice */}
+        {!adminAuthed && (
+          <div className="mt-3 surface p-3 border-l-2 border-[var(--accent-amber)] anim-slide-up">
+            <div className="flex items-start gap-2">
+              <span className="text-[var(--accent-amber)] text-[14px] leading-none mt-0.5">🔒</span>
+              <div className="text-[11.5px] text-[var(--text-secondary)] leading-relaxed">
+                <strong className="text-white">High-cost generation — approval required.</strong>{" "}
+                Build Argument runs $20-$90 of API per file. To prevent
+                accidental spending, your request goes to{" "}
+                <span className="text-white font-medium">Zain Zaidi</span> for
+                approval. Once approved, the file builds automatically and
+                lands in your Library.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* My recent requests */}
+        {myRequests.length > 0 && (
+          <div className="mt-3 space-y-1.5 anim-slide-up">
+            <div className="text-[10px] uppercase tracking-wider text-[var(--text-faint)]">
+              Your recent requests
+            </div>
+            {myRequests.slice(0, 5).map((r) => (
+              <div
+                key={r.id}
+                className="surface p-2.5 flex items-center justify-between gap-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span
+                      className={`badge ${
+                        r.status === "built"
+                          ? "badge-green"
+                          : r.status === "pending"
+                          ? "badge-amber"
+                          : r.status === "building" || r.status === "approved"
+                          ? "badge-blue"
+                          : r.status === "rejected" || r.status === "failed"
+                          ? "badge-red"
+                          : "badge-neutral"
+                      }`}
+                    >
+                      {r.status}
+                    </span>
+                    <span className="badge badge-purple uppercase">
+                      {r.argument_type}
+                    </span>
+                    <span className="text-[10.5px] text-[var(--text-faint)]">
+                      {new Date(r.created_at).toLocaleTimeString()}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[var(--text-secondary)] truncate">
+                    {r.query}
+                  </p>
+                  {r.status_message && (
+                    <p className="text-[10.5px] text-[var(--text-tertiary)] mt-0.5 italic">
+                      {r.status_message}
+                    </p>
+                  )}
+                </div>
+                {r.status === "built" && r.argument_id && (
+                  <a
+                    href="/library"
+                    className="btn-ghost shrink-0 text-[11px]"
+                  >
+                    View →
+                  </a>
+                )}
+                {r.status === "pending" && (
+                  <button
+                    onClick={() => cancelMyRequest(r.id)}
+                    className="text-[10px] text-[var(--text-faint)] hover:text-[var(--accent-red)] shrink-0"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Background builds banner */}
@@ -674,21 +938,37 @@ export default function ArgumentPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={loading ? () => abortController?.abort() : requestBuild}
-            disabled={!loading && !query.trim()}
+            disabled={(!loading && !query.trim()) || submittingRequest}
             className={loading ? "btn-danger" : "btn-primary"}
           >
             {loading ? (
               "Stop"
-            ) : (
+            ) : submittingRequest ? (
+              <>
+                <span className="spinner" /> Sending...
+              </>
+            ) : adminAuthed ? (
               <>
                 <SparkleIcon size={13} />
                 Build {argumentType.toUpperCase()}
+              </>
+            ) : (
+              <>
+                <SparkleIcon size={13} />
+                Request build (Zain approves)
               </>
             )}
           </button>
           {loading && (
             <span className="text-[11px] text-[var(--text-tertiary)]">
               {elapsedSec}s elapsed · safe to leave the page
+            </span>
+          )}
+          {!loading && !adminAuthed && (
+            <span className="text-[11px] text-[var(--text-tertiary)]">
+              Approval required · ~$
+              {estimate.estimatedCostUSD.low.toFixed(0)}-$
+              {estimate.estimatedCostUSD.high.toFixed(0)}
             </span>
           )}
         </div>
@@ -1048,11 +1328,125 @@ export default function ArgumentPage() {
       <CostWarning
         open={costWarningOpen}
         onClose={() => setCostWarningOpen(false)}
-        onConfirm={generateArgument}
+        onConfirm={onCostConfirmed}
         estimate={estimate}
         argType={argumentType}
         description={query}
       />
+
+      {/* Admin panel modal */}
+      <Modal
+        open={adminOpen}
+        onClose={() => setAdminOpen(false)}
+        width={680}
+        title={
+          <span className="flex items-center gap-2">
+            <GavelIcon size={15} />
+            Approval queue
+          </span>
+        }
+        description={
+          adminAuthed
+            ? "Approve or reject pending build requests."
+            : "Enter the admin passcode to view the queue."
+        }
+        footer={
+          <button onClick={() => setAdminOpen(false)} className="btn-ghost">
+            Close
+          </button>
+        }
+      >
+        {!adminAuthed ? (
+          <div className="space-y-3">
+            <input
+              type="password"
+              value={adminPasscode}
+              onChange={(e) => setAdminPasscode(e.target.value)}
+              placeholder="Admin passcode"
+              className="input"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") tryUnlockAdmin();
+              }}
+            />
+            <div className="flex gap-2">
+              <button onClick={tryUnlockAdmin} className="btn-primary">
+                Unlock
+              </button>
+            </div>
+            <p className="text-[11px] text-[var(--text-faint)] leading-relaxed">
+              Only Zain Zaidi has the admin passcode. Without it, all build
+              requests stay queued until Zain approves them.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-[var(--text-tertiary)]">
+                {pendingRequests.length} pending
+              </span>
+              <button
+                onClick={() => {
+                  setAdminAuthed(false);
+                  setAdminPasscode("");
+                }}
+                className="text-[10px] text-[var(--text-faint)] hover:text-white"
+              >
+                Lock admin
+              </button>
+            </div>
+            {pendingRequests.length === 0 ? (
+              <p className="text-[12.5px] text-[var(--text-tertiary)] text-center py-6">
+                No pending requests.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {pendingRequests.map((r) => (
+                  <div key={r.id} className="surface p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="badge badge-purple uppercase">
+                          {r.argument_type}
+                        </span>
+                        <span className="text-[12px] font-semibold text-white">
+                          {r.requester_name}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-[var(--text-faint)]">
+                        {new Date(r.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-[11.5px] text-[var(--text-secondary)] leading-relaxed mb-2 line-clamp-3">
+                      {r.query}
+                    </p>
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="text-[10.5px] text-[var(--text-faint)]">
+                        ~{r.estimated_cards || "?"} cards · ~$
+                        {r.estimated_cost_usd_low?.toFixed(2) || "?"}–$
+                        {r.estimated_cost_usd_high?.toFixed(2) || "?"}
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => adminReject(r.id)}
+                          className="btn-ghost"
+                        >
+                          Reject
+                        </button>
+                        <button
+                          onClick={() => adminApprove(r.id)}
+                          className="btn-primary"
+                        >
+                          <SparkleIcon size={11} /> Approve & build
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </>
   );
 }

@@ -68,6 +68,34 @@ CREATE TABLE IF NOT EXISTS speech_card_selections (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Build requests (approval-gated argument generation)
+CREATE TABLE IF NOT EXISTS build_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  requester_name TEXT NOT NULL,
+  argument_type TEXT NOT NULL DEFAULT 'custom',
+  query TEXT NOT NULL DEFAULT '',
+  context TEXT NOT NULL DEFAULT '',
+  judge_id TEXT,
+  highlight_mode TEXT NOT NULL DEFAULT 'medium',
+  highlight_instruction TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected','building','built','failed')),
+  status_message TEXT NOT NULL DEFAULT '',
+  approved_by TEXT,
+  approved_at TIMESTAMPTZ,
+  rejected_reason TEXT NOT NULL DEFAULT '',
+  argument_id UUID REFERENCES arguments(id) ON DELETE SET NULL,
+  estimated_cost_usd_low NUMERIC(8,2),
+  estimated_cost_usd_high NUMERIC(8,2),
+  estimated_cards INT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_build_requests_status ON build_requests(status);
+CREATE INDEX IF NOT EXISTS idx_build_requests_requester ON build_requests(requester_name);
+ALTER TABLE build_requests ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all on build_requests" ON build_requests;
+CREATE POLICY "Allow all on build_requests" ON build_requests FOR ALL USING (true) WITH CHECK (true);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_rounds_user ON rounds(user_name);
 CREATE INDEX IF NOT EXISTS idx_rounds_partner ON rounds(partner_name);

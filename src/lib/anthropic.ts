@@ -108,7 +108,27 @@ THE THREE-PART CARD ANATOMY:
    - BAD tags: "Licensing fails." (no warrant) / "Hansen 23 says licensing won't work..." (run-on, lacks claim).
    - Use causal verbs: causes, prevents, fails, solves, triggers, accelerates, generates, leads to, results in.
 
-2. CITATION — Author last name(s) + year, full credentials, title, date, URL, cutter's initials. All in English.
+2. CITATION — Camp-file format. Match this pattern EXACTLY:
+
+   "LastName YY, [full credentials list — institution, role, titles, often spanning 2-4 lines], (FirstName, [Date], "Title," [Publication], URL)//cutter_initials"
+
+   Real example from a top-circuit camp file (Capitalism K, NDCA Novice 24-25):
+
+     "Hickel 21, Economic anthropologist, Professor at the Institute for Environmental Science and Technology at the Autonomous University of Barcelona and Visiting Senior Fellow at the International Inequalities Institute at the London School of Economics, Editor of the journal World Development, and serves on the Statistical Advisory Panel for the UN Human Development Report, the advisory board of the Green New Deal for Europe, and the Harvard-Lancet Commission on Reparations and Redistributive Justice (Jason, December 5th, "The Age of Imperialism is Not Over—But We Can End It," Current Affairs, https://www.currentaffairs.org/2021/12/the-age-of-imperialism-is-not-over-but-we-can-end-it)//BB"
+
+   Field placement (strict):
+   - cite_author: "Hickel 21" (Last + space + 2-digit year)
+   - cite_year: "21"
+   - cite_credentials: the FULL credentials string between the comma after the year and the open paren — including ALL professional roles, institutional affiliations, editorial positions, advisory roles. Do NOT truncate. Camp files list everything.
+   - cite_title: the title without surrounding quotes
+   - cite_date: full publication date
+   - cite_url: full URL
+   - cite_initials: 2-letter cutter initials, lowercase, like "ai" or your assigned initials
+
+   When the cite display string gets assembled downstream, the format is:
+   {cite_author}, {cite_credentials} (FirstName, {cite_date}, "{cite_title}," Publication, {cite_url})//{cite_initials}
+
+   The credentials field is where you load every credential the source supports. Long credential strings are a feature, not a bug — they're how a debater proves the author's authority on tab.
 
 3. EVIDENCE — VERBATIM source text with PHRASE-LEVEL highlighting (see below).
 

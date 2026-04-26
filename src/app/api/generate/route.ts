@@ -171,7 +171,8 @@ export async function POST(req: NextRequest) {
           icon: "save",
         });
 
-        const cite = `${card.cite_author} (${card.cite_credentials}. "${card.cite_title}" ${card.cite_date}. ${card.cite_url}) ${card.cite_initials}`;
+        // Camp-file citation format: "Author YY, credentials (FirstName, date, "title," pub, url)//initials"
+        const cite = `${card.cite_author}, ${card.cite_credentials} ("${card.cite_title}" ${card.cite_date}. ${card.cite_url})//${card.cite_initials}`;
         const cardId = uuid();
         const now = new Date().toISOString();
 
