@@ -340,8 +340,8 @@ export default function ArgumentPage() {
         toast.error("Request failed", data.error || "Unknown error");
       } else {
         toast.success(
-          "Request sent to Zain",
-          `He'll get a passcode-protected approval. Cost ~$${estimate.estimatedCostUSD.low.toFixed(2)}-$${estimate.estimatedCostUSD.high.toFixed(2)}.`
+          "Request sent",
+          "An admin will review it. You'll see your file in the Library when it's built."
         );
         setMyRequests((prev) => [data, ...prev]);
       }
@@ -368,7 +368,7 @@ export default function ArgumentPage() {
       body: JSON.stringify({
         action: "approve",
         passcode: adminPasscode,
-        approved_by: "Zain Zaidi",
+        approved_by: "admin",
       }),
     });
     const data = await res.json();
@@ -388,7 +388,7 @@ export default function ArgumentPage() {
       body: JSON.stringify({
         action: "reject",
         passcode: adminPasscode,
-        approved_by: "Zain Zaidi",
+        approved_by: "admin",
         reason,
       }),
     });
@@ -654,12 +654,9 @@ export default function ArgumentPage() {
             <div className="flex items-start gap-2">
               <span className="text-[var(--accent-amber)] text-[14px] leading-none mt-0.5">🔒</span>
               <div className="text-[11.5px] text-[var(--text-secondary)] leading-relaxed">
-                <strong className="text-white">High-cost generation — approval required.</strong>{" "}
-                Build Argument runs $20-$90 of API per file. To prevent
-                accidental spending, your request goes to{" "}
-                <span className="text-white font-medium">Zain Zaidi</span> for
-                approval. Once approved, the file builds automatically and
-                lands in your Library.
+                <strong className="text-white">Approval required.</strong>{" "}
+                Build Argument requests need admin approval. Once approved,
+                the file builds automatically and lands in your Library.
               </div>
             </div>
           </div>
@@ -902,8 +899,9 @@ export default function ArgumentPage() {
           </div>
         </div>
 
-        {/* Pre-flight estimate strip */}
-        {!loading && !done && (
+        {/* Pre-flight estimate strip — admin sees full numbers; users see a
+            simplified scope view without cost. */}
+        {!loading && !done && adminAuthed && (
           <div className="surface p-3 grid grid-cols-2 sm:grid-cols-5 gap-2 anim-fade-in">
             <PreflightStat
               icon={<ZapIcon size={11} />}
@@ -933,6 +931,25 @@ export default function ArgumentPage() {
             />
           </div>
         )}
+        {!loading && !done && !adminAuthed && (
+          <div className="surface p-3 grid grid-cols-3 gap-2 anim-fade-in">
+            <PreflightStat
+              icon={<ZapIcon size={11} />}
+              label="Cards"
+              value={`${estimate.cardCount}`}
+            />
+            <PreflightStat
+              icon={<TargetIcon size={11} />}
+              label="Analytics"
+              value={`${estimate.analyticCount}`}
+            />
+            <PreflightStat
+              icon={<SparkleIcon size={11} />}
+              label="Time"
+              value={`${estimate.estimatedMinutes.low}-${estimate.estimatedMinutes.high}m`}
+            />
+          </div>
+        )}
 
         {/* Generate button */}
         <div className="flex items-center gap-2">
@@ -955,7 +972,7 @@ export default function ArgumentPage() {
             ) : (
               <>
                 <SparkleIcon size={13} />
-                Request build (Zain approves)
+                Request build
               </>
             )}
           </button>
@@ -966,9 +983,7 @@ export default function ArgumentPage() {
           )}
           {!loading && !adminAuthed && (
             <span className="text-[11px] text-[var(--text-tertiary)]">
-              Approval required · ~$
-              {estimate.estimatedCostUSD.low.toFixed(0)}-$
-              {estimate.estimatedCostUSD.high.toFixed(0)}
+              Admin approval required
             </span>
           )}
         </div>
@@ -1324,7 +1339,7 @@ export default function ArgumentPage() {
         )}
       </div>
 
-      {/* Cost warning modal */}
+      {/* Cost warning modal — admin sees cost, friends don't. */}
       <CostWarning
         open={costWarningOpen}
         onClose={() => setCostWarningOpen(false)}
@@ -1332,6 +1347,7 @@ export default function ArgumentPage() {
         estimate={estimate}
         argType={argumentType}
         description={query}
+        showCost={adminAuthed}
       />
 
       {/* Admin panel modal */}
@@ -1375,8 +1391,8 @@ export default function ArgumentPage() {
               </button>
             </div>
             <p className="text-[11px] text-[var(--text-faint)] leading-relaxed">
-              Only Zain Zaidi has the admin passcode. Without it, all build
-              requests stay queued until Zain approves them.
+              Admin only. Without the passcode, build requests stay queued
+              until an admin approves them.
             </p>
           </div>
         ) : (

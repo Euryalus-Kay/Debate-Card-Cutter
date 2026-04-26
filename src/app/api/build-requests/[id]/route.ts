@@ -109,7 +109,7 @@ export async function PATCH(
   }
   if (!body.passcode || body.passcode !== ADMIN_PASSCODE) {
     return NextResponse.json(
-      { error: "Invalid passcode. Only Zain can approve build requests." },
+      { error: "Invalid admin passcode." },
       { status: 403 }
     );
   }
@@ -128,7 +128,7 @@ export async function PATCH(
   }
 
   const now = new Date().toISOString();
-  const approvedBy = (body.approved_by || "Zain Zaidi").trim();
+  const approvedBy = (body.approved_by || "admin").trim();
 
   if (body.action === "reject") {
     await patchRequest(id, {

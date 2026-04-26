@@ -92,6 +92,9 @@ interface Props {
   estimate: CostEstimate;
   argType: string;
   description: string;
+  /** When false, hide cost/token figures and show a friendlier confirm flow.
+   * Defaults to true (admin view). */
+  showCost?: boolean;
 }
 
 const ACK_KEY = "build-argument-cost-ack-v1";
@@ -103,6 +106,7 @@ export default function CostWarning({
   estimate,
   argType,
   description,
+  showCost = true,
 }: Props) {
   const [dontShowAgain, setDontShowAgain] = useState(false);
 
@@ -143,26 +147,33 @@ export default function CostWarning({
       title={
         <span className="flex items-center gap-2">
           <ZapIcon size={16} className="text-[var(--accent-amber)]" />
-          Build Argument — usage preview
+          {showCost ? "Build Argument — usage preview" : "Confirm build request"}
         </span>
       }
-      description="A camp-quality file uses a lot of compute. Confirm before running."
+      description={
+        showCost
+          ? "A camp-quality file uses a lot of compute. Confirm before running."
+          : "Review the scope of the file you're requesting. Once submitted, an admin will review and approve it."
+      }
       footer={
         <>
-          <label className="text-[11px] text-[var(--text-tertiary)] flex items-center gap-1.5 mr-auto cursor-pointer">
-            <input
-              type="checkbox"
-              checked={dontShowAgain}
-              onChange={(e) => setDontShowAgain(e.target.checked)}
-              className="accent-[var(--accent-blue)]"
-            />
-            Don&apos;t show this again
-          </label>
+          {showCost && (
+            <label className="text-[11px] text-[var(--text-tertiary)] flex items-center gap-1.5 mr-auto cursor-pointer">
+              <input
+                type="checkbox"
+                checked={dontShowAgain}
+                onChange={(e) => setDontShowAgain(e.target.checked)}
+                className="accent-[var(--accent-blue)]"
+              />
+              Don&apos;t show this again
+            </label>
+          )}
           <button onClick={onClose} className="btn-ghost">
             Cancel
           </button>
           <button onClick={ackThenConfirm} className="btn-primary">
-            <SparkleIcon size={12} /> Build it
+            <SparkleIcon size={12} />{" "}
+            {showCost ? "Build it" : "Send request"}
           </button>
         </>
       }
@@ -208,25 +219,29 @@ export default function CostWarning({
             sub="debater-written"
           />
           <Stat
-            label="Web searches"
-            value={`${estimate.perplexitySearches}`}
-            sub="Perplexity"
-          />
-          <Stat
             label="Time"
             value={`${estimate.estimatedMinutes.low}-${estimate.estimatedMinutes.high}m`}
             sub="wall-clock"
           />
           <Stat
-            label="Tokens"
-            value={`${estimate.estimatedKTokens.low}k-${estimate.estimatedKTokens.high}k`}
-            sub="Anthropic"
+            label="Web searches"
+            value={`${estimate.perplexitySearches}`}
+            sub="Perplexity"
           />
-          <Stat
-            label="API cost"
-            value={`$${estimate.estimatedCostUSD.low.toFixed(2)}-$${estimate.estimatedCostUSD.high.toFixed(2)}`}
-            sub="approx"
-          />
+          {showCost && (
+            <>
+              <Stat
+                label="Tokens"
+                value={`${estimate.estimatedKTokens.low}k-${estimate.estimatedKTokens.high}k`}
+                sub="Anthropic"
+              />
+              <Stat
+                label="API cost"
+                value={`$${estimate.estimatedCostUSD.low.toFixed(2)}-$${estimate.estimatedCostUSD.high.toFixed(2)}`}
+                sub="approx"
+              />
+            </>
+          )}
         </div>
 
         {/* What it'll do */}
