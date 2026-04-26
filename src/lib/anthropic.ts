@@ -717,9 +717,50 @@ CAMP FILE PLANNING RULES:
    - Impact comparison where relevant
    Example of a GOOD analytic: "Permutation: do the plan and endorse the alternative. The permutation is legitimate because the plan's policy action and the alt's methodological shift are not mutually exclusive — you can change material conditions while also shifting epistemological frameworks. This is not severance because we are not severing any part of the plan text. Even if they win some risk of a link, the perm demonstrates the alt alone is insufficient — you need the plan to address the material conditions the K identifies. Prefer the perm because it captures the best of both worlds and avoids the alt's solvency deficit."
    Example of a BAD analytic: "Perm do both — plan and alt can coexist."
-8. Include AT (Answers To) sections — these are CRITICAL for camp files.
-9. Label cards like camp files do: "1nc --- [topic] link", "2nc --- [topic] link", "AT: [argument name]".
-10. Generate 15-35 components total across all sections. More for Ks and DAs, fewer for Theory.
+
+8. WHEN TO USE ANALYTICS (this is the most important planning skill).
+
+   Analytics belong in EVERY section, not just shell components. Every camp file
+   has roughly 1 analytic for every 1.5 cards. Plan analytics generously where:
+
+   a. AT BLOCKS — Each AT section starts with 1-2 analytics that frame the argument
+      ("Perm severs because…", "Their evidence is non-responsive because…") BEFORE
+      any AT cards. The analytic teaches the debater the argument; the cards
+      back it up.
+
+   b. INTERPRETATION TEXTS for T and Theory — always analytic. So is the
+      violation, the standards listing, and the voters listing.
+
+   c. CP TEXT and PLAN TEXT — always analytic.
+
+   d. ALT TEXT for Ks — always analytic.
+
+   e. STRATEGIC OVERVIEWS at the top of major sections (1NC shell, AT block,
+      Impact Extensions). One paragraph that tells the debater the story of
+      the argument and how to extend it. Critical for high-pressure rebuttals.
+
+   f. IMPACT COMPARISON between cards — "Even if they win the [X] card, our
+      [Y] card outweighs because [warrant]." These analytics belong wherever
+      two impacts are likely to clash.
+
+   g. CROSS-APPLICATIONS noted explicitly — "Cross-apply to advantage 2 — same
+      internal link mechanism."
+
+   h. DOUBLE-TURN / FRAMING WARNINGS — "Do NOT impact-turn this DA — read
+      either link turn or impact defense, never both."
+
+   i. WHEN A CARD LIKELY DOESN'T EXIST — if a search query is too specific to
+      yield real evidence (e.g., "the permutation severs because X"), make it
+      an analytic instead. Don't generate impossible card queries.
+
+9. Include AT (Answers To) sections — these are CRITICAL for camp files.
+10. Label cards like camp files do: "1nc --- [topic] link", "2nc --- [topic] link", "AT: [argument name]".
+11. Generate 18-40 components total across all sections. Aim for ~40% analytics, ~55% cards, ~5% plan/interp text. More analytics is better than too few — they're free to generate and make the file usable.
+12. ONE-SIDED FILES ONLY. If the user is building a NEG argument (DA/CP/K/T/Theory),
+    only include NEG content. If AFF, only AFF content. Never include the
+    opposing team's case, plan, advantages, or full strategy. AT sections
+    inside a one-sided file are fine — they're our team's answers to the
+    other team's likely responses.
 
 Return a JSON object:
 {

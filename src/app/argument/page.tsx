@@ -18,7 +18,6 @@ import {
   SparkleIcon,
   ZapIcon,
   TargetIcon,
-  ScalesIcon,
   BookIcon,
   GavelIcon,
 } from "@/components/ui/icons";
@@ -161,6 +160,7 @@ export default function ArgumentPage() {
   const [context, setContext] = useState("");
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const [presetFilter, setPresetFilter] = useState<ArgumentType | "all">("all");
+  const [showPresets, setShowPresets] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [abortController, setAbortController] = useState<AbortController | null>(null);
@@ -298,9 +298,15 @@ export default function ArgumentPage() {
   const handlePresetSelect = (preset: ArgumentPreset) => {
     setSelectedPresetId(preset.id);
     setArgumentType(preset.argType);
-    if (preset.examplePrompt && !query.trim()) {
+    // Always override the description with the preset's example prompt.
+    if (preset.examplePrompt) {
       setQuery(preset.examplePrompt);
+    } else {
+      // Custom preset has no example — clear the field so user can start fresh.
+      setQuery("");
     }
+    // Auto-collapse the gallery so the user can immediately edit the description.
+    setShowPresets(false);
   };
 
   const requestBuild = () => {
@@ -770,35 +776,51 @@ export default function ArgumentPage() {
       )}
 
       <div className="space-y-5">
-        {/* Preset gallery */}
+        {/* Preset gallery — hidden by default, expanded on demand */}
         <div>
-          <div className="flex items-baseline justify-between mb-2">
+          <div className="flex items-baseline justify-between mb-2 gap-3 flex-wrap">
             <label className="text-[12px] text-[var(--text-tertiary)]">
               Preset
-            </label>
-            <div className="flex gap-1 flex-wrap">
-              {(["all", ...ARGUMENT_TYPES.map((t) => t.value)] as const).map(
-                (id) => (
-                  <button
-                    key={id}
-                    onClick={() => setPresetFilter(id as typeof presetFilter)}
-                    className={`px-2 py-0.5 text-[10px] rounded transition-colors ${
-                      presetFilter === id
-                        ? "bg-[var(--bg-elev-3)] text-white"
-                        : "text-[var(--text-tertiary)] hover:text-white"
-                    }`}
-                  >
-                    {id === "all" ? "All" : id.toUpperCase()}
-                  </button>
-                )
+              {selectedPresetId && (
+                <span className="ml-2 text-[var(--text-secondary)]">
+                  · {ARGUMENT_PRESETS.find((p) => p.id === selectedPresetId)?.name}
+                </span>
               )}
+            </label>
+            <div className="flex items-center gap-1 flex-wrap">
+              {showPresets &&
+                (["all", ...ARGUMENT_TYPES.map((t) => t.value)] as const).map(
+                  (id) => (
+                    <button
+                      key={id}
+                      onClick={() => setPresetFilter(id as typeof presetFilter)}
+                      className={`px-2 py-0.5 text-[10px] rounded transition-colors ${
+                        presetFilter === id
+                          ? "bg-[var(--bg-elev-3)] text-white"
+                          : "text-[var(--text-tertiary)] hover:text-white"
+                      }`}
+                    >
+                      {id === "all" ? "All" : id.toUpperCase()}
+                    </button>
+                  )
+                )}
+              <button
+                onClick={() => setShowPresets((s) => !s)}
+                className="ml-1 px-2.5 py-1 text-[11px] rounded-md border border-[var(--border-default)] text-[var(--text-tertiary)] hover:text-white hover:border-[var(--border-strong)] transition-colors"
+              >
+                {showPresets ? "Hide presets" : "See presets"}
+              </button>
             </div>
           </div>
-          <PresetGallery
-            selectedId={selectedPresetId}
-            onSelect={handlePresetSelect}
-            filter={presetFilter}
-          />
+          {showPresets && (
+            <div className="anim-slide-up">
+              <PresetGallery
+                selectedId={selectedPresetId}
+                onSelect={handlePresetSelect}
+                filter={presetFilter}
+              />
+            </div>
+          )}
         </div>
 
         {/* Argument type override (in case user wants different) */}
@@ -899,39 +921,8 @@ export default function ArgumentPage() {
           </div>
         </div>
 
-        {/* Pre-flight estimate strip — admin sees full numbers; users see a
-            simplified scope view without cost. */}
-        {!loading && !done && adminAuthed && (
-          <div className="surface p-3 grid grid-cols-2 sm:grid-cols-5 gap-2 anim-fade-in">
-            <PreflightStat
-              icon={<ZapIcon size={11} />}
-              label="Cards"
-              value={`${estimate.cardCount}`}
-            />
-            <PreflightStat
-              icon={<TargetIcon size={11} />}
-              label="Analytics"
-              value={`${estimate.analyticCount}`}
-            />
-            <PreflightStat
-              icon={<SparkleIcon size={11} />}
-              label="Time"
-              value={`${estimate.estimatedMinutes.low}-${estimate.estimatedMinutes.high}m`}
-            />
-            <PreflightStat
-              icon={<ScalesIcon size={11} />}
-              label="Tokens"
-              value={`${estimate.estimatedKTokens.low}-${estimate.estimatedKTokens.high}k`}
-            />
-            <PreflightStat
-              icon={<ZapIcon size={11} />}
-              label="API cost"
-              value={`$${estimate.estimatedCostUSD.low.toFixed(2)}-$${estimate.estimatedCostUSD.high.toFixed(2)}`}
-              accent
-            />
-          </div>
-        )}
-        {!loading && !done && !adminAuthed && (
+        {/* Pre-flight estimate strip — scope-only, no cost figures shown */}
+        {!loading && !done && (
           <div className="surface p-3 grid grid-cols-3 gap-2 anim-fade-in">
             <PreflightStat
               icon={<ZapIcon size={11} />}
@@ -1437,9 +1428,7 @@ export default function ArgumentPage() {
                     </p>
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <span className="text-[10.5px] text-[var(--text-faint)]">
-                        ~{r.estimated_cards || "?"} cards · ~$
-                        {r.estimated_cost_usd_low?.toFixed(2) || "?"}–$
-                        {r.estimated_cost_usd_high?.toFixed(2) || "?"}
+                        ~{r.estimated_cards || "?"} cards
                       </span>
                       <div className="flex gap-2">
                         <button

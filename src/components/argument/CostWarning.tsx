@@ -210,7 +210,7 @@ export default function CostWarning({
           </p>
         </div>
 
-        {/* Estimate grid */}
+        {/* Estimate grid — scope only, no cost figures */}
         <div className="grid grid-cols-2 gap-2.5">
           <Stat label="Cards" value={`${estimate.cardCount}`} sub="cut from web" />
           <Stat
@@ -228,20 +228,6 @@ export default function CostWarning({
             value={`${estimate.perplexitySearches}`}
             sub="Perplexity"
           />
-          {showCost && (
-            <>
-              <Stat
-                label="Tokens"
-                value={`${estimate.estimatedKTokens.low}k-${estimate.estimatedKTokens.high}k`}
-                sub="Anthropic"
-              />
-              <Stat
-                label="API cost"
-                value={`$${estimate.estimatedCostUSD.low.toFixed(2)}-$${estimate.estimatedCostUSD.high.toFixed(2)}`}
-                sub="approx"
-              />
-            </>
-          )}
         </div>
 
         {/* What it'll do */}

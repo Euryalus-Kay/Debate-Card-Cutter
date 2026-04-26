@@ -11,14 +11,18 @@ interface UpdateBody {
   reason?: string;
 }
 
-let _tableExistsCache: boolean | null = null;
+const TABLE_CACHE_TTL_MS = 2 * 60 * 1000;
+let _tableExistsCache: { value: boolean; at: number } | null = null;
 async function tableExists(): Promise<boolean> {
-  if (_tableExistsCache !== null) return _tableExistsCache;
+  if (_tableExistsCache && Date.now() - _tableExistsCache.at < TABLE_CACHE_TTL_MS) {
+    return _tableExistsCache.value;
+  }
   try {
     const { error } = await supabase
       .from("build_requests")
       .select("id")
       .limit(1);
+    let value = true;
     if (error) {
       const msg = error.message || "";
       if (
@@ -26,16 +30,15 @@ async function tableExists(): Promise<boolean> {
         msg.includes("schema cache") ||
         msg.includes("not found")
       ) {
-        _tableExistsCache = false;
-        return false;
+        value = false;
+      } else {
+        value = true;
       }
-      _tableExistsCache = true;
-      return true;
     }
-    _tableExistsCache = true;
-    return true;
+    _tableExistsCache = { value, at: Date.now() };
+    return value;
   } catch {
-    _tableExistsCache = false;
+    _tableExistsCache = { value: false, at: Date.now() };
     return false;
   }
 }

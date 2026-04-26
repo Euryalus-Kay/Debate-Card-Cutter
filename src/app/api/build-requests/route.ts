@@ -44,35 +44,37 @@ const MEMORY_STORE: Map<string, InMemoryRow> = (
   ((globalThis as { __BUILD_REQUEST_STORE__?: Map<string, InMemoryRow> }).__BUILD_REQUEST_STORE__ =
     new Map());
 
-/** Cached table-existence check. Tries an actual select that would fail if
- * the table is missing, then memoizes for the lifetime of the server. */
-let _tableExistsCache: boolean | null = null;
+/** Table-existence check with a 2-minute cache so we re-probe periodically
+ * — important after the user runs the SQL migration without restarting the
+ * server. */
+const TABLE_CACHE_TTL_MS = 2 * 60 * 1000;
+let _tableExistsCache: { value: boolean; at: number } | null = null;
 async function tableExists(): Promise<boolean> {
-  if (_tableExistsCache !== null) return _tableExistsCache;
+  if (_tableExistsCache && Date.now() - _tableExistsCache.at < TABLE_CACHE_TTL_MS) {
+    return _tableExistsCache.value;
+  }
   try {
     const { error } = await supabase
       .from("build_requests")
       .select("id")
       .limit(1);
+    let value = true;
     if (error) {
-      // Postgres: relation does not exist / schema cache miss
       const msg = error.message || "";
       if (
         msg.includes("does not exist") ||
         msg.includes("schema cache") ||
         msg.includes("not found")
       ) {
-        _tableExistsCache = false;
-        return false;
+        value = false;
+      } else {
+        value = true;
       }
-      // Other errors: assume table exists; let the actual operation surface the issue
-      _tableExistsCache = true;
-      return true;
     }
-    _tableExistsCache = true;
-    return true;
+    _tableExistsCache = { value, at: Date.now() };
+    return value;
   } catch {
-    _tableExistsCache = false;
+    _tableExistsCache = { value: false, at: Date.now() };
     return false;
   }
 }

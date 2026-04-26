@@ -359,16 +359,17 @@ export default function LibraryPage() {
   });
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-baseline justify-between gap-3 flex-wrap anim-fade-in">
-        <div>
+    <div className="space-y-4">
+      {/* Compact header with inline counts and upload */}
+      <div className="flex items-center justify-between gap-3 flex-wrap anim-fade-in">
+        <div className="flex items-center gap-3">
           <h1 className="text-[20px] font-semibold tracking-tight flex items-center gap-2">
             <BookIcon size={18} className="text-[var(--accent-cyan)]" />
             Library
           </h1>
-          <p className="text-[12.5px] text-[var(--text-tertiary)] mt-1">
-            {filteredCards.length} cards · {filteredArgs.length} arguments
-          </p>
+          <span className="text-[11px] text-[var(--text-tertiary)]">
+            {cards.length} cards · {arguments_.length} arguments
+          </span>
         </div>
         <div className="flex gap-2">
           <input
@@ -384,7 +385,7 @@ export default function LibraryPage() {
             className="btn-primary"
           >
             <ZapIcon size={12} />
-            {uploading ? "Uploading..." : "Upload Cards"}
+            {uploading ? "Uploading..." : "Upload"}
           </button>
         </div>
       </div>
@@ -446,114 +447,153 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="tab-strip">
-        <button
-          onClick={() => setTab("cards")}
-          className={`tab-btn ${tab === "cards" ? "active" : ""}`}
-        >
-          Cards <span className="text-[var(--text-faint)] ml-1">{filteredCards.length}</span>
-        </button>
-        <button
-          onClick={() => setTab("arguments")}
-          className={`tab-btn ${tab === "arguments" ? "active" : ""}`}
-        >
-          Arguments <span className="text-[var(--text-faint)] ml-1">{filteredArgs.length}</span>
-        </button>
-      </div>
+      {/* Sticky toolbar — tabs + search + filters all in one row.
+          Stays visible while you scroll the card list. */}
+      <div
+        className="sticky top-12 z-20 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-2 pb-2 glass-strong border-b border-[var(--border-subtle)]"
+        style={{ backdropFilter: "blur(12px) saturate(140%)" }}
+      >
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Tabs as compact pill buttons */}
+          <div className="flex bg-[var(--bg-elev-1)] border border-[var(--border-default)] rounded-md p-0.5">
+            <button
+              onClick={() => setTab("cards")}
+              className={`px-3 py-1 text-[11.5px] rounded transition-colors ${
+                tab === "cards"
+                  ? "bg-[var(--bg-elev-3)] text-white"
+                  : "text-[var(--text-tertiary)] hover:text-white"
+              }`}
+            >
+              Cards{" "}
+              <span className="text-[var(--text-faint)]">
+                {filteredCards.length}
+              </span>
+            </button>
+            <button
+              onClick={() => setTab("arguments")}
+              className={`px-3 py-1 text-[11.5px] rounded transition-colors ${
+                tab === "arguments"
+                  ? "bg-[var(--bg-elev-3)] text-white"
+                  : "text-[var(--text-tertiary)] hover:text-white"
+              }`}
+            >
+              Arguments{" "}
+              <span className="text-[var(--text-faint)]">
+                {filteredArgs.length}
+              </span>
+            </button>
+          </div>
 
-      {/* Search + filters */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
-          <SearchIcon
-            size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-faint)]"
-          />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={
-              tab === "cards"
-                ? "Search by tag, author, citation..."
-                : "Search arguments..."
-            }
-            className="input"
-            style={{ paddingLeft: "32px" }}
-          />
+          {/* Search */}
+          <div className="relative flex-1 min-w-[200px]">
+            <SearchIcon
+              size={13}
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-faint)]"
+            />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={
+                tab === "cards"
+                  ? "Search by tag, author, citation..."
+                  : "Search arguments..."
+              }
+              className="input"
+              style={{ paddingLeft: "28px", paddingTop: "6px", paddingBottom: "6px" }}
+            />
+          </div>
+
+          {tab === "cards" && (
+            <>
+              {allAuthors.length > 0 && (
+                <select
+                  value={authorFilter}
+                  onChange={(e) => setAuthorFilter(e.target.value)}
+                  className="input"
+                  style={{ width: "auto", paddingTop: "6px", paddingBottom: "6px" }}
+                >
+                  <option value="all">All authors</option>
+                  {allAuthors.map((a) => (
+                    <option key={a} value={a}>
+                      {a}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {allYears.length > 0 && (
+                <select
+                  value={yearFilter}
+                  onChange={(e) => setYearFilter(e.target.value)}
+                  className="input"
+                  style={{ width: "auto", paddingTop: "6px", paddingBottom: "6px" }}
+                >
+                  <option value="all">Year</option>
+                  {allYears.map((y) => (
+                    <option key={y} value={y}>
+                      &apos;{y}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <div className="flex bg-[var(--bg-elev-1)] border border-[var(--border-default)] rounded-md p-0.5">
+                <button
+                  onClick={() => setViewMode("list")}
+                  className={`px-2.5 py-1 text-[11px] rounded transition-colors ${
+                    viewMode === "list"
+                      ? "bg-[var(--bg-elev-3)] text-white"
+                      : "text-[var(--text-tertiary)]"
+                  }`}
+                >
+                  List
+                </button>
+                <button
+                  onClick={() => setViewMode("folders")}
+                  className={`px-2.5 py-1 text-[11px] rounded transition-colors ${
+                    viewMode === "folders"
+                      ? "bg-[var(--bg-elev-3)] text-white"
+                      : "text-[var(--text-tertiary)]"
+                  }`}
+                >
+                  Folders
+                </button>
+              </div>
+            </>
+          )}
+
+          {tab === "arguments" && allArgTypes.length > 0 && (
+            <select
+              value={argTypeFilter}
+              onChange={(e) => setArgTypeFilter(e.target.value)}
+              className="input"
+              style={{ width: "auto", paddingTop: "6px", paddingBottom: "6px" }}
+            >
+              <option value="all">All types</option>
+              {allArgTypes.map((t) => (
+                <option key={t} value={t}>
+                  {typeLabel(t)}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Clear filters when any are active */}
+          {(authorFilter !== "all" ||
+            yearFilter !== "all" ||
+            argTypeFilter !== "all" ||
+            search) && (
+            <button
+              onClick={() => {
+                setSearch("");
+                setAuthorFilter("all");
+                setYearFilter("all");
+                setArgTypeFilter("all");
+              }}
+              className="text-[10.5px] text-[var(--text-faint)] hover:text-white px-2"
+            >
+              Clear
+            </button>
+          )}
         </div>
-
-        {tab === "cards" && (
-          <>
-            {allAuthors.length > 0 && (
-              <select
-                value={authorFilter}
-                onChange={(e) => setAuthorFilter(e.target.value)}
-                className="input"
-                style={{ width: "auto" }}
-              >
-                <option value="all">All authors</option>
-                {allAuthors.map((a) => (
-                  <option key={a} value={a}>
-                    {a}
-                  </option>
-                ))}
-              </select>
-            )}
-            {allYears.length > 0 && (
-              <select
-                value={yearFilter}
-                onChange={(e) => setYearFilter(e.target.value)}
-                className="input"
-                style={{ width: "auto" }}
-              >
-                <option value="all">All years</option>
-                {allYears.map((y) => (
-                  <option key={y} value={y}>
-                    &apos;{y}
-                  </option>
-                ))}
-              </select>
-            )}
-            <div className="flex bg-[var(--bg-elev-1)] border border-[var(--border-default)] rounded-md p-0.5 ml-auto">
-              <button
-                onClick={() => setViewMode("list")}
-                className={`px-2.5 py-1 text-[11px] rounded transition-colors ${
-                  viewMode === "list"
-                    ? "bg-[var(--bg-elev-3)] text-white"
-                    : "text-[var(--text-tertiary)]"
-                }`}
-              >
-                List
-              </button>
-              <button
-                onClick={() => setViewMode("folders")}
-                className={`px-2.5 py-1 text-[11px] rounded transition-colors ${
-                  viewMode === "folders"
-                    ? "bg-[var(--bg-elev-3)] text-white"
-                    : "text-[var(--text-tertiary)]"
-                }`}
-              >
-                Folders
-              </button>
-            </div>
-          </>
-        )}
-
-        {tab === "arguments" && allArgTypes.length > 0 && (
-          <select
-            value={argTypeFilter}
-            onChange={(e) => setArgTypeFilter(e.target.value)}
-            className="input"
-            style={{ width: "auto" }}
-          >
-            <option value="all">All types</option>
-            {allArgTypes.map((t) => (
-              <option key={t} value={t}>
-                {typeLabel(t)}
-              </option>
-            ))}
-          </select>
-        )}
       </div>
 
       {/* Folder view */}
@@ -578,12 +618,12 @@ export default function LibraryPage() {
       {tab === "cards" && viewMode === "list" && (
         <>
           {loading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {Array.from({ length: 6 }).map((_, i) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+              {Array.from({ length: 8 }).map((_, i) => (
                 <div
                   key={i}
                   className="surface shimmer"
-                  style={{ height: "92px" }}
+                  style={{ height: "84px" }}
                 />
               ))}
             </div>
@@ -593,7 +633,7 @@ export default function LibraryPage() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
                 {filteredCards.map((card) => (
                   <button
                     key={card.id}
@@ -602,14 +642,14 @@ export default function LibraryPage() {
                         expandedCardId === card.id ? null : card.id
                       )
                     }
-                    className={`text-left p-3 rounded-lg border transition-all ${
+                    className={`text-left p-2.5 rounded-lg border transition-all ${
                       expandedCardId === card.id
                         ? "border-[var(--accent-blue)] bg-[var(--accent-blue-glow)]"
                         : "border-[var(--border-subtle)] bg-[var(--bg-elev-1)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elev-2)]"
                     }`}
                   >
                     <div
-                      className="text-[11px] font-semibold text-white leading-tight mb-2 line-clamp-2"
+                      className="text-[11px] font-semibold text-white leading-tight mb-1.5 line-clamp-3"
                       style={{ fontFamily: "Georgia, serif" }}
                     >
                       {shortTag(card.tag, 70)}
