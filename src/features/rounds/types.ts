@@ -13,7 +13,7 @@ export interface RoundRecord {
   ourSide: "aff" | "neg";
   roster: Partial<Record<"1A" | "2A" | "1N" | "2N", string>>;
   opponent: { school?: string; code?: string; names?: string };
-  judges: { name: string; paradigmText: string; paradigmUrl: string; notes: string }[];
+  judges: { name: string; paradigmText: string; paradigmUrl: string; notes: string; profile?: (import("@/server/ai/paradigm").JudgeProfile & { model?: string; at?: string }) | null; profileError?: string | null }[];
   status: "active" | "archived";
   aiPolicy: "allowed" | "prep_only" | "off";
   phase: "prep" | "live" | "done";

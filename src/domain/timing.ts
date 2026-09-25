@@ -267,3 +267,31 @@ export function budgetReport(lines: BudgetLine[], limitSeconds: number): BudgetR
     })),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Judge speed (debate-domain.md TIME-6)
+// ---------------------------------------------------------------------------
+
+export type JudgeSpeed = "slow" | "moderate" | "fast_ok" | "unknown";
+
+/**
+ * When the judge's paradigm explicitly limits speed, estimate at no faster
+ * than the matching preset, component by component. Returns the capped
+ * profile and the preset used (null when no cap applies).
+ */
+export function capRatesForJudge(profile: RateProfile, speed: JudgeSpeed | null | undefined): { profile: RateProfile; cap: RatePresetId | null } {
+  const presetId: RatePresetId | null = speed === "slow" ? "conversational" : speed === "moderate" ? "moderate" : null;
+  if (!presetId) return { profile, cap: null };
+  const cap = RATE_PRESETS[presetId];
+  const r = profile.rates;
+  const rates: SpeakingRates = {
+    ...r,
+    cardWpm: Math.min(r.cardWpm, cap.cardWpm),
+    tagWpm: Math.min(r.tagWpm, cap.tagWpm),
+    analyticWpm: Math.min(r.analyticWpm, cap.analyticWpm),
+    perCardSeconds: Math.max(r.perCardSeconds, cap.perCardSeconds),
+    perTransitionSeconds: Math.max(r.perTransitionSeconds, cap.perTransitionSeconds),
+  };
+  const changed = rates.cardWpm !== r.cardWpm || rates.tagWpm !== r.tagWpm || rates.analyticWpm !== r.analyticWpm;
+  return { profile: changed ? { ...profile, rates } : profile, cap: changed ? presetId : null };
+}

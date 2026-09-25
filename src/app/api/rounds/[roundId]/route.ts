@@ -1,9 +1,13 @@
+import { after } from "next/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { judgesNeedingProfile, mergeJudges, refreshJudgeProfiles, type StoredJudge } from "@/server/judges";
 import { handle, HttpError, requireAccess, requireUser } from "@/server/authz";
 import { getRoundBundle, RoundInput } from "@/server/rounds";
 import { db } from "@/server/db/client";
 import { rounds } from "@/server/db/schema";
+
+export const maxDuration = 60;
 
 type Ctx = { params: Promise<{ roundId: string }> };
 
@@ -13,6 +17,9 @@ export const GET = handle(async (_req: Request, ctx: Ctx) => {
   await requireAccess(u.id, "round", roundId);
   const bundle = await getRoundBundle(roundId);
   if (!bundle) throw new HttpError(404, "Not found.");
+  // Rounds saved before their paradigm was read (or whose reading was interrupted) catch up here.
+  const judges = ((bundle as { round?: { judges?: unknown } }).round?.judges ?? []) as StoredJudge[];
+  if (judgesNeedingProfile(judges).length && process.env.ANTHROPIC_API_KEY) after(() => refreshJudgeProfiles(roundId));
   return Response.json(bundle);
 });
 
@@ -33,9 +40,14 @@ export const PATCH = handle(async (req: Request, ctx: Ctx) => {
   const patch: Record<string, unknown> = {};
   for (const k of Object.keys(raw)) if (k in parsed.data) patch[k] = (parsed.data as Record<string, unknown>)[k];
   delete patch.teamId;
+  if (patch.judges) {
+    const [cur] = await db().select({ judges: rounds.judges }).from(rounds).where(eq(rounds.id, roundId));
+    patch.judges = mergeJudges(patch.judges as StoredJudge[], (cur?.judges ?? []) as StoredJudge[]);
+  }
   await db()
     .update(rounds)
     .set({ ...patch, updatedAt: new Date() })
     .where(eq(rounds.id, roundId));
+  if (patch.judges && process.env.ANTHROPIC_API_KEY) after(() => refreshJudgeProfiles(roundId));
   return Response.json({ ok: true });
 });

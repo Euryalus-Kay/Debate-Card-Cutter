@@ -15,7 +15,9 @@ import { computeCoverage, possiblyKickedPositions, liveOffenseOnKickedPositions,
 import { getFormat, SPEECH_IDS, SPEECHES, speechSeconds, speechesToAnswer, type SpeechId } from "@/domain/format";
 import { readAloud } from "@/domain/card";
 import { fullCite, shortCite } from "@/domain/citation";
-import { presetProfile, wordsForSeconds, type RateProfile } from "@/domain/timing";
+import { capRatesForJudge, presetProfile, wordsForSeconds, type JudgeSpeed, type RatePresetId, type RateProfile } from "@/domain/timing";
+import { renderJudgeProfile } from "./paradigm";
+import type { StoredJudge } from "@/server/judges";
 import { readGraph, readSlots, readStrategy } from "@/shared/round-doc";
 import { draftSchema, DRAFT_FRAGMENT } from "@/shared/editor/schema";
 import { allSections, draftFromPM, sectionContentHash, type Draft, type PMNodeJSON } from "@/shared/draft-model";
@@ -32,6 +34,9 @@ export interface RoundContext {
   /** speeches whose delivery is confirmed (read confirmed or marked delivered) */
   confirmed: Set<SpeechId>;
   limitSeconds: number;
+  /** speaking rates used for every estimate (the speaker's, capped when the judge limits speed) */
+  rates: RateProfile;
+  judgeRateCap: RatePresetId | null;
   refs: { stateHeadSeq: number; draftHeadSeq: number | null; cardIds: string[] };
 }
 
@@ -114,7 +119,8 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
   const strategy = readStrategy(stateDoc, opts.speech);
   const fmt = getFormat(round.formatId, round.formatOverrides as never);
   const limitSeconds = speechSeconds(fmt, opts.speech);
-  const rates = opts.rates ?? presetProfile("fast");
+  const judgeRecord = ((round.judges ?? []) as StoredJudge[])[0];
+  const { profile: rates, cap: judgeRateCap } = capRatesForJudge(opts.rates ?? presetProfile("fast"), judgeRecord?.profile?.speed?.value as JudgeSpeed | undefined);
 
   let draft: Draft | null = null;
   let draftJson: PMNodeJSON | null = null;
@@ -163,7 +169,7 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
   const inDraft = draft ? allCardIds(draft).filter((id) => !selected.some((c) => c.id === id) && !library.some((c) => c.id === id)) : [];
   const draftCards = inDraft.length ? await getCards(round.teamId, inDraft) : [];
 
-  const judge = (round.judges as { name: string; paradigmText: string }[])[0];
+  const judge = judgeRecord;
   const cardWpm = rates.rates.cardWpm;
   const analyticWpm = rates.rates.analyticWpm;
   const lines: string[] = [];
@@ -172,7 +178,15 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
   lines.push(`- Resolution: ${round.resolution || "not given"}`);
   lines.push(`- Format: ${fmt.name}. The ${opts.speech} is ${Math.round(limitSeconds / 60)} minutes. New-argument policy: ${fmt.newArgumentPolicy}.`);
   lines.push(`- Speaker's rates: cards ~${cardWpm} wpm, analytics ~${analyticWpm} wpm. So 30 s ≈ ${wordsForSeconds(30, "analytic", rates.rates)} analytic words or ${wordsForSeconds(30, "card", rates.rates)} words of highlighted card text.`);
-  lines.push(judge?.paradigmText?.trim() ? `- Judge ${judge.name || ""} paradigm (quoted; infer preferences only from what it explicitly says):\n"""${judge.paradigmText.slice(0, 4000)}"""` : `- No judge paradigm provided: do not assume judge preferences.`);
+  if (judgeRateCap) lines.push(`- The judge limits speed, so these rates are capped at a ${judgeRateCap} pace. Write less rather than asking the speaker to go faster.`);
+  if (judge?.profile) {
+    lines.push(`- Judge ${judge.name || ""} preferences (from their paradigm; each with the words it is based on; anything not listed is unknown):\n${renderJudgeProfile(judge.profile)}`);
+    const lay = judge.profile.experience?.value === "lay" || judge.profile.experience?.value === "parent";
+    if (lay) lines.push(`- Lay judge: fewer positions, plain language instead of jargon, explicit comparison and a clear reason to vote.`);
+    lines.push(`- Paradigm excerpt: """${judge.paradigmText.slice(0, 1500)}"""`);
+  } else {
+    lines.push(judge?.paradigmText?.trim() ? `- Judge ${judge.name || ""} paradigm (quoted; infer preferences only from what it explicitly says):\n"""${judge.paradigmText.slice(0, 4000)}"""` : `- No judge paradigm provided: do not assume judge preferences.`);
+  }
   lines.push("");
   lines.push(`RECORD STATUS (what exists for each speech)`);
   for (const s of SPEECH_IDS) {
@@ -240,6 +254,8 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
     recorded,
     confirmed,
     limitSeconds,
+    rates,
+    judgeRateCap,
     refs: { stateHeadSeq, draftHeadSeq, cardIds: [...selected, ...draftCards, ...library].map((c) => c.id) },
   };
 }

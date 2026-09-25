@@ -44,10 +44,13 @@ export async function deliverDraft(docId: string, userId: string): Promise<{ ver
   const posOf = new Map(argsNow.map((a) => [a.id, a.positionId]));
   const sections = allSections(draft).filter((s) => s.kind !== "position" || s.targets.length);
   const units: { unit: ArgUnit; rel?: { type: RelationType; to: string[]; grouped: boolean } }[] = [];
-  let order = 0;
+  // Numbering restarts on each position, the way a flow is numbered ("2AC 1, 2, 3" on each sheet).
+  const perPosition = new Map<string, number>();
   for (const s of sections) {
     const positionId = s.positionId ?? (s.targets[0] ? posOf.get(s.targets[0]) : undefined);
     if (!positionId) continue;
+    const order = (perPosition.get(positionId) ?? 0) + 1;
+    perPosition.set(positionId, order);
     const text = s.title || firstSentence(s.items.filter((i) => i.type === "paragraph").map((i) => (i as { text: string }).text).join(" "));
     const cites = s.items.filter((i): i is Extract<DraftItem, { type: "card" }> => i.type === "card").map((c) => c.shortCite).filter(Boolean);
     const unit: ArgUnit = {
@@ -55,7 +58,7 @@ export async function deliverDraft(docId: string, userId: string): Promise<{ ver
       positionId,
       speech,
       side: SPEECHES[speech].side,
-      order: ++order,
+      order,
       label: String(order),
       text: text.slice(0, 300),
       role: (s.role as ArgRole) || "claim",

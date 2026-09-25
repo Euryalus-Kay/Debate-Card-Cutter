@@ -108,9 +108,12 @@ export const REGISTRY: Record<AiTask, TaskConfig> = {
     primary: { model: MODELS.haiku45, maxOutputTokens: 3000 },
     fallbacks: [{ model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 3000 }],
   },
+  // Live check 2026-09-25 (scripts/try-paradigm.ts, synthetic paradigm): Sonnet 5 (thinking off) read
+  // "I will not judge kick unless the 2NR tells me to" correctly as if-asked and set nothing unstated;
+  // Haiku 4.5 recorded "no" and mislabeled a T statement as a theory view, with slower first output.
   paradigm: {
-    primary: { model: MODELS.haiku45, maxOutputTokens: 3000 },
-    fallbacks: [{ model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 3000 }],
+    primary: { model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 3000, firstChunkMs: 20000 },
+    fallbacks: [{ model: MODELS.haiku45, maxOutputTokens: 3000 }],
   },
 };
 

@@ -12,6 +12,7 @@ import { useYDocValue } from "@/client/sync/hooks";
 import type { SyncSnapshot } from "@/client/sync/doc-sync";
 import type { RoundRecord } from "./types";
 import { useWorkspace } from "./store";
+import { JudgeChip } from "./judge";
 
 export function SyncIndicator({ snapshots }: { snapshots: (SyncSnapshot | null)[] }) {
   const s = snapshots.filter(Boolean) as SyncSnapshot[];
@@ -154,6 +155,7 @@ export function TopBar({
         <SpeechStepper slots={slots} ourSide={round.ourSide} hasDoc={hasDoc} />
       </div>
       <div className="ml-auto flex items-center gap-2">
+        <JudgeChip round={round} />
         {doc ? (
           <>
             <PrepClock doc={doc} side="aff" label="Aff" budgetMs={fmt.prepSecondsPerTeam * 1000} offsetMs={offsetMs} isOurs={round.ourSide === "aff"} />

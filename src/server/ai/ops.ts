@@ -126,8 +126,8 @@ export interface DraftSpeechInput {
 
 export async function draftSpeech(input: DraftSpeechInput) {
   const round = await roundFor(input.roundId);
-  const rates = input.rates ?? presetProfile("fast");
-  const ctx = await buildRoundContext(input.roundId, { speech: input.speech, draftId: input.draftId, cardIds: input.cardIds, evidenceMode: input.evidenceMode, instructions: input.instructions, rates });
+  const ctx = await buildRoundContext(input.roundId, { speech: input.speech, draftId: input.draftId, cardIds: input.cardIds, evidenceMode: input.evidenceMode, instructions: input.instructions, rates: input.rates ?? presetProfile("fast") });
+  const rates = ctx.rates; // capped when the judge limits speed
   const system = `${SYSTEM_BASE}\n\nSPEECH BEING PREPARED\n${SPEECH_RULES[input.speech]}`;
   const lockedNote = ctx.draft && allSections(ctx.draft).some((s) => s.locked) ? "Some sections of the current draft are LOCKED: keep them exactly as they are and plan around them (do not output replacements for them)." : "";
   const prompt = `Prepare the ${input.speech} for the ${round.ourSide.toUpperCase()}.
@@ -194,8 +194,8 @@ export interface ReviseInput {
 }
 
 export async function reviseSection(input: ReviseInput) {
-  const rates = input.rates ?? presetProfile("fast");
-  const ctx = await buildRoundContext(input.roundId, { speech: input.speech, draftId: input.draftId, cardIds: input.cardIds, evidenceMode: "selected_plus_library", instructions: input.instructions, rates });
+  const ctx = await buildRoundContext(input.roundId, { speech: input.speech, draftId: input.draftId, cardIds: input.cardIds, evidenceMode: "selected_plus_library", instructions: input.instructions, rates: input.rates ?? presetProfile("fast") });
+  const rates = ctx.rates;
   const sectionJson = findSection(ctx.draftJson, input.sectionId);
   if (!sectionJson) throw new Error("That section no longer exists in the draft.");
   if (sectionJson.attrs?.locked) throw new Error("That section is locked. Unlock it to revise.");
@@ -282,8 +282,8 @@ function renderForFit(items: DraftItem[], rates: RateProfile, graph: RoundContex
 }
 
 export async function fitSpeech(input: FitInput) {
-  const rates = input.rates ?? presetProfile("fast");
-  const ctx = await buildRoundContext(input.roundId, { speech: input.speech, draftId: input.draftId, evidenceMode: "selected_only", instructions: input.instructions, rates });
+  const ctx = await buildRoundContext(input.roundId, { speech: input.speech, draftId: input.draftId, evidenceMode: "selected_only", instructions: input.instructions, rates: input.rates ?? presetProfile("fast") });
+  const rates = ctx.rates;
   if (!ctx.draft || !ctx.draftJson) throw new Error("Open a draft with content to fit.");
   const sections = allSections(ctx.draft);
   if (!sections.length) throw new Error("This draft has no sections to fit. Add sections (or generate a draft) first.");

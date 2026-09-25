@@ -10,7 +10,7 @@ import { Badge, Button, cn, EmptyState, Menu, MenuContent, MenuItem, MenuTrigger
 import { useApp } from "@/components/shell/app-shell";
 import { getFormat, speechSeconds, SPEECHES, type SpeechId } from "@/domain/format";
 import type { RoundGraph } from "@/domain/flow";
-import { estimate, formatClock } from "@/domain/timing";
+import { capRatesForJudge, estimate, formatClock } from "@/domain/timing";
 import { itemLoad, type DraftItem } from "@/shared/draft-model";
 import { readSlots, updateSlot, type SlotRecord } from "@/shared/round-doc";
 import { useRateProfile } from "@/client/use-settings";
@@ -78,7 +78,10 @@ function OurSpeechView({ round, bundle, doc, graph, speech, aiEnabled, userId }:
     return () => registerEditor(ws.draftId!, null);
   }, [editor, ws.draftId]);
   const draft = useDraft(draftDoc);
-  const rates = useRateProfile();
+  const baseRates = useRateProfile();
+  // Estimate at the judge's pace when their paradigm limits speed (TIME-6).
+  const judgeSpeed = round.judges?.[0]?.profile?.speed?.value;
+  const { profile: rates, cap: judgeCap } = useMemo(() => capRatesForJudge(baseRates, judgeSpeed), [baseRates, judgeSpeed]);
   const fmt = getFormat(round.formatId, round.formatOverrides as never);
   const limit = speechSeconds(fmt, speech);
   const partnerSections = useMemo(() => new Map((snapshot?.others ?? []).filter((o) => o.state.section).map((o) => [o.state.section!, o.state.name ?? "Partner"])), [snapshot?.others]);
@@ -238,6 +241,7 @@ function OurSpeechView({ round, bundle, doc, graph, speech, aiEnabled, userId }:
             <span className="text-faint">
               range {formatClock(total * (1 - u))}–{formatClock(total * (1 + u))}
               {rates.observations.length ? "" : " · uncalibrated"}
+              {judgeCap ? ` · at the judge's ${judgeCap} pace` : ""}
             </span>
             {over > 0 ? <Badge tone="bad">over by ~{formatClock(over)}</Badge> : total > 0 ? <Badge tone="ok">{formatClock(limit - total)} to spare</Badge> : null}
             {over > 0 && aiEnabled && ws.draftId ? (
