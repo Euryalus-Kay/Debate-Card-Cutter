@@ -82,9 +82,13 @@ export const REGISTRY: Record<AiTask, TaskConfig> = {
     primary: { model: MODELS.opus55, effort: "low", maxOutputTokens: 6000, firstChunkMs: 30000 },
     fallbacks: [{ model: MODELS.sonnet5, effort: "medium", maxOutputTokens: 6000 }],
   },
+  // Live runs 2026-09-25 (docs/evals/results/card-cut-run1.json, card-cut-run3.json; 7 real sources × 4 models):
+  // Opus 5.5 low kept the author's hedges in tags, had zero formatting phrases that failed to match the source,
+  // and no lint errors, at a median ~7 s. Sonnet 5 (thinking off) dropped hedges and skipped a negation once;
+  // Haiku 4.5 missed phrases and under-highlighted. All refused to cut cards from sources that contradicted the claim.
   card_cut: {
-    primary: { model: MODELS.sonnet5, effort: "medium", maxOutputTokens: 8000, firstChunkMs: 30000 },
-    fallbacks: [{ model: MODELS.opus55, effort: "low", maxOutputTokens: 8000 }],
+    primary: { model: MODELS.opus55, effort: "low", maxOutputTokens: 8000, firstChunkMs: 30000 },
+    fallbacks: [{ model: MODELS.sonnet5, effort: "low", maxOutputTokens: 8000, firstChunkMs: 30000 }, { model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 8000 }],
   },
   card_support: {
     primary: { model: MODELS.haiku45, maxOutputTokens: 2000 },

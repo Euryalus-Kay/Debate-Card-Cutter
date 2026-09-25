@@ -1,0 +1,451 @@
+[
+  {
+    "case": {
+      "url": "https://legal-planet.org/2023/04/11/does-upzoning-reduce-housing-prices/",
+      "claim": "Upzoning reduces housing prices"
+    },
+    "config": "opus55-low",
+    "ms": 5126,
+    "ttft": 1489,
+    "verdict": "no_support",
+    "reason": "The source reports that an Urban Institute study found upzoning yields only a 0.8% supply increase and no significant evidence that lower-cost units became less expensive; the author critiques data limits but agrees upzoning alone cannot solve short-term affordability. It never asserts upzoning reduces prices."
+  },
+  {
+    "case": {
+      "url": "https://legal-planet.org/2023/04/11/does-upzoning-reduce-housing-prices/",
+      "claim": "Upzoning reduces housing prices"
+    },
+    "config": "sonnet5-off",
+    "ms": 6147,
+    "ttft": 1115,
+    "verdict": "no_support",
+    "reason": "The source's central finding is that upzoning does NOT reduce housing prices/rents for lower-cost units; it only modestly increases higher-end supply, while the author's discussion emphasizes this null/limited result and its methodological caveats. Using this to support the claim 'Upzoning reduces housing prices' would misrepresent both the study and the author's framing."
+  },
+  {
+    "case": {
+      "url": "https://legal-planet.org/2023/04/11/does-upzoning-reduce-housing-prices/",
+      "claim": "Upzoning reduces housing prices"
+    },
+    "config": "sonnet5-low",
+    "ms": 5182,
+    "ttft": 1143,
+    "verdict": "no_support",
+    "reason": "The article actually reports a study finding upzoning caused only a 0.8% supply increase with no statistically significant reduction in lower-cost unit prices, and the author critiques the study while concluding upzoning alone cannot solve affordability short-term."
+  },
+  {
+    "case": {
+      "url": "https://legal-planet.org/2023/04/11/does-upzoning-reduce-housing-prices/",
+      "claim": "Upzoning reduces housing prices"
+    },
+    "config": "haiku45",
+    "ms": 8140,
+    "ttft": 2241,
+    "verdict": "no_support",
+    "reason": "The source presents a study finding that upzoning is associated with only a 0.8% increase in housing supply and 'no statistically significant evidence that additional lower-cost units became available or became less expensive.' The author argues upzoning alone cannot solve affordability problems and must be accompanied by other reforms."
+  },
+  {
+    "case": {
+      "url": "https://www.planetizen.com/news/2023/12/126834-upzoning-affordability-impacts-latest-research",
+      "claim": "Credible research shows upzoning increases housing supply and affordability"
+    },
+    "config": "opus55-low",
+    "ms": 7016,
+    "ttft": 1288,
+    "usage": {
+      "inputTokens": 7207,
+      "outputTokens": 725,
+      "cachedInputTokens": 2751,
+      "cacheWriteTokens": 0
+    },
+    "verified": true,
+    "paragraphRange": [
+      13,
+      14
+    ],
+    "readWords": 26,
+    "highlightRatio": 0.31407407407407406,
+    "missingPhrases": [],
+    "support": {
+      "level": "moderate",
+      "explanation": "The author directly asserts that research supports upzoning's supply and affordability benefits, but hedges with 'can' and conditions it on broad application and complementary policies.",
+      "caveats": [
+        "Effects conditional on broad upzoning and complementary policies like parking reform",
+        "The Urban Institute study cited later found affordability impacts uncertain and new supply mostly higher-priced",
+        "NYU researchers conclude that upzoning alone cannot achieve affordability goals",
+        "Paragraph 13 frames this as an ongoing controversy"
+      ]
+    },
+    "tag": "Recent studies show broadly-applied upzoning, paired with complementary policies, can increase housing supply, drive down prices, and increase affordability.",
+    "shortCite": "Litman 23",
+    "fullCite": "Todd Litman, \"Upzoning Affordability Impacts: The Latest Research,\" Planetizen News, December 26, 2023, https://www.planetizen.com/news/2023/12/126834-upzoning-affordability-impacts-latest-research, accessed 9-25-2026",
+    "rejectedCite": [],
+    "read": "upzoning can increase affordability Recent studies support the conclusion that broadly-applied upzoning with complementary policies can increase housing supply, drive down prices, and increase overall affordability.",
+    "lint": [
+      {
+        "s": "info",
+        "c": "cite_no_quals",
+        "m": "No author qualifications recorded."
+      }
+    ]
+  },
+  {
+    "case": {
+      "url": "https://www.planetizen.com/news/2023/12/126834-upzoning-affordability-impacts-latest-research",
+      "claim": "Credible research shows upzoning increases housing supply and affordability"
+    },
+    "config": "sonnet5-off",
+    "ms": 9994,
+    "ttft": 1671,
+    "usage": {
+      "inputTokens": 7205,
+      "outputTokens": 906,
+      "cachedInputTokens": 2751,
+      "cacheWriteTokens": 0
+    },
+    "verified": true,
+    "paragraphRange": [
+      14,
+      16
+    ],
+    "readWords": 32,
+    "highlightRatio": 0.11013215859030837,
+    "missingPhrases": [
+      "Easing land use restrictions...generally leads to more new housing over time."
+    ],
+    "support": {
+      "level": "strong",
+      "explanation": "Litman directly states that recent credible research demonstrates upzoning increases housing supply, lowers prices, and increases affordability, citing NYU and Urban Institute studies.",
+      "caveats": [
+        "The article notes upzoning alone cannot achieve affordability goals and must be paired with complementary policies like reduced parking minimums.",
+        "Impacts on affordability specifically (as opposed to supply) were described as 'uncertain' in the Urban Institute study.",
+        "Skeptics dispute these findings, as acknowledged in the article."
+      ]
+    },
+    "tag": "Recent rigorous studies show broadly-applied upzoning, especially with supportive policies, increases housing supply and affordability.",
+    "shortCite": "Litman 23",
+    "fullCite": "Todd Litman, \"Upzoning Affordability Impacts: The Latest Research,\" Planetizen News, December 26, 2023, https://www.planetizen.com/news/2023/12/126834-upzoning-affordability-impacts-latest-research, accessed 9-25-2026",
+    "rejectedCite": [],
+    "read": "Recent studies support the conclusion that upzoning can increase housing supply, drive down prices, and increase overall affordability. rigorous recent studies demonstrate that Increases in housing supply slow the growth in rents",
+    "lint": [
+      {
+        "s": "warning",
+        "c": "ends_mid_sentence",
+        "m": "The card ends mid-sentence."
+      },
+      {
+        "s": "info",
+        "c": "cite_no_quals",
+        "m": "No author qualifications recorded."
+      }
+    ]
+  },
+  {
+    "case": {
+      "url": "https://www.planetizen.com/news/2023/12/126834-upzoning-affordability-impacts-latest-research",
+      "claim": "Credible research shows upzoning increases housing supply and affordability"
+    },
+    "config": "sonnet5-low",
+    "ms": 6574,
+    "ttft": 1161,
+    "usage": {
+      "inputTokens": 7205,
+      "outputTokens": 638,
+      "cachedInputTokens": 2751,
+      "cacheWriteTokens": 0
+    },
+    "verified": true,
+    "paragraphRange": [
+      14,
+      14
+    ],
+    "readWords": 19,
+    "highlightRatio": 0.4601226993865031,
+    "missingPhrases": [],
+    "support": {
+      "level": "strong",
+      "explanation": "The author, Todd Litman, directly states that recent research supports the conclusion that upzoning increases housing supply and affordability, citing multiple studies later in the piece.",
+      "caveats": [
+        "Effect is conditioned on complementary policies like reduced parking minimums",
+        "Skeptics dispute this conclusion and the author acknowledges ongoing debate",
+        "Some studies found impacts on affordability specifically were 'uncertain'"
+      ]
+    },
+    "tag": "Recent credible research shows broadly-applied upzoning can increase housing supply, drive down prices, and increase affordability",
+    "shortCite": "Litman 23",
+    "fullCite": "Todd Litman, \"Upzoning Affordability Impacts: The Latest Research,\" Planetizen News, December 26, 2023, https://www.planetizen.com/news/2023/12/126834-upzoning-affordability-impacts-latest-research, accessed 9-25-2026",
+    "rejectedCite": [],
+    "read": "Recent studies support the conclusion that broadly-applied upzoning can increase housing supply, drive down prices, and increase overall affordability.",
+    "lint": [
+      {
+        "s": "info",
+        "c": "cite_no_quals",
+        "m": "No author qualifications recorded."
+      }
+    ]
+  },
+  {
+    "case": {
+      "url": "https://www.planetizen.com/news/2023/12/126834-upzoning-affordability-impacts-latest-research",
+      "claim": "Credible research shows upzoning increases housing supply and affordability"
+    },
+    "config": "haiku45",
+    "ms": 9491,
+    "ttft": 1601,
+    "usage": {
+      "inputTokens": 5192,
+      "outputTokens": 715,
+      "cachedInputTokens": 0,
+      "cacheWriteTokens": 0
+    },
+    "verified": true,
+    "paragraphRange": [
+      14,
+      17
+    ],
+    "readWords": 48,
+    "highlightRatio": 0.1174871639987919,
+    "missingPhrases": [
+      "rigorous recent studies demonstrate that increases in housing supply slow the growth in rents in the region"
+    ],
+    "support": {
+      "level": "moderate",
+      "explanation": "The author cites multiple peer-reviewed studies (NYU professors, Urban Institute) that support upzoning's positive effects on supply and affordability. However, the author explicitly qualifies that upzoning alone is insufficient and must be paired with complementary policies like reducing parking minimums and development fees. The Urban Institute study also notes impacts on affordability were uncertain.",
+      "caveats": [
+        "Upzoning alone cannot achieve affordability goals and must be implemented with other policies",
+        "Urban Institute found impacts on affordability were uncertain and most new construction consisted of higher-priced homes",
+        "Skeptics dispute these findings, though the author dismisses their critiques"
+      ]
+    },
+    "tag": "Rigorous recent studies show upzoning with complementary policies increases housing supply and affords affordability.",
+    "shortCite": "Litman 23",
+    "fullCite": "Todd Litman, \"Upzoning Affordability Impacts: The Latest Research,\" Planetizen News, December 26, 2023, https://www.planetizen.com/news/2023/12/126834-upzoning-affordability-impacts-latest-research, accessed 9-25-2026",
+    "rejectedCite": [],
+    "read": "broadly-applied upzoning that allows more compact housing types (townhouses, multiplexes, and multi-family) in multimodal neighborhoods, with complementary policies such as reducing parking minimums, can increase housing supply, drive down prices, and increase overall affordability reforms that loosen restrictions are associated with a statistically significant increase in housing supply",
+    "lint": [
+      {
+        "s": "info",
+        "c": "cite_no_quals",
+        "m": "No author qualifications recorded."
+      }
+    ]
+  },
+  {
+    "case": {
+      "url": "https://vhc.virginia.gov/Zoning%20and%20Construction.pdf",
+      "claim": "Upzoning fails to produce affordable housing for low-income households"
+    },
+    "config": "opus55-low",
+    "ms": 7024,
+    "ttft": 1327,
+    "usage": {
+      "inputTokens": 14435,
+      "outputTokens": 744,
+      "cachedInputTokens": 2751,
+      "cacheWriteTokens": 0
+    },
+    "verified": true,
+    "paragraphRange": [
+      7,
+      8
+    ],
+    "readWords": 47,
+    "highlightRatio": 0.5360824742268041,
+    "missingPhrases": [],
+    "support": {
+      "level": "strong",
+      "explanation": "The brief directly states that low- and very-low-income units saw no statistically significant increase. It also says reforms often do not yield affordable housing for low-income households.",
+      "caveats": [
+        "The finding is limited to the short and medium term; the brief expects construction to reduce costs over the long term.",
+        "The same paragraph says downzoning demonstrably worsens affordability.",
+        "The brief concludes that zoning reform is a partial, potential solution, not a useless one."
+      ]
+    },
+    "tag": "Upzoning often fails low-income households — supply gains go to higher-income rentals, with no significant increase in units affordable to low-income renters.",
+    "shortCite": "Virginia Housing Commission ND",
+    "fullCite": "Virginia Housing Commission, \"Policy Brief: Promoting Housing Construction Through Local Zoning Preemption and Development Incentives– Overview of Statewide Initiatives and a Review of Recent Literature,\" vhc.virginia.gov, no date, https://vhc.virginia.gov/Zoning%20and%20Construction.pdf, accessed 9-25-2026",
+    "rejectedCite": [],
+    "read": "increase in rental housing supply occurs primarily in higher incomes Units affordable to low and very-low incomes have not experienced statistically significant increases benefits of zoning reforms are often not as large as expected many times the reforms do not yield more affordable housing for low-income households",
+    "lint": [
+      {
+        "s": "warning",
+        "c": "cite_no_date",
+        "m": "No publication date (write ND only if the source truly has none)."
+      }
+    ]
+  },
+  {
+    "case": {
+      "url": "https://vhc.virginia.gov/Zoning%20and%20Construction.pdf",
+      "claim": "Upzoning fails to produce affordable housing for low-income households"
+    },
+    "config": "sonnet5-off",
+    "ms": 7939,
+    "ttft": 1087,
+    "usage": {
+      "inputTokens": 14433,
+      "outputTokens": 764,
+      "cachedInputTokens": 2751,
+      "cacheWriteTokens": 0
+    },
+    "verified": true,
+    "paragraphRange": [
+      7,
+      8
+    ],
+    "readWords": 42,
+    "highlightRatio": 0.4965635738831615,
+    "missingPhrases": [],
+    "support": {
+      "level": "strong",
+      "explanation": "The source, a Virginia Housing Commission literature review, explicitly states that increases in rental supply from upzoning occur primarily for higher-income units, and that low/very-low income affordable units have not shown statistically significant increases, and that reforms often do not yield more affordable housing for low-income households.",
+      "caveats": [
+        "The brief frames zoning reform as a 'partial, potential' solution rather than a total failure, noting some positive long-term effects and mixed/context-dependent results elsewhere in the text.",
+        "Other paragraphs note that in the long run researchers expect more construction to reduce housing costs generally."
+      ]
+    },
+    "tag": "Upzoning mainly boosts higher-income rental supply and often fails to produce more affordable housing for low-income households",
+    "shortCite": "Virginia Housing Commission ND",
+    "fullCite": "Virginia Housing Commission, \"Policy Brief: Promoting Housing Construction Through Local Zoning Preemption and Development Incentives– Overview of Statewide Initiatives and a Review of Recent Literature,\" vhc.virginia.gov, no date, https://vhc.virginia.gov/Zoning%20and%20Construction.pdf, accessed 9-25-2026",
+    "rejectedCite": [],
+    "read": "The increase in rental housing supply occurs primarily in rental units with higher incomes Units affordable to those with low and very-low incomes have not experienced statistically significant increases. many times the reforms do not yield more affordable housing for low-income households.",
+    "lint": [
+      {
+        "s": "warning",
+        "c": "cite_no_date",
+        "m": "No publication date (write ND only if the source truly has none)."
+      }
+    ]
+  },
+  {
+    "case": {
+      "url": "https://vhc.virginia.gov/Zoning%20and%20Construction.pdf",
+      "claim": "Upzoning fails to produce affordable housing for low-income households"
+    },
+    "config": "sonnet5-low",
+    "ms": 8575,
+    "ttft": 989,
+    "usage": {
+      "inputTokens": 14433,
+      "outputTokens": 884,
+      "cachedInputTokens": 2751,
+      "cacheWriteTokens": 0
+    },
+    "verified": true,
+    "paragraphRange": [
+      7,
+      11
+    ],
+    "readWords": 57,
+    "highlightRatio": 0.2927400468384075,
+    "missingPhrases": [],
+    "support": {
+      "level": "strong",
+      "explanation": "The source, a Virginia Housing Commission literature review, directly and repeatedly states that upzoning primarily benefits higher-income rental units and does not produce statistically significant affordability gains for low-income households.",
+      "caveats": [
+        "The brief frames this as a mixed, context-dependent finding rather than an absolute failure, noting some long-term positive trends and market-dependent variation.",
+        "Other paragraphs note upzoning can still produce modest positive effects over the long term."
+      ]
+    },
+    "tag": "Upzoning fails to produce statistically significant affordable housing gains for low- and very-low-income households, benefiting higher-end units instead",
+    "shortCite": "Virginia Housing Commission ND",
+    "fullCite": "Virginia Housing Commission, \"Policy Brief: Promoting Housing Construction Through Local Zoning Preemption and Development Incentives– Overview of Statewide Initiatives and a Review of Recent Literature,\" vhc.virginia.gov, no date, https://vhc.virginia.gov/Zoning%20and%20Construction.pdf, accessed 9-25-2026",
+    "rejectedCite": [],
+    "read": "Units affordable to those with low and very-low incomes have not experienced statistically significant increases. many times the reforms do not yield more affordable housing for low-income households. Upzoning alone may not produce more affordable rental housing for low to moderate income households. It has more of an effect on moderating the costs of higher-end rental units.",
+    "lint": [
+      {
+        "s": "warning",
+        "c": "cite_no_date",
+        "m": "No publication date (write ND only if the source truly has none)."
+      }
+    ]
+  },
+  {
+    "case": {
+      "url": "https://vhc.virginia.gov/Zoning%20and%20Construction.pdf",
+      "claim": "Upzoning fails to produce affordable housing for low-income households"
+    },
+    "config": "haiku45",
+    "ms": 10045,
+    "ttft": 1457,
+    "usage": {
+      "inputTokens": 10343,
+      "outputTokens": 672,
+      "cachedInputTokens": 0,
+      "cacheWriteTokens": 0
+    },
+    "verified": true,
+    "paragraphRange": [
+      2,
+      8
+    ],
+    "readWords": 48,
+    "highlightRatio": 0.1671626984126984,
+    "missingPhrases": [],
+    "support": {
+      "level": "strong",
+      "explanation": "The source provides direct research findings showing that while upzoning increases overall housing supply, it does not reliably generate affordable units for low-income households. The literature review emphasizes that improvements in affordability occur only in limited settings, and that new rental supply predominantly serves higher-income segments.",
+      "caveats": [
+        "The source notes that zoning reform remains 'a partial, potential solution' suggesting it could contribute to affordability if combined with other measures",
+        "Some studies found rent decreases near new construction in large cities, though effects varied by local context",
+        "Long-term effects may differ from short and medium-term results documented in reviewed studies",
+        "Effects depend heavily on local market conditions and other variables beyond zoning alone"
+      ]
+    },
+    "tag": "Upzoning often fails to produce affordable housing for low-income households despite relaxing regulations.",
+    "shortCite": "Virginia Housing Commission ND",
+    "fullCite": "Virginia Housing Commission, \"Policy Brief: Promoting Housing Construction Through Local Zoning Preemption and Development Incentives– Overview of Statewide Initiatives and a Review of Recent Literature,\" vhc.virginia.gov, no date, https://vhc.virginia.gov/Zoning%20and%20Construction.pdf, accessed 9-25-2026",
+    "rejectedCite": [],
+    "read": "upzoning, does not necessarily produce the reverse results at the desired pace Improvements to housing stock and affordability occur in limited settings Units affordable to those with low and very-low incomes have not experienced statistically significant increases the reforms do not yield more affordable housing for low-income households",
+    "lint": [
+      {
+        "s": "warning",
+        "c": "cite_no_date",
+        "m": "No publication date (write ND only if the source truly has none)."
+      }
+    ]
+  },
+  {
+    "case": {
+      "url": "https://www.governing.com/community/zoning-changes-small-impact-on-housing-supply-affordability-study",
+      "claim": "Zoning reform dramatically lowers rents"
+    },
+    "config": "opus55-low",
+    "ms": 3982,
+    "ttft": 1335,
+    "verdict": "no_support",
+    "reason": "The article reports an Urban Institute study finding zoning reforms produced only a 0.8 percent increase in housing units and no significant effect on rents. That directly contradicts the claim that zoning reform dramatically lowers rents."
+  },
+  {
+    "case": {
+      "url": "https://www.governing.com/community/zoning-changes-small-impact-on-housing-supply-affordability-study",
+      "claim": "Zoning reform dramatically lowers rents"
+    },
+    "config": "sonnet5-off",
+    "ms": 5319,
+    "ttft": 874,
+    "verdict": "no_support",
+    "reason": "The source directly contradicts the claim: it reports an Urban Institute study finding zoning reforms are associated with only a tiny (0.8%) increase in housing units and 'no evidence it makes housing cheaper,' with no significant effect on rent."
+  },
+  {
+    "case": {
+      "url": "https://www.governing.com/community/zoning-changes-small-impact-on-housing-supply-affordability-study",
+      "claim": "Zoning reform dramatically lowers rents"
+    },
+    "config": "sonnet5-low",
+    "ms": 4831,
+    "ttft": 1242,
+    "verdict": "no_support",
+    "reason": "The source directly contradicts the claim: it reports a study finding zoning reforms produce only a tiny increase in housing supply and no significant effect on rents, calling upzoning 'not a miracle solution.'"
+  },
+  {
+    "case": {
+      "url": "https://www.governing.com/community/zoning-changes-small-impact-on-housing-supply-affordability-study",
+      "claim": "Zoning reform dramatically lowers rents"
+    },
+    "config": "haiku45",
+    "ms": 6592,
+    "ttft": 887,
+    "verdict": "no_support",
+    "reason": "The source directly contradicts the claim. According to the Urban Institute study presented here, zoning reforms were 'not associated with any significant effects on rent,' meaning they do not dramatically lower rents, despite creating a small increase in housing units."
+  }
+]

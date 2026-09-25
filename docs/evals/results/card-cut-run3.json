@@ -1,0 +1,598 @@
+[
+  {
+    "case": {
+      "url": "https://www.sciencedirect.com/science/article/pii/S0094119024000597",
+      "claim": "Relaxing land-use regulation increases housing construction"
+    },
+    "config": "opus55-low",
+    "ms": 7366,
+    "ttft": 1762,
+    "usage": {
+      "inputTokens": 19152,
+      "outputTokens": 682,
+      "cachedInputTokens": 2751,
+      "cacheWriteTokens": 0
+    },
+    "verified": true,
+    "paragraphRange": [
+      59,
+      59
+    ],
+    "readWords": 37,
+    "highlightRatio": 0.2484472049689441,
+    "missingPhrases": [],
+    "support": {
+      "level": "strong",
+      "explanation": "Authors directly find, via staggered difference-in-difference design, that relaxing FAR limits increases housing supply.",
+      "caveats": [
+        "Effects take five to ten years; no significant increase in first four years",
+        "Small upzonings and non-binding areas yield much weaker, sometimes insignificant effects",
+        "Study is limited to Canton of Zurich, Switzerland",
+        "Only 50% of treated rasters saw supply increases after 15 years"
+      ]
+    },
+    "tag": "Upzoning significantly increases housing units about 9% within five to ten years, with larger upzonings sparking stronger construction responses.",
+    "shortCite": "Lutz 24",
+    "fullCite": "Elena Lutz, \"Making housing affordable? The local effects of relaxing land-use regulation,\" Journal of Urban Economics, September 1, 2024, doi:10.1016/j.jue.2024.103689, https://www.sciencedirect.com/science/article/pii/S0094119024000597, accessed 9-25-2026",
+    "rejectedCite": [],
+    "read": "upzonings significantly increase the living space and housing units by approximately 9% after five to ten years Large upzonings incite a much stronger reaction from developers upzoning is a viable policy to increase affordability it takes years",
+    "lint": [
+      {
+        "s": "info",
+        "c": "cite_no_quals",
+        "m": "No author qualifications recorded."
+      }
+    ]
+  },
+  {
+    "case": {
+      "url": "https://www.sciencedirect.com/science/article/pii/S0094119024000597",
+      "claim": "Relaxing land-use regulation increases housing construction"
+    },
+    "config": "sonnet5-off",
+    "ms": 7439,
+    "ttft": 1251,
+    "usage": {
+      "inputTokens": 19150,
+      "outputTokens": 656,
+      "cachedInputTokens": 2751,
+      "cacheWriteTokens": 0
+    },
+    "verified": true,
+    "paragraphRange": [
+      33,
+      33
+    ],
+    "readWords": 28,
+    "highlightRatio": 0.21683967704728951,
+    "missingPhrases": [],
+    "support": {
+      "level": "strong",
+      "explanation": "The author directly asserts, based on empirical difference-in-difference analysis of a 25-year Swiss zoning panel, that upzoning significantly increases living space and housing units by roughly 9%.",
+      "caveats": [
+        "Effects take five to ten years to materialize, not immediate",
+        "Effect size depends on policy design—stronger for larger upzonings, binding zoning, and high-rent areas",
+        "Study is based on Zurich, Switzerland, which may limit generalizability to other housing markets"
+      ]
+    },
+    "tag": "Relaxing land-use regulation through upzoning significantly increases housing supply by about 9% within five to ten years",
+    "shortCite": "Lutz 24",
+    "fullCite": "Elena Lutz, \"Making housing affordable? The local effects of relaxing land-use regulation,\" Journal of Urban Economics, September 1, 2024, doi:10.1016/j.jue.2024.103689, https://www.sciencedirect.com/science/article/pii/S0094119024000597, accessed 9-25-2026",
+    "rejectedCite": [],
+    "read": "upzoning, significantly increases the living space and housing units by approximately 9% in the subsequent five to ten years upzoning is a viable policy for increasing housing affordability",
+    "lint": [
+      {
+        "s": "info",
+        "c": "cite_no_quals",
+        "m": "No author qualifications recorded."
+      }
+    ]
+  },
+  {
+    "case": {
+      "url": "https://www.sciencedirect.com/science/article/pii/S0094119024000597",
+      "claim": "Relaxing land-use regulation increases housing construction"
+    },
+    "config": "sonnet5-low",
+    "ms": 8693,
+    "ttft": 2356,
+    "usage": {
+      "inputTokens": 19150,
+      "outputTokens": 660,
+      "cachedInputTokens": 2751,
+      "cacheWriteTokens": 0
+    },
+    "verified": true,
+    "paragraphRange": [
+      59,
+      59
+    ],
+    "readWords": 32,
+    "highlightRatio": 0.1879251700680272,
+    "missingPhrases": [],
+    "support": {
+      "level": "strong",
+      "explanation": "The study uses a staggered difference-in-difference design across 25 years of Swiss zoning data and finds upzoning causally increases housing supply, with stronger effects for larger upzonings.",
+      "caveats": [
+        "Effects take five to ten years to materialize",
+        "Effects depend on policy design: they are much stronger where zoning was binding and rents were high",
+        "Small upzonings have much weaker effects (5-7%) than large ones"
+      ]
+    },
+    "tag": "Relaxing land-use regulation through upzoning significantly increases housing supply, raising living space and units by about 9%",
+    "shortCite": "Lutz 24",
+    "fullCite": "Elena Lutz, \"Making housing affordable? The local effects of relaxing land-use regulation,\" Journal of Urban Economics, September 1, 2024, doi:10.1016/j.jue.2024.103689, https://www.sciencedirect.com/science/article/pii/S0094119024000597, accessed 9-25-2026",
+    "rejectedCite": [],
+    "read": "upzonings significantly increase the living space and housing units by approximately 9% Large upzonings incite a much stronger reaction from developers than small ones. upzoning is a viable policy to increase affordability.",
+    "lint": [
+      {
+        "s": "info",
+        "c": "cite_no_quals",
+        "m": "No author qualifications recorded."
+      }
+    ]
+  },
+  {
+    "case": {
+      "url": "https://www.sciencedirect.com/science/article/pii/S0094119024000597",
+      "claim": "Relaxing land-use regulation increases housing construction"
+    },
+    "config": "haiku45",
+    "ms": 6088,
+    "ttft": 963,
+    "usage": {
+      "inputTokens": 14094,
+      "outputTokens": 453,
+      "cachedInputTokens": 0,
+      "cacheWriteTokens": 0
+    },
+    "verified": true,
+    "paragraphRange": [
+      33,
+      33
+    ],
+    "readWords": 12,
+    "highlightRatio": 0.10149942329873125,
+    "missingPhrases": [],
+    "support": {
+      "level": "strong",
+      "explanation": "The authors directly assert based on empirical analysis that upzoning (relaxing FAR regulations) leads to a significant increase in both living space and housing units. This is their main finding from a rigorous staggered difference-in-difference model using 25 years of data from the Canton of Zurich.",
+      "caveats": [
+        "The effect takes five to ten years to materialize, not immediate",
+        "The effect is stronger for larger upzonings than small ones",
+        "The effect is stronger where zoning is binding and rents are high",
+        "Effects vary significantly based on policy design"
+      ]
+    },
+    "tag": "Relaxing land-use regulations through upzoning significantly increases housing construction by approximately 9% within five to ten years.",
+    "shortCite": "Lutz 24",
+    "fullCite": "Elena Lutz, \"Making housing affordable? The local effects of relaxing land-use regulation,\" Journal of Urban Economics, September 1, 2024, doi:10.1016/j.jue.2024.103689, https://www.sciencedirect.com/science/article/pii/S0094119024000597, accessed 9-25-2026",
+    "rejectedCite": [],
+    "read": "upzoning, significantly increases the living space and housing units by approximately 9%",
+    "lint": [
+      {
+        "s": "info",
+        "c": "cite_no_quals",
+        "m": "No author qualifications recorded."
+      }
+    ]
+  },
+  {
+    "case": {
+      "url": "https://doi.org/10.3386/w8835",
+      "claim": "Zoning restrictions are the main cause of high housing prices"
+    },
+    "config": "opus55-low",
+    "ms": 10380,
+    "ttft": 2692,
+    "usage": {
+      "inputTokens": 17035,
+      "outputTokens": 1048,
+      "cachedInputTokens": 2751,
+      "cacheWriteTokens": 0
+    },
+    "verified": true,
+    "paragraphRange": [
+      88,
+      90
+    ],
+    "readWords": 90,
+    "highlightRatio": 0.3728813559322034,
+    "missingPhrases": [],
+    "support": {
+      "level": "moderate",
+      "explanation": "The authors directly argue that zoning drives high prices, but only in expensive areas, and they hedge that the evidence is suggestive.",
+      "caveats": [
+        "The authors deny a nationwide crisis; in most areas prices track construction costs.",
+        "They say the evidence is 'suggestive, not definitive.'",
+        "The paper ignores demand factors such as amenities and labor markets.",
+        "Adding region dummies eliminates the significant correlation between zoning and prices.",
+        "High land values may themselves cause regulation (reverse causality)."
+      ]
+    },
+    "tag": "In high-cost markets, evidence suggests zoning and land use controls—not land scarcity—are primarily responsible for high housing prices.",
+    "shortCite": "Glaeser & Gyourko ND",
+    "fullCite": "Edward L. Glaeser; Joseph Gyourko, \"ZONING AND HOUSING AFFORDABILITY,\" nber.org, no date, https://www.nber.org/system/files/working_papers/w8835/w8835.pdf, accessed 9-25-2026",
+    "rejectedCite": [],
+    "read": "Only in particular areas, especially New York City and California, do housing prices diverge substantially from the costs of new construction. where houses are expensive, the classic urban model fares relatively poorly. not generally characterized by substantially higher marginal costs of land bulk of the evidence suggests that zoning, and other land use controls, are more responsible for high prices where we see them. zoning strictness highly correlated with high prices. evidence is suggestive, not definitive, it seems to suggest regulation is responsible for high housing costs where they exist.",
+    "lint": [
+      {
+        "s": "warning",
+        "c": "cite_no_date",
+        "m": "No publication date (write ND only if the source truly has none)."
+      },
+      {
+        "s": "info",
+        "c": "cite_no_quals",
+        "m": "No author qualifications recorded."
+      }
+    ]
+  },
+  {
+    "case": {
+      "url": "https://doi.org/10.3386/w8835",
+      "claim": "Zoning restrictions are the main cause of high housing prices"
+    },
+    "config": "sonnet5-off",
+    "ms": 9608,
+    "ttft": 1266,
+    "usage": {
+      "inputTokens": 17033,
+      "outputTokens": 989,
+      "cachedInputTokens": 2751,
+      "cacheWriteTokens": 0
+    },
+    "verified": true,
+    "paragraphRange": [
+      90,
+      91
+    ],
+    "readWords": 75,
+    "highlightRatio": 0.3924592973436161,
+    "missingPhrases": [],
+    "support": {
+      "level": "strong",
+      "explanation": "The authors explicitly conclude, after multiple empirical tests (hedonic land value gaps, density comparisons, and correlation with permit-lag regulation measures), that zoning is more responsible than land scarcity for high housing prices in expensive areas.",
+      "caveats": [
+        "The paper limits this conclusion to a subset of expensive areas like California and some eastern cities, not the whole U.S. housing market.",
+        "The authors call their evidence 'suggestive, not definitive.'",
+        "They explicitly do not weigh the benefits of zoning against these costs, so they don't claim zoning should be eliminated."
+      ]
+    },
+    "tag": "In expensive housing markets, zoning and land use controls—not scarce land—are the dominant cause of high housing prices, this study finds.",
+    "shortCite": "Glaeser & Gyourko ND",
+    "fullCite": "Edward L. Glaeser; Joseph Gyourko, \"ZONING AND HOUSING AFFORDABILITY,\" nber.org, no date, https://www.nber.org/system/files/working_papers/w8835/w8835.pdf, accessed 9-25-2026",
+    "rejectedCite": [],
+    "read": "zoning, and other land use controls, are more responsible for high prices where we see them Measures of zoning strictness are highly correlated with high prices this form of government regulation is responsible for high housing costs where they exist if policy advocates are interested in reducing housing costs, they would do well to start with zoning reform reducing the implied zoning tax on new construction could well have a massive impact on housing prices",
+    "lint": [
+      {
+        "s": "warning",
+        "c": "skipped_hedge",
+        "m": "The qualifier \"suggests\" is skipped in a read sentence: \"The bulk of the evidence marshaled in this paper suggests that zoning, and other land use controls, are more responsible for high prices where we see them.\"."
+      },
+      {
+        "s": "warning",
+        "c": "skipped_hedge",
+        "m": "The qualifier \"seems\" is skipped in a read sentence: \"While all of our evidence is suggestive, not definitive, it seems to suggest that this form of government regulation is responsible for high housing costs wher…\"."
+      },
+      {
+        "s": "warning",
+        "c": "cite_no_date",
+        "m": "No publication date (write ND only if the source truly has none)."
+      },
+      {
+        "s": "info",
+        "c": "cite_no_quals",
+        "m": "No author qualifications recorded."
+      }
+    ]
+  },
+  {
+    "case": {
+      "url": "https://doi.org/10.3386/w8835",
+      "claim": "Zoning restrictions are the main cause of high housing prices"
+    },
+    "config": "sonnet5-low",
+    "ms": 10273,
+    "ttft": 2784,
+    "usage": {
+      "inputTokens": 17033,
+      "outputTokens": 927,
+      "cachedInputTokens": 2751,
+      "cacheWriteTokens": 0
+    },
+    "verified": true,
+    "paragraphRange": [
+      31,
+      35
+    ],
+    "readWords": 63,
+    "highlightRatio": 0.11466821885913853,
+    "missingPhrases": [],
+    "support": {
+      "level": "strong",
+      "explanation": "The authors directly conclude, based on hedonic land price comparisons, density data, and zoning strictness correlations, that zoning is responsible for high housing prices in expensive areas.",
+      "caveats": [
+        "The authors explicitly limit this claim to high-cost areas like California and parts of the Northeast, not the nation as a whole—most U.S. housing is priced near construction cost.",
+        "They acknowledge their evidence is 'suggestive, not definitive.'",
+        "They note they have not weighed the benefits of zoning against these costs."
+      ]
+    },
+    "tag": "In high-cost areas, zoning restrictions—not scarce land—are the dominant cause of expensive housing",
+    "shortCite": "Glaeser & Gyourko ND",
+    "fullCite": "Edward L. Glaeser; Joseph Gyourko, \"ZONING AND HOUSING AFFORDABILITY,\" nber.org, no date, https://www.nber.org/system/files/working_papers/w8835/w8835.pdf, accessed 9-25-2026",
+    "rejectedCite": [],
+    "read": "homes are expensive in high cost areas primarily because of government regulation, i.e. zoning the barriers to building create a potentially massive wedge between prices and building costs this is our best evidence for the critical role that zoning may play in creating high housing costs In the places where housing is quite expensive, zoning restrictions appear to have created these high prices",
+    "lint": [
+      {
+        "s": "warning",
+        "c": "cite_no_date",
+        "m": "No publication date (write ND only if the source truly has none)."
+      },
+      {
+        "s": "info",
+        "c": "cite_no_quals",
+        "m": "No author qualifications recorded."
+      }
+    ]
+  },
+  {
+    "case": {
+      "url": "https://doi.org/10.3386/w8835",
+      "claim": "Zoning restrictions are the main cause of high housing prices"
+    },
+    "config": "haiku45",
+    "ms": 7419,
+    "ttft": 928,
+    "usage": {
+      "inputTokens": 12732,
+      "outputTokens": 554,
+      "cachedInputTokens": 0,
+      "cacheWriteTokens": 0
+    },
+    "verified": true,
+    "paragraphRange": [
+      13,
+      13
+    ],
+    "readWords": 14,
+    "highlightRatio": 0.1482758620689655,
+    "missingPhrases": [
+      "high-cost areas"
+    ],
+    "support": {
+      "level": "moderate",
+      "explanation": "The authors present three empirical tests (land valuation methods, density analysis, and zoning correlation) that suggest zoning is the primary driver of high prices in specific expensive areas. However, they explicitly limit this claim to only certain regions (California, New York, some eastern cities), not to America generally. The paper's own data shows most U.S. housing prices track construction costs closely.",
+      "caveats": [
+        "The claim applies only to 'limited number of areas,' not nationwide",
+        "Most housing in America (per the authors' data) has prices close to construction costs, not inflated by zoning",
+        "The authors acknowledge they have not assessed benefits of zoning or whether it should be eliminated",
+        "The authors focus on supply-side factors and explicitly do not assess demand-side causes of high prices",
+        "Small sample sizes for some analyses (26 cities for land price comparison)",
+        "The correlation between zoning measures and prices could reflect reverse causation (high prices causing stricter zoning)"
+      ]
+    },
+    "tag": "Zoning dominates housing costs only in limited high-price areas like California and New York, not nationwide.",
+    "shortCite": "Glaeser & Gyourko ND",
+    "fullCite": "Edward L. Glaeser; Joseph Gyourko, \"ZONING AND HOUSING AFFORDABILITY,\" nber.org, no date, https://www.nber.org/system/files/working_papers/w8835/w8835.pdf, accessed 9-25-2026",
+    "rejectedCite": [],
+    "read": "zoning and other land use controls, play the dominant role in making housing expensive",
+    "lint": [
+      {
+        "s": "warning",
+        "c": "skipped_hedge",
+        "m": "The qualifier \"suggests\" is skipped in a read sentence: \"Instead, our evidence suggests that zoning and other land use controls, play the dominant role in making housing expensive.\"."
+      },
+      {
+        "s": "warning",
+        "c": "possible_power_tag",
+        "m": "The tag uses \"only\", which the read text doesn't say. Check the tag doesn't overclaim."
+      },
+      {
+        "s": "warning",
+        "c": "cite_no_date",
+        "m": "No publication date (write ND only if the source truly has none)."
+      },
+      {
+        "s": "info",
+        "c": "cite_no_quals",
+        "m": "No author qualifications recorded."
+      }
+    ]
+  },
+  {
+    "case": {
+      "url": "https://legal-planet.org/2023/04/11/does-upzoning-reduce-housing-prices/",
+      "claim": "Upzoning alone cannot solve housing affordability"
+    },
+    "config": "opus55-low",
+    "ms": 8017,
+    "ttft": 1183,
+    "usage": {
+      "inputTokens": 5044,
+      "outputTokens": 782,
+      "cachedInputTokens": 2751,
+      "cacheWriteTokens": 0
+    },
+    "verified": true,
+    "paragraphRange": [
+      13,
+      14
+    ],
+    "readWords": 57,
+    "highlightRatio": 0.4004474272930649,
+    "missingPhrases": [],
+    "support": {
+      "level": "strong",
+      "explanation": "The author directly states relying solely on upzoning cannot do the job by itself and other tools must be used.",
+      "caveats": [
+        "Framed as short-term solutions; author implies upzoning helps over decades via filtering",
+        "Author criticizes the underlying study's data and says upzoning must be 'done right' with complementary reforms",
+        "Author is sympathetic to YIMBY and supports upzoning as part of the mix"
+      ]
+    },
+    "tag": "Even YIMBY sympathizers concede upzoning alone can’t solve short-term affordability—inclusionary policy, preservation, and demand-side aid are needed.",
+    "shortCite": "Zasloff 23",
+    "fullCite": "Jonathan Zasloff, \"Does Upzoning Reduce Housing Prices?,\" Legal Planet, April 12, 2023, https://legal-planet.org/2023/04/11/does-upzoning-reduce-housing-prices/, accessed 9-25-2026",
+    "rejectedCite": [
+      "author \"Jonathan Zasloff\" (not found in the source text)"
+    ],
+    "read": "if we are looking for short-term solutions to affordability problems, relying solely on upzoning cannot do the job by itself I am deeply sympathetic to the YIMBY movement, but we cannot hang everything on regulatory reform Inclusionary policies, preserving expiring affordable units, greater demand-side help and many other tools must be used it will take a while",
+    "lint": [
+      {
+        "s": "info",
+        "c": "cite_no_quals",
+        "m": "No author qualifications recorded."
+      }
+    ]
+  },
+  {
+    "case": {
+      "url": "https://legal-planet.org/2023/04/11/does-upzoning-reduce-housing-prices/",
+      "claim": "Upzoning alone cannot solve housing affordability"
+    },
+    "config": "sonnet5-off",
+    "ms": 8589,
+    "ttft": 1034,
+    "usage": {
+      "inputTokens": 5042,
+      "outputTokens": 922,
+      "cachedInputTokens": 2751,
+      "cacheWriteTokens": 0
+    },
+    "verified": true,
+    "paragraphRange": [
+      12,
+      13
+    ],
+    "readWords": 42,
+    "highlightRatio": 0.2190082644628099,
+    "missingPhrases": [
+      "the problem is that in order for any one reform to work, it must be accompanied by others",
+      "But the problem is that in order for any one reform to work, it must be accompanied by others.",
+      "accompanied by others"
+    ],
+    "support": {
+      "level": "strong",
+      "explanation": "The author, reviewing an Urban Institute study, directly states that upzoning by itself cannot solve affordability and lists complementary tools that are also necessary.",
+      "caveats": [
+        "Author is generally sympathetic to YIMBY/upzoning and argues it must be paired with, not abandoned for, other tools",
+        "Statement is specifically about short-term solutions to affordability, not a rejection of upzoning's long-term value",
+        "The critique also emphasizes that upzoning must be done thoroughly (e.g., changing height/setback/parking rules) to work, not merely that it's insufficient in principle"
+      ]
+    },
+    "tag": "Upzoning alone cannot solve short-term affordability problems; it must be paired with inclusionary policies, preservation, and demand-side aid",
+    "shortCite": "Zasloff 23",
+    "fullCite": "Jonathan Zasloff, \"Does Upzoning Reduce Housing Prices?,\" Legal Planet, April 12, 2023, https://legal-planet.org/2023/04/11/does-upzoning-reduce-housing-prices/, accessed 9-25-2026",
+    "rejectedCite": [
+      "author \"Jonathan Zasloff\" (not found in the source text)"
+    ],
+    "read": "it’s a demonstration that it must be done right relying solely on upzoning cannot do the job by itself we cannot hang everything on regulatory reform Inclusionary policies, preserving expiring affordable units, greater demand-side help and many other tools must be used",
+    "lint": [
+      {
+        "s": "warning",
+        "c": "skipped_negation",
+        "m": "\"not\" is not highlighted but sits inside a read sentence: \"That’s not a knock on upzoning: it’s a demonstration that it must be done right.\". Reading only the highlights may reverse the author's meaning."
+      },
+      {
+        "s": "info",
+        "c": "cite_no_quals",
+        "m": "No author qualifications recorded."
+      }
+    ]
+  },
+  {
+    "case": {
+      "url": "https://legal-planet.org/2023/04/11/does-upzoning-reduce-housing-prices/",
+      "claim": "Upzoning alone cannot solve housing affordability"
+    },
+    "config": "sonnet5-low",
+    "ms": 7205,
+    "ttft": 1342,
+    "usage": {
+      "inputTokens": 5042,
+      "outputTokens": 675,
+      "cachedInputTokens": 2751,
+      "cacheWriteTokens": 0
+    },
+    "verified": true,
+    "paragraphRange": [
+      13,
+      13
+    ],
+    "readWords": 33,
+    "highlightRatio": 0.4007352941176471,
+    "missingPhrases": [],
+    "support": {
+      "level": "strong",
+      "explanation": "The author, reviewing the Urban Institute study, explicitly states upzoning alone cannot solve affordability and lists other necessary tools.",
+      "caveats": [
+        "Framed as a short-term solutions point, not a permanent impossibility claim",
+        "Author is sympathetic to YIMBY and upzoning generally, just not as sole solution"
+      ]
+    },
+    "tag": "Upzoning alone cannot solve short-term affordability; complementary inclusionary and demand-side policies are also needed",
+    "shortCite": "Zasloff 23",
+    "fullCite": "Jonathan Zasloff, \"Does Upzoning Reduce Housing Prices?,\" Legal Planet, April 12, 2023, https://legal-planet.org/2023/04/11/does-upzoning-reduce-housing-prices/, accessed 9-25-2026",
+    "rejectedCite": [
+      "author \"Jonathan Zasloff\" (not found in the source text)"
+    ],
+    "read": "relying solely on upzoning cannot do the job by itself we cannot hang everything on regulatory reform Inclusionary policies, preserving expiring affordable units, greater demand-side help and many other tools must be used",
+    "lint": [
+      {
+        "s": "info",
+        "c": "cite_no_quals",
+        "m": "No author qualifications recorded."
+      }
+    ]
+  },
+  {
+    "case": {
+      "url": "https://legal-planet.org/2023/04/11/does-upzoning-reduce-housing-prices/",
+      "claim": "Upzoning alone cannot solve housing affordability"
+    },
+    "config": "haiku45",
+    "ms": 8826,
+    "ttft": 1379,
+    "usage": {
+      "inputTokens": 3807,
+      "outputTokens": 738,
+      "cachedInputTokens": 0,
+      "cacheWriteTokens": 0
+    },
+    "verified": true,
+    "paragraphRange": [
+      12,
+      13
+    ],
+    "readWords": 47,
+    "highlightRatio": 0.18733509234828497,
+    "missingPhrases": [
+      "if a city allows more multifamily buildings but does not change parking minimums, then it will have a minor effect",
+      "if a city allows more multifamily buildings but does not change parking minimums, then it will have a minor effect"
+    ],
+    "support": {
+      "level": "strong",
+      "explanation": "The author directly asserts that relying solely on upzoning cannot solve short-term affordability problems and must be accompanied by other policy tools including inclusionary policies, affordability preservation, and demand-side help.",
+      "caveats": [
+        "The author qualifies this as addressing 'short-term solutions,' leaving open the possibility of longer-term effects.",
+        "The author is sympathetic to the YIMBY movement and does not argue against upzoning itself, only against relying on it alone.",
+        "The author acknowledges the study's limitations in measuring the full extent and duration of upzoning effects."
+      ]
+    },
+    "tag": "Upzoning alone cannot solve affordability; it must be paired with inclusionary policies and demand-side assistance.",
+    "shortCite": "Zasloff 23",
+    "fullCite": "Jonathan Zasloff, \"Does Upzoning Reduce Housing Prices?,\" Legal Planet, April 12, 2023, https://legal-planet.org/2023/04/11/does-upzoning-reduce-housing-prices/, accessed 9-25-2026",
+    "rejectedCite": [
+      "author \"Jonathan Zasloff\" (not found in the source text)"
+    ],
+    "read": "in order for any one reform to work, it must be accompanied by others relying solely on upzoning cannot do the job by itself Inclusionary policies, preserving expiring affordable units, greater demand-side help (such as making Section 8 an entitlement) and many other tools must be used",
+    "lint": [
+      {
+        "s": "info",
+        "c": "cite_no_quals",
+        "m": "No author qualifications recorded."
+      }
+    ]
+  }
+]

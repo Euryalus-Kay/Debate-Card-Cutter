@@ -1,0 +1,11 @@
+import { discoverWeb, discoverOpenAlex } from "@/server/research/discover";
+import { fetchSource } from "@/server/research/fetcher";
+const claim = process.argv[2] ?? "Zoning reform increases housing supply and lowers rents";
+const [web, oa] = await Promise.all([discoverWeb(claim), discoverOpenAlex(claim)]);
+console.log("WEB", web.ms, "ms", web.error ?? "", JSON.stringify(web.usage), "queries:", web.queries);
+for (const c of web.candidates) console.log("  -", c.title?.slice(0, 80), "|", c.url, "|", c.publication, "|", c.why?.slice(0, 100));
+console.log("OPENALEX", oa.ms, "ms", oa.error ?? "");
+for (const c of oa.candidates) console.log("  -", c.title?.slice(0, 80), "|", c.url, "|", c.metadata?.authors?.slice(0,3), c.metadata?.year);
+const all = [...web.candidates, ...oa.candidates];
+const fetched = await Promise.all(all.map(async (c) => { const t = Date.now(); const f = await fetchSource(c.url); return { c, f, ms: Date.now() - t }; }));
+for (const { c, f, ms } of fetched) console.log(`FETCH ${f.ok ? "OK " : "BAD"} ${ms}ms ${f.method} paras=${f.paragraphs.length} chars=${f.text.length} ${f.blocked ?? ""} ${f.error ?? ""} | ${c.url}\n     meta: authors=${JSON.stringify(f.metadata.authors)} date=${f.metadata.published} site=${f.metadata.siteName} title=${f.metadata.title?.slice(0,60)}`);

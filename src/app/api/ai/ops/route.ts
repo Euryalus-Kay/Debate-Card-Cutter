@@ -13,6 +13,7 @@ import { aiOperations, documents, rounds, userSettings } from "@/server/db/schem
 import { newId } from "@/server/ids";
 import { draftSpeech, interpretFlow, reviseSection, type SectionAction } from "@/server/ai/ops";
 import { AiRunError } from "@/server/ai/run";
+import { aiAllowed } from "@/server/ai/policy";
 import { SPEECH_IDS, type SpeechId } from "@/domain/format";
 import type { RateProfile } from "@/domain/timing";
 
@@ -32,12 +33,6 @@ const Body = z.object({
   targetSeconds: z.number().min(5).max(600).optional(),
 });
 
-function aiAllowed(round: { aiPolicy: string; phase: string; aiOverride: unknown }): boolean {
-  if (round.aiOverride) return true;
-  if (round.aiPolicy === "allowed") return true;
-  if (round.aiPolicy === "prep_only") return round.phase === "prep";
-  return false;
-}
 
 export const POST = handle(async (req: Request) => {
   const u = await requireUser();
