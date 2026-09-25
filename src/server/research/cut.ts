@@ -8,7 +8,7 @@ import { z } from "zod";
 import { runStructured, type RunResult } from "@/server/ai/run";
 import type { ModelSpec } from "@/server/ai/models";
 import { makeText, readAloud, highlightRatio, type BodyText, type CardIssue, type Span } from "@/domain/card";
-import { normalizeWithMap, verifyAgainstSource, type VerificationResult } from "@/domain/verify";
+import { normalizeWithMap, tagWarnings, verifyAgainstSource, type VerificationResult } from "@/domain/verify";
 import { countWords } from "@/domain/timing";
 import { applyReadPlan } from "@/domain/align";
 import { highlightMetrics } from "@/domain/highlight-metrics";
@@ -59,6 +59,7 @@ You are given the claim a debater needs and a source split into numbered paragra
 Then write what the speaker reads (code locates your words in the excerpt; words that aren't there, or are out of order, are dropped):
 ${HIGHLIGHT_RULES}
 - readShort (highlighted) ≈ 20% of the excerpt, 35–90 words; readLong (underlined) ≈ twice that and contains readShort.
+- In the tag, use numbers exactly as the excerpt writes them (don't merge "7%" and "9%" into "7–9%", round, or convert).
 - emphasis: at most three key words inside readShort.
 
 Tag: one sentence, at most 25 words, as strong as the highlighted text honestly supports and no stronger. Any number in the tag must appear in the excerpt. Keep the author's hedges when they matter.
@@ -301,24 +302,38 @@ export async function cutCard(req: CutRequest): Promise<CutResult> {
     // Read quality gate: if the planned read is off target or choppy, re-highlight the excerpt once.
     const target = defaultTargetWords(built.body);
     const quality = assessRead(highlightMetrics(built.body), target, built.missingPhrases);
+    built.readQuality = quality;
     if (quality.length) {
       try {
         const redo = await highlightCard({ tag: built.tag, body: built.body, targetWords: target, models: req.models, teamId: req.teamId, signal: req.signal, repair: false });
-        if (redo.issues.length < quality.length) {
-          const recheck = verifyAgainstSource(redo.body, req.sourceText, { dehyphenate: req.dehyphenate });
-          if (recheck.ok) {
-            built.body = redo.body as BodyText[];
-            built.readWords = redo.metrics.readWords;
-            built.highlightRatio = highlightRatio(redo.body);
-            built.readQuality = redo.issues;
-            return { run, numbered, built };
-          }
+        if (redo.issues.length < quality.length && verifyAgainstSource(redo.body, req.sourceText, { dehyphenate: req.dehyphenate }).ok) {
+          built.body = redo.body as BodyText[];
+          built.readWords = redo.metrics.readWords;
+          built.highlightRatio = highlightRatio(redo.body);
+          built.readQuality = redo.issues;
         }
       } catch {
         /* keep the first highlighting */
       }
     }
-    built.readQuality = quality;
+    // Tag honesty: every number in the tag must appear exactly as written in the card.
+    if (tagWarnings(built.tag, built.body).some((w) => w.code === "number_not_in_body")) {
+      try {
+        const cardNumbers = [...new Set(built.body.flatMap((b) => b.text.match(/\$?\d[\d,.]*%?/g) ?? []))].slice(0, 40);
+        const fix = await runStructured({
+          task: "section_revise",
+          system: "You write debate tags: one sentence, at most 25 words, no stronger than the read text. Every number you use must appear exactly as written in the card (never combine, round, or convert numbers).",
+          prompt: `Current tag: ${built.tag}\nIts numbers don't all appear in the card. Numbers the card contains: ${cardNumbers.join(", ") || "none"}.\nRead-aloud text: ${readAloud(built.body).text}\nWrite the corrected tag.`,
+          schema: z.object({ tag: z.string() }),
+          abortSignal: req.signal,
+          teamId: req.teamId ?? null,
+        });
+        const tag = fix.output.tag.trim().replace(/\s+/g, " ");
+        if (tag && !tagWarnings(tag, built.body).some((w) => w.code === "number_not_in_body")) built.tag = tag;
+      } catch {
+        /* keep the tag; lint still flags it */
+      }
+    }
     return { run, numbered, built };
   } catch (e) {
     return { run, numbered, built: null, rejectedReason: e instanceof Error ? e.message : String(e) };

@@ -787,3 +787,26 @@ Plan for this product [I]:
 - X3 DeepSeek models and pricing: https://api-docs.deepseek.com/quick_start/pricing
 - X4 DeepSeek privacy policy: https://cdn.deepseek.com/policies/en-US/deepseek-privacy-policy.html
 - X5 xAI ("SpaceXAI") models and pricing: https://docs.x.ai/docs/models
+
+---
+
+## 14. Update (2026-09-25, later): Gemini 3.8 Flash tested; highlighting benchmark
+
+**Terms re-checked** (ai.google.dev/gemini-api/terms, "Last updated 2026-04-28 UTC"): "You must be 18 years of age or older to use the APIs." and "You also will not use the Services as part of a website, application, or other service … that is directed towards or is likely to be accessed by individuals under the age of 18." Free ("Unpaid") tier: Google "uses the content you submit … to provide, improve, and develop Google products" and "human reviewers may read, annotate, and process your API input and output". A Google forum answer (discuss.google.dev, 2025-05-01) says the age restrictions "apply regardless of how the API is accessed — including via Vertex AI". The builder being an adult does not change this: the clause is about who uses the app. **Decision: Gemini stays out of the product; used only for benchmarks and as a second-family judge.**
+
+**Models the user's Gemini key reaches** (live list): `gemini-3.8-flash`, `gemini-3.7-flash`, `gemini-3.6-flash`, `gemini-3.5-flash(-lite)`, `gemini-3.1-pro-preview`, `gemini-3.1-flash-lite`, `gemma-4-31b-it`, and others.
+
+**Highlighting benchmark** (`scripts/bench/highlight.ts`, results `docs/evals/results/highlight-bench-run1.json`): 16 real human-highlighted cards from the user's Verbatim files; marks removed; each model re-highlights to the same read length the human chose; every version (human included) scored blind 1–10 by two judges from different families (Claude Opus 5.5, Gemini 3.8 Flash).
+
+| Model | Avg score (both judges) | Paired diff vs Opus 5.5 low | Time | Cost/card |
+|---|---|---|---|---|
+| Opus 5.5 · medium | 7.55 | +0.19 ± 0.13 (tie) | 9.3 s | $0.029 |
+| Gemini 3.8 Flash · medium | 7.42 | +0.05 ± 0.10 (tie) | 23.3 s | $0.030 |
+| **Opus 5.5 · low** | **7.36** | — | **7.4 s** | $0.025 |
+| Sonnet 5 · thinking off | 7.12 | −0.24 ± 0.16 | 7.5 s | $0.013 |
+| Sonnet 5 · low | 7.09 | −0.27 ± 0.15 | 8.6 s | $0.015 |
+| Gemini 3.8 Flash · low | 6.60 | −0.76 ± 0.30 (worse) | 2.5 s | $0.003 |
+| Haiku 4.5 | 6.10 | −1.27 ± 0.28 (worse) | 6.7 s | $0.006 |
+| Human (original college file) | 5.98 | −1.38 ± 0.26 | — | — |
+
+All models land within ±10% of the target length (read-plan alignment). Human highlighting in these college files is deliberately choppy (24 fragments per 100 read words vs 8 for Opus), which the fluency-oriented rubric penalizes. **Decision: highlighting and card cutting stay on Opus 5.5 · low** (ties the best quality, fastest of the top tier). Sonnet 5 (thinking off) is the budget fallback at half the cost.

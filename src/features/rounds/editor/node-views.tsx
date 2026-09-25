@@ -5,7 +5,8 @@ import { AlertTriangle, ExternalLink, Highlighter, Lock, LockOpen, MoreHorizonta
 import { Badge, cn, toast, Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger, Tooltip } from "@/components/ui";
 import { BYPASS_LOCKS } from "@/shared/editor/schema";
 import { pmCardBody, sectionLoad, draftFromPM, type PMNodeJSON, type DraftSection } from "@/shared/draft-model";
-import { estimate, formatClock } from "@/domain/timing";
+import { countWords, estimate, formatClock } from "@/domain/timing";
+import { readAloud } from "@/domain/card";
 import { lintCard, worstSeverity } from "@/domain/lint";
 import { emptyCitation } from "@/domain/citation";
 import { useEditorRound } from "./context";
@@ -171,6 +172,8 @@ export function CardView(props: ReactNodeViewProps) {
   const inBasket = attrs.cardId ? ws.basket.includes(String(attrs.cardId)) : false;
   const [rehighlight, setRehighlight] = useState(false);
   const { team } = useApp();
+  // Read time for this card at the speaker's pace (highlighted words, plus its tag and cite).
+  const readSecs = estimate({ cardWords: countWords(readAloud(body).text), tagWords: countWords(tag) + 2, analyticWords: 0, cards: 1, transitions: 0 }, ctx.rates).seconds;
   const vMeta =
     edited
       ? { icon: <FileWarning className="size-3.5" />, tone: "bad" as const, label: "Text edited", hint: "The evidence text was edited in this document and no longer matches the verified source." }
@@ -186,6 +189,11 @@ export function CardView(props: ReactNodeViewProps) {
     <NodeViewWrapper className={cn("node-card group relative", inBasket && "rounded-md ring-1 ring-accent/40")} data-card="" data-verification={edited ? "edited" : v}>
       {/* Status strip: floats right so the tag wraps around it; always visible (evidence integrity). */}
       <div contentEditable={false} className="card-status float-right ml-3 flex select-none items-center gap-1 pt-0.5">
+        <Tooltip content="Time to read this card (tag, cite, and highlighted text) at the speaker's pace">
+          <span className="font-mono text-[11px] tabular text-faint" aria-label={`About ${Math.round(readSecs)} seconds to read`}>
+            ~{formatClock(readSecs)}
+          </span>
+        </Tooltip>
         <Tooltip content={vMeta.hint}>
           <span aria-label={`Evidence status: ${vMeta.label}`} role="img" className={cn(vMeta.tone === "ok" && "opacity-75 group-hover:opacity-100")}>
             <Badge tone={vMeta.tone}>
