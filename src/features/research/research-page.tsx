@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import type { CardUse } from "@/domain/card-use";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Ban, CheckCircle2, CircleDashed, ExternalLink, FileText, FlaskConical, Globe, Link2, Search, Trash2, XCircle } from "lucide-react";
@@ -58,6 +59,16 @@ interface JobListRow {
 
 const RUNNING = new Set(["queued", "running"]);
 
+const FOR_OPTIONS: [string, string][] = [
+  ["1AC:aff", "1AC (aff)"],
+  ["2AC:aff", "2AC (aff answers)"],
+  ["1AR:aff", "1AR (aff)"],
+  ["rebuttal:aff", "2AR (aff)"],
+  ["1NC:neg", "1NC (neg)"],
+  ["block:neg", "2NC / 1NR block (neg)"],
+  ["rebuttal:neg", "2NR (neg)"],
+];
+
 export function ResearchPage() {
   const { team } = useApp();
   const router = useRouter();
@@ -72,13 +83,25 @@ export function ResearchPage() {
   const [paste, setPaste] = useState({ body: "", title: "", authors: "", qualifications: "", date: "", publication: "", url: "" });
   const [maxCards, setMaxCards] = useState(3);
   const [starting, setStarting] = useState(false);
+  // What the card is for: its speech sets excerpt and read length; its side what counts as ours in the library.
+  const [forKey, setForKey] = useState<string>("2AC:aff");
+  const [use, side] = forKey.split(":") as [CardUse, "aff" | "neg"];
+  // Library first: a card the team already has costs nothing and is ready now.
+  const [asked, setAsked] = useState<{ claim: string; context: string; side: "aff" | "neg" } | null>(null);
+  const lib = useQuery({
+    queryKey: ["library-find-team", team.id, asked],
+    queryFn: () => api<{ cards: { id: string; tag: string; shortCite: string; verificationStatus: string; fit: number; use: string }[]; checked: boolean }>("/api/library/find", { method: "POST", json: { teamId: team.id, side: asked!.side, claim: asked!.claim, context: asked!.context || undefined } }),
+    enabled: !!asked,
+    staleTime: 60_000,
+    retry: false,
+  });
 
   const jobs = useQuery({ queryKey: ["research-jobs", team.id], queryFn: () => api<{ jobs: JobListRow[] }>(`/api/research/jobs?teamId=${team.id}`), refetchInterval: jobId ? false : 10000 });
 
   async function start() {
     const c = claim.trim();
     if (c.length < 3) return toast("Describe what the card should say.", "warn");
-    const input: Record<string, unknown> = { claim: c, context: context.trim() || undefined, maxCards, search: mode === "search" };
+    const input: Record<string, unknown> = { claim: c, context: context.trim() || undefined, maxCards, search: mode === "search", use, side };
     if (mode === "urls") {
       const list = urls
         .split(/\s+/)
@@ -137,6 +160,44 @@ export function ResearchPage() {
             <Field label="Context (optional)" hint="Side, position, or what it answers. Helps choose the best passage.">
               <Input value={context} onChange={(e) => setContext(e.target.value)} placeholder="Aff answer to the Housing Prices DA" aria-label="Context" />
             </Field>
+            <Field label="Card for" hint="Sets how long the card and its highlighting run (medians from real camp files).">
+              <Select value={forKey} onChange={(e) => setForKey(e.target.value)} aria-label="Card for">
+                {FOR_OPTIONS.map(([k, label]) => (
+                  <option key={k} value={k}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            {asked && asked.claim === claim.trim() ? (
+              lib.isFetching ? (
+                <div className="flex items-center gap-2 text-[12px] text-muted">
+                  <Spinner className="size-3.5" /> Checking your library…
+                </div>
+              ) : lib.data?.cards.length ? (
+                <div className="rounded-lg border border-line bg-sunken p-2">
+                  <div className="mb-1.5 text-[12px] font-medium">Already in your library</div>
+                  <ul className="space-y-1.5">
+                    {lib.data.cards.map((c) => (
+                      <li key={c.id} className="text-[12.5px]">
+                        <a href={`/library/cards/${c.id}`} className="font-semibold leading-snug hover:underline">
+                          {c.tag}
+                        </a>
+                        <div className="text-[11.5px] text-muted">
+                          {c.shortCite} · {c.fit >= 3 ? "proves it" : "helps"}: {c.use}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : lib.data?.checked ? (
+                <div className="text-[12px] text-muted">Nothing in your library proves this yet.</div>
+              ) : null
+            ) : claim.trim().length >= 3 ? (
+              <button type="button" className="text-[12px] text-accent hover:underline" onClick={() => setAsked({ claim: claim.trim(), context: context.trim(), side })}>
+                Check my library first
+              </button>
+            ) : null}
             <div role="radiogroup" aria-label="Where to look" className="grid grid-cols-3 gap-1 rounded-lg bg-sunken p-1 text-[12.5px]">
               {(
                 [

@@ -21,6 +21,8 @@ import { saveFetchedSource, saveTextSource, type SourceRow } from "./sources";
 import { cutCard } from "./cut";
 import { buildCitation } from "./cite";
 import { continueJob } from "@/server/jobs/continue";
+import { CARD_USES } from "@/domain/card-use";
+import { styleExamples } from "./examples";
 
 export const ResearchInput = z.object({
   claim: z.string().trim().min(3).max(600),
@@ -41,6 +43,9 @@ export const ResearchInput = z.object({
   maxCards: z.number().int().min(1).max(6).default(3),
   roundId: z.string().optional(),
   labels: z.array(z.string().max(60)).max(10).optional(),
+  /** the speech the card is for: sets excerpt and read length (Phase D) */
+  use: z.enum(CARD_USES).optional(),
+  side: z.enum(["aff", "neg"]).optional(),
 });
 export type ResearchInput = z.infer<typeof ResearchInput>;
 
@@ -367,6 +372,9 @@ async function cut(it: ResearchItem, input: ResearchInput, teamId: string, userI
       dehyphenate: src.textFormat === "pdf",
       teamId,
       signal,
+      use: input.use,
+      side: input.side,
+      styleExamples: await styleExamples(teamId, input.claim),
     });
     it.ms = { ...it.ms, cut: Date.now() - t0 };
     it.model = r.run.model;

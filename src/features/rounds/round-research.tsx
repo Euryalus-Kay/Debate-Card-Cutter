@@ -21,6 +21,7 @@ import { VerificationBadge } from "./evidence-panel";
 import { cardNode, fetchCards, findSectionNode } from "./proposals";
 import { getActiveEditor } from "./editor/active-editor";
 import { useWorkspace } from "./store";
+import { cardUseFor } from "@/domain/card-use";
 import type { RoundRecord } from "./types";
 
 interface RoundJob {
@@ -142,6 +143,8 @@ export function ResearchDialog({ round }: { round: RoundRecord }) {
 
 function ResearchForm({ round, dialog }: { round: RoundRecord; dialog: DialogState }) {
   const { team } = useApp();
+  // The card is cut to the length of the speech it's for.
+  const speech = useWorkspace((s) => s.speech);
   const close = useRoundResearch((s) => s.close);
   const add = useRoundResearch((s) => s.add);
   const [claim, setClaim] = useState(dialog.claim);
@@ -183,7 +186,7 @@ function ResearchForm({ round, dialog }: { round: RoundRecord; dialog: DialogSta
     try {
       const r = await api<{ jobId: string }>(`/api/research/jobs`, {
         method: "POST",
-        json: { teamId: team.id, idempotencyKey: crypto.randomUUID(), input: { claim: claim.trim(), context: context.trim() || undefined, maxCards: n, search: list.length === 0, urls: list.length ? list : undefined, roundId: round.id } },
+        json: { teamId: team.id, idempotencyKey: crypto.randomUUID(), input: { claim: claim.trim(), context: context.trim() || undefined, maxCards: n, search: list.length === 0, urls: list.length ? list : undefined, roundId: round.id, side: round.ourSide, use: speech ? cardUseFor(speech) : undefined } },
       });
       add({ jobId: r.jobId, roundId: round.id, draftId: dialog.draftId, sectionId: dialog.sectionId, claim: claim.trim(), startedAt: Date.now() });
       useWorkspace.getState().set({ right: "evidence" });

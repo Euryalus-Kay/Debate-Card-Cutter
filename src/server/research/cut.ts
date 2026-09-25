@@ -9,6 +9,8 @@ import { runStructured, type RunResult } from "@/server/ai/run";
 import type { ModelSpec } from "@/server/ai/models";
 import { makeText, readAloud, highlightRatio, type BodyText, type CardIssue, type Span } from "@/domain/card";
 import { normalizeWithMap, tagWarnings, verifyAgainstSource, type VerificationResult } from "@/domain/verify";
+import { CARD_USE, type CardUse } from "@/domain/card-use";
+import type { StyleExample } from "./examples";
 import { countWords } from "@/domain/timing";
 import { applyReadPlan, type ReadNote } from "@/domain/align";
 import { highlightMetrics } from "@/domain/highlight-metrics";
@@ -266,6 +268,11 @@ export interface CutRequest {
   teamId?: string | null;
   signal?: AbortSignal;
   models?: ModelSpec[];
+  /** the speech the card is for: excerpt and read length (Phase D) */
+  use?: CardUse;
+  side?: "aff" | "neg";
+  /** cards from the team's own files, for tag wording and highlighting density only */
+  styleExamples?: StyleExample[];
 }
 
 export interface CutResult {
@@ -287,9 +294,14 @@ export async function cutCard(req: CutRequest): Promise<CutResult> {
   ]
     .filter(Boolean)
     .join("\n");
+  const use = req.use ? CARD_USE[req.use] : null;
   const prompt = [
     `CLAIM THE DEBATER NEEDS: ${req.claim}`,
     req.context ? `CONTEXT: ${req.context}` : "",
+    use ? `CARD FOR: the ${use.label}${req.side ? ` (${req.side})` : ""}. Measured on real camp files, cards for this speech run about ${use.excerptWords[0]}–${use.excerptWords[1]} words with about ${use.readWords} words highlighted: fit the excerpt to that when the source allows.` : "",
+    req.styleExamples?.length
+      ? `STYLE EXAMPLES from the team's own files (for how tags are worded and how densely they highlight ONLY; never copy their words, facts, numbers, or authors):\n${req.styleExamples.map((e) => `- TAG: ${e.tag}\n  READ (${e.readWords} words), opening: ${e.readOpening} …`).join("\n")}`
+      : "",
     ``,
     header,
     ``,
@@ -303,13 +315,13 @@ export async function cutCard(req: CutRequest): Promise<CutResult> {
   try {
     const built = buildCut(run.output, numbered, req.sourceText, req.dehyphenate);
     // Read quality gate: if the planned read is off target or choppy, re-highlight the excerpt once.
-    const target = defaultTargetWords(built.body);
+    const target = use ? use.readWords : defaultTargetWords(built.body);
     const cardText = built.body.map((b) => b.text).join("\n");
-    const quality = assessRead(highlightMetrics(built.body), target, { unmatchedShort: built.missingPhrases, notes: built.readNotes }, { tag: built.tag, cardText });
+    const quality = assessRead(highlightMetrics(built.body), target, { unmatchedShort: built.missingPhrases, notes: built.readNotes }, { tag: built.tag, cardText }, use ? 0.2 : 0.3);
     built.readQuality = quality;
     if (fixableIssues(quality).length) {
       try {
-        const redo = await highlightCard({ tag: built.tag, body: built.body, targetWords: target, models: req.models, teamId: req.teamId, signal: req.signal, repair: false });
+        const redo = await highlightCard({ tag: built.tag, body: built.body, targetWords: target, tolerance: use ? 0.2 : 0.3, models: req.models, teamId: req.teamId, signal: req.signal, repair: false });
         if (fixableIssues(redo.issues).length < fixableIssues(quality).length && verifyAgainstSource(redo.body, req.sourceText, { dehyphenate: req.dehyphenate }).ok) {
           built.body = redo.body as BodyText[];
           built.readWords = redo.metrics.readWords;

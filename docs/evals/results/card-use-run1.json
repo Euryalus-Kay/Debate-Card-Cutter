@@ -1,0 +1,38 @@
+{
+  "at": "2026-09-25T21:30:22.918Z",
+  "note": "Counts only.",
+  "rows": [
+    {
+      "url": "https://legal-planet.org/2023/04/11/does-upzoning-reduce-housing-prices/",
+      "use": "1AC",
+      "target": 88,
+      "excerptWords": 333,
+      "readWords": 77,
+      "verified": true
+    },
+    {
+      "url": "https://legal-planet.org/2023/04/11/does-upzoning-reduce-housing-prices/",
+      "use": "1AR",
+      "target": 57,
+      "excerptWords": 333,
+      "readWords": 70,
+      "verified": true
+    },
+    {
+      "url": "https://www.governing.com/community/zoning-changes-small-impact-on-housing-supply-affordability-study",
+      "use": "1AC",
+      "target": 88,
+      "excerptWords": 457,
+      "readWords": 72,
+      "verified": true
+    },
+    {
+      "url": "https://www.governing.com/community/zoning-changes-small-impact-on-housing-supply-affordability-study",
+      "use": "1AR",
+      "target": 57,
+      "excerptWords": 290,
+      "readWords": 58,
+      "verified": true
+    }
+  ]
+}

@@ -50,6 +50,8 @@ export interface HighlightRequest {
   body: BodyBlock[];
   /** how many words the highlighted read should be */
   targetWords: number;
+  /** how far the read may stray from the target before it's redone (default 0.3) */
+  tolerance?: number;
   models?: ModelSpec[];
   teamId?: string | null;
   signal?: AbortSignal;
@@ -89,11 +91,12 @@ export function defaultTargetWords(body: BodyBlock[]): number {
 
 const numbersIn = (t: string) => new Set((t.match(/\d[\d,.]*\d|\d/g) ?? []).map((n) => n.replace(/,/g, "")));
 
-export function assessRead(metrics: HighlightMetrics, targetWords: number, applied: Pick<AppliedPlan, "unmatchedShort" | "notes">, ctx: { tag?: string; cardText?: string } = {}): QualityIssue[] {
+/** `tolerance`: how far the read may stray from the target (a known speech's target is held closer). */
+export function assessRead(metrics: HighlightMetrics, targetWords: number, applied: Pick<AppliedPlan, "unmatchedShort" | "notes">, ctx: { tag?: string; cardText?: string } = {}, tolerance = 0.3): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const unmatched = applied.unmatchedShort;
-  if (metrics.readWords > targetWords * 1.3) issues.push({ code: "too_long", message: `The read is ${metrics.readWords} words; the target is about ${targetWords}. Cut the least important phrases.` });
-  if (metrics.readWords < targetWords * 0.7) issues.push({ code: "too_short", message: `The read is ${metrics.readWords} words; the target is about ${targetWords}. Add the next most important support.` });
+  if (metrics.readWords > targetWords * (1 + tolerance)) issues.push({ code: "too_long", message: `The read is ${metrics.readWords} words; the target is about ${targetWords}. Cut the least important phrases.` });
+  if (metrics.readWords < targetWords * (1 - tolerance)) issues.push({ code: "too_short", message: `The read is ${metrics.readWords} words; the target is about ${targetWords}. Add the next most important support.` });
   if (metrics.readWords >= 20 && (metrics.fragmentsPer100 > 30 || (metrics.fragments >= 4 && metrics.oneWordFragmentShare > 0.35)))
     issues.push({ code: "choppy", message: `The read is split into ${metrics.fragments} separate pieces (${metrics.fragmentsPer100.toFixed(0)} per 100 words, ${Math.round(metrics.oneWordFragmentShare * 100)}% single words). Read longer phrases.` });
   if (metrics.danglingEnds >= 2) issues.push({ code: "dangling", message: `${metrics.danglingEnds} read sentences stop on a word like "is/the/of" while the sentence goes on, which leaves the listener hanging.` });
@@ -144,7 +147,7 @@ export async function highlightCard(req: HighlightRequest): Promise<HighlightRes
   let applied = applyReadPlan(blocks, plan);
   let body = rebuild(req.body, applied.body);
   let metrics = highlightMetrics(body);
-  let issues = assessRead(metrics, req.targetWords, applied, ctx);
+  let issues = assessRead(metrics, req.targetWords, applied, ctx, req.tolerance);
   let repaired = false;
   if (fixable(issues).length && req.repair !== false) {
     const feedback = `\n\nYOUR PREVIOUS readShort, as it lands in the card (… marks skipped text):\n"${metrics.readText}"\n\nFix these problems and return the full plan again:\n${fixable(issues).map((i) => `- ${i.message}`).join("\n")}`;
@@ -152,7 +155,7 @@ export async function highlightCard(req: HighlightRequest): Promise<HighlightRes
     const applied2 = applyReadPlan(blocks, second);
     const body2 = rebuild(req.body, applied2.body);
     const metrics2 = highlightMetrics(body2);
-    const issues2 = assessRead(metrics2, req.targetWords, applied2, ctx);
+    const issues2 = assessRead(metrics2, req.targetWords, applied2, ctx, req.tolerance);
     // Keep the revision only if it is at least as good.
     if (fixable(issues2).length <= fixable(issues).length) {
       plan = second;
