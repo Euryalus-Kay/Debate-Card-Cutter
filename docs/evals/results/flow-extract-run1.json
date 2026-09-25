@@ -1,0 +1,59 @@
+{
+  "at": "2026-09-25T22:44:48.502Z",
+  "note": "Synthetic notes; counts only.",
+  "summary": {
+    "recall": 1,
+    "gold": 24,
+    "found": 24
+  },
+  "rows": [
+    {
+      "case": "1NC shorthand",
+      "lines": 10,
+      "gold": 10,
+      "found": 10,
+      "recall": 1,
+      "extracted": 11,
+      "unflowedLines": 0,
+      "positions": [
+        "T - Establish",
+        "Deficits DA",
+        "States CP",
+        "Cap K",
+        "Case"
+      ],
+      "ms": 12242,
+      "missed": []
+    },
+    {
+      "case": "2NC line-by-line",
+      "lines": 10,
+      "gold": 8,
+      "found": 8,
+      "recall": 1,
+      "extracted": 8,
+      "unflowedLines": 0,
+      "positions": [
+        "2NC (unsorted)",
+        "States CP"
+      ],
+      "ms": 11832,
+      "missed": []
+    },
+    {
+      "case": "1NR case and K",
+      "lines": 7,
+      "gold": 6,
+      "found": 6,
+      "recall": 1,
+      "extracted": 6,
+      "unflowedLines": 0,
+      "positions": [
+        "Case: Advantage 1 - Coverage",
+        "Cap K"
+      ],
+      "ms": 7903,
+      "missed": []
+    }
+  ]
+}

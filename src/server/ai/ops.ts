@@ -4,6 +4,7 @@
  * whether the result is stale before applying it.
  */
 
+import { guessKind, matchPosition } from "@/domain/positions";
 import { eq } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { rounds } from "@/server/db/schema";
@@ -1324,7 +1325,7 @@ const FLOW_EXTRACT_SYSTEM = `You flow a high school policy debate round. A debat
 For EVERY numbered line decide:
 - create: the line states one or more arguments the speaker made. Split a line into at most 3 arguments only when it clearly holds separate arguments.
 - same_as: the line repeats an argument already listed under THIS SPEECH'S ARGUMENTS (give its id).
-- not_argument: a header naming a position ("Politics DA", "Case"), a roadmap, filler, or a question to self.
+- not_argument: a header naming a position ("Politics DA", "Case"), a roadmap, filler, or a question to self. An extension ("extend CBO", "extend our 2", "x-apply Lee") is an argument, not filler: create it.
 
 Rules:
 - "quote" must be copied exactly from the line (a contiguous piece of it). Never add claims, authors, numbers, or reasons that aren't on the line. "text" stays close to the line's words; you may only expand shorthand.
@@ -1434,6 +1435,14 @@ Return one entry for every numbered line.`;
   const res = await runStructured({ task: "flow_extract", system: FLOW_EXTRACT_SYSTEM, prompt, schema: FlowExtractSchema, onPartial, abortSignal: input.abortSignal, teamId: input.teamId, models: input.models, fake });
   progress?.stage("Putting it on the flow");
   const checked = validateExtraction({ lines, positions, existing, ours: new Set(theirs.map((a) => a.id)) }, res.output as FlowExtractOutput);
+  // A header the model didn't name still names the position under it: "2nc deficits" → Deficits.
+  for (const l of checked.lines) {
+    if (l.category !== "header" || l.position || l.args.length) continue;
+    const name = l.text.replace(/^\s*(?:1ac|1nc|2ac|2nc|1nr|1ar|2nr|2ar)\b[\s:—–-]*/i, "").replace(/[:—–-]+\s*$/, "").trim();
+    if (!name || name.split(/\s+/).length > 8) continue;
+    const hit = matchPosition(name, positions);
+    l.position = hit ? { id: hit.id } : { name: name.replace(/^\w/, (c) => c.toUpperCase()), kind: guessKind(name) };
+  }
 
   // Lines the AI missed or that failed the checks still reach the flow, via the no-AI parser, marked uncertain.
   const done = new Set(checked.lines.map((l) => l.n));

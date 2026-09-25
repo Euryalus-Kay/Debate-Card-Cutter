@@ -1,0 +1,54 @@
+{
+  "at": "2026-09-25T22:45:22.560Z",
+  "note": "Counts and spend only; the files are outside the repository.",
+  "results": [
+    {
+      "title": "Aff — Single Payer National Health Insurance",
+      "kind": "aff",
+      "status": "succeeded",
+      "minutes": 2.9,
+      "usd": 2.25,
+      "sections": 18,
+      "blocks": 24,
+      "analytics": 38,
+      "cards": 15,
+      "missing": [],
+      "fileName": "Aff — Single Payer National Health Insurance.docx",
+      "uploadId": "upl_muhjorhbcpcv6eq6bs6n",
+      "researched": 11,
+      "fromLibrary": 4
+    },
+    {
+      "title": "T — National Health Insurance Means Single Payer (Neg)",
+      "kind": "t",
+      "status": "succeeded",
+      "minutes": 1.7,
+      "usd": 0.49,
+      "sections": 10,
+      "blocks": 21,
+      "analytics": 38,
+      "cards": 7,
+      "missing": [],
+      "fileName": "T — National Health Insurance Means Single Payer (Neg).docx",
+      "uploadId": "upl_muhjqxxr9tx3cjn9z7y1",
+      "researched": 2,
+      "fromLibrary": 5
+    },
+    {
+      "title": "DA — Deficits and Taxes (NHI Spending)",
+      "kind": "da",
+      "status": "succeeded",
+      "minutes": 2.5,
+      "usd": 1.33,
+      "sections": 8,
+      "blocks": 16,
+      "analytics": 23,
+      "cards": 12,
+      "missing": [],
+      "fileName": "DA — Deficits and Taxes (NHI Spending).docx",
+      "uploadId": "upl_muhju3ftrp0p6s1n3nde",
+      "researched": 6,
+      "fromLibrary": 6
+    }
+  ]
+}
