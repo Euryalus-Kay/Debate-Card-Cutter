@@ -39,6 +39,39 @@ export const SpeechDraftSchema = z.object({
 });
 export type SpeechDraftOutput = z.infer<typeof SpeechDraftSchema>;
 
+/**
+ * Updating an existing draft (A3): only what changed. New sections carry the
+ * arguments they answer; code decides where they go. Existing sections are
+ * linked (retargets) or rewritten (edits) only when that is the smallest fix.
+ */
+export const PatchPlanSchema = z.object({
+  summary: z.string().describe("One or two sentences: what this update changes and why."),
+  adds: z.array(
+    DraftSectionSchema.extend({
+      ref: z.string().describe("Your local id for this new section, e.g. n1, n2"),
+      parentRef: z.string().describe("ref of another NEW section in this update that contains it (only when you add a whole new position with its answers), else empty string"),
+      anchor: z.string().describe("id of the EXISTING draft section it belongs under (the section holding that position's answers), else empty string"),
+    }),
+  ),
+  retargets: z
+    .array(z.object({ sectionId: z.string(), addTargets: z.array(z.string()).describe("ids of new arguments this existing section already answers as written"), reason: z.string() }))
+    .describe("existing sections that already answer a new argument as written: link them instead of writing a duplicate answer"),
+  edits: z
+    .array(
+      z.object({
+        sectionId: z.string(),
+        title: z.string(),
+        analytic: z.string().describe("the section's full new analytic text; change only the sentences that must change"),
+        cardIds: z.array(z.string()).describe("cards to read: the section's current cards, plus provided cards only if the change needs them"),
+        reason: z.string(),
+      }),
+    )
+    .describe("existing sections whose answer must change (the argument it answers changed, or the team asked); keep everything that still works"),
+  notAddressed: z.array(z.object({ targets: z.array(z.string()), reason: z.string() })).describe("arguments you deliberately leave unanswered, and why"),
+  questions: z.array(z.string()),
+});
+export type PatchPlanOutput = z.infer<typeof PatchPlanSchema>;
+
 export const SectionRevisionSchema = z.object({
   title: z.string(),
   analytic: z.string(),

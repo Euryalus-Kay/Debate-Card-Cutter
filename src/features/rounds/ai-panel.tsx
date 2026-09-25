@@ -2,18 +2,23 @@
 
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Check, Loader2, Sparkles, X } from "lucide-react";
+import { AlertTriangle, Check, Loader2, RefreshCw, Scissors, Sparkles, X } from "lucide-react";
 import { api } from "@/client/api";
-import { useDocSync } from "@/client/sync/hooks";
+import { syncDocNow, useDocSync } from "@/client/sync/hooks";
 import { Badge, Button, cn, EmptyState, toast } from "@/components/ui";
 import { useApp } from "@/components/shell/app-shell";
 import { formatClock } from "@/domain/timing";
-import type { AlternativesOutput, SectionRevisionOutput, SpeechDraftOutput } from "@/server/ai/schemas";
+import type { AlternativesOutput, PatchPlanOutput, SectionRevisionOutput, SpeechDraftOutput } from "@/server/ai/schemas";
+import type { RoundGraph } from "@/domain/flow";
+import type { SpeechId } from "@/domain/format";
+import { patchSectionId } from "@/domain/patch";
+import { readGraph } from "@/shared/round-doc";
 import { useWorkspace } from "./store";
-import { applyDraft, applyRevision, fetchCards, findSectionNode, removeSection, sectionNodes, useProposals, type ApplyResult, type Proposal } from "./proposals";
+import { applyDraft, applyPatch, applyRevision, fetchCards, findSectionNode, removeSection, sectionNodes, useProposals, type ApplyResult, type PatchOutcome, type Proposal } from "./proposals";
 import type { RoundRecord } from "./types";
-import { getActiveEditor } from "./editor/active-editor";
+import { getActiveEditor, getRoundDoc } from "./editor/active-editor";
 import { saveVersionBeforeAi } from "./history-dialog";
+import { startFitOp } from "./ai-actions";
 
 interface OpRow {
   id: string;
@@ -23,12 +28,15 @@ interface OpRow {
   createdAt: string;
   error: string | null;
   docId: string | null;
-  target: { speech?: string; sectionId?: string | null };
+  target: { speech?: string; sectionId?: string | null; auto?: boolean };
   output: unknown;
 }
 
 export function AiPanel({ round, aiEnabled }: { round: RoundRecord; aiEnabled: boolean }) {
-  const proposals = useProposals((s) => s.proposals).filter((p) => p.draftId);
+  // Newest first: a proposal restored from history never sits above the one you just asked for.
+  const proposals = useProposals((s) => s.proposals)
+    .filter((p) => p.draftId)
+    .sort((a, b) => b.startedAt - a.startedAt);
   const history = useQuery({ queryKey: ["ai-ops", round.id], queryFn: () => api<{ ops: OpRow[] }>(`/api/rounds/${round.id}/ai-ops`), refetchInterval: 15_000 });
   // Rehydrate finished-but-unapplied proposals (after refresh, or ones your partner started).
   useEffect(() => {
@@ -40,6 +48,10 @@ export function AiPanel({ round, aiEnabled }: { round: RoundRecord; aiEnabled: b
       if (o.kind === "draft_speech") store.add({ ...base, kind: "draft", result: o.output as never, baseDraftHash: null });
       else if (o.kind.startsWith("revise:") && o.target.sectionId) store.add({ ...base, kind: o.kind === "revise:alternatives" ? "alternatives" : "revision", sectionId: o.target.sectionId, action: o.kind.slice(7), result: o.output as never } as Proposal);
       else if (o.kind === "fit_speech") store.add({ ...base, kind: "fit", result: o.output as never });
+      else if (o.kind === "patch_speech" && !(o.output as { upToDate?: boolean }).upToDate) {
+        store.add({ ...base, kind: "patch", result: o.output as never, auto: !!o.target.auto });
+        useProposals.getState().supersede(o.docId, base.id);
+      }
     }
   }, [history.data]);
   return (
@@ -53,7 +65,7 @@ export function AiPanel({ round, aiEnabled }: { round: RoundRecord; aiEnabled: b
             Use &ldquo;Build / revise&rdquo; above the draft, or the ✦ menu on any section. Suggestions appear here for you to review; nothing changes your draft until you apply it.
           </EmptyState>
         ) : (
-          proposals.map((p) => <ProposalCard key={p.id} p={p} />)
+          proposals.map((p) => <ProposalCard key={p.id} p={p} round={round} />)
         )}
         {history.data?.ops.length ? (
           <div className="mt-4">
@@ -83,7 +95,7 @@ function RunInfo({ run }: { run?: { model: string; ttftMs: number | null; totalM
   );
 }
 
-function ProposalCard({ p }: { p: Proposal }) {
+function ProposalCard({ p, round }: { p: Proposal; round: RoundRecord }) {
   const upd = useProposals((s) => s.update);
   const { team } = useApp();
   const ws = useWorkspace();
@@ -101,6 +113,8 @@ function ProposalCard({ p }: { p: Proposal }) {
       ? `${p.speech} draft`
       : p.kind === "fit"
         ? `${p.result?.mode === "fill" ? "Fill" : "Fit"} the ${p.speech} to time`
+        : p.kind === "patch"
+          ? `${p.auto ? "Pre-draft" : "Update"}: ${p.speech}`
         : p.kind === "alternatives"
           ? "Three approaches"
           : `Revise section: ${"action" in p ? p.action : ""}`;
@@ -118,6 +132,8 @@ function ProposalCard({ p }: { p: Proposal }) {
         <DraftProposal p={p} busy={busy} setBusy={setBusy} teamId={team.id} markOp={markOp} upd={upd} />
       ) : p.kind === "fit" ? (
         <FitProposal p={p} busy={busy} setBusy={setBusy} teamId={team.id} markOp={markOp} upd={upd} />
+      ) : p.kind === "patch" ? (
+        <PatchProposal p={p} busy={busy} setBusy={setBusy} teamId={team.id} markOp={markOp} upd={upd} round={round} />
       ) : (
         <SectionProposal p={p} busy={busy} setBusy={setBusy} teamId={team.id} markOp={markOp} upd={upd} />
       )}
@@ -442,6 +458,222 @@ function FitProposal({ p, busy, setBusy, teamId, markOp, upd }: { p: Extract<Pro
           </Button>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+const PATCH_OUTCOME: Record<PatchOutcome, { label: string; tone: "ok" | "warn" | "bad" | "neutral" }> = {
+  ...OUTCOME,
+  answered: { label: "already answered — skipped", tone: "neutral" },
+  partner: { label: "partner is editing it — skipped", tone: "warn" },
+};
+
+interface PatchRow {
+  key: string;
+  kind: "add" | "link" | "unlink" | "edit";
+  title: string;
+  detail: string;
+  reason: string;
+  warn?: string;
+  seconds?: number;
+  depth: number;
+  defaultOn: boolean;
+  text?: string;
+}
+
+const EMPTY_GRAPH = (ourSide: "aff" | "neg"): RoundGraph => ({ ourSide, positions: [], args: [], relations: [], decisions: [] });
+
+function PatchProposal({ p, busy, setBusy, teamId, markOp, upd, round }: { p: Extract<Proposal, { kind: "patch" }>; busy: boolean; setBusy: (b: boolean) => void; teamId: string; markOp: (f: "applied" | "dismissed") => Promise<void>; upd: Upd; round: RoundRecord }) {
+  const r = p.result;
+  const { snapshot } = useDocSync(p.draftId);
+  const [picked, setPicked] = useState<Record<string, boolean>>({});
+  const [shown, setShown] = useState<string | null>(null);
+  const partial = p.partial as Partial<PatchPlanOutput> | null;
+  const dismiss = () => {
+    upd(p.id, { status: "dismissed" });
+    void markOp("dismissed");
+  };
+  if (p.status === "running" || !r) {
+    return p.status === "running" ? (
+      <div className="text-[12.5px]">
+        <Thinking since={p.startedAt} label={p.note ?? "Reading what changed"} />
+        {(partial?.adds ?? []).filter((a) => a?.title).map((a, i) => (
+          <div key={`${a!.ref ?? i}`} className="truncate text-muted">
+            + {a!.title}
+          </div>
+        ))}
+      </div>
+    ) : null;
+  }
+  if (r.upToDate) {
+    return (
+      <div className="text-[12.5px]">
+        <p className="text-muted">{r.output.summary}</p>
+        {p.status === "ready" ? (
+          <Button size="xs" variant="ghost" className="mt-1.5" onClick={dismiss}>
+            OK
+          </Button>
+        ) : null}
+      </div>
+    );
+  }
+
+  const argText = new Map([...r.changes.unanswered, ...r.changes.uncertain, ...r.changes.otherFlows].map((a) => [a.id, a.text]));
+  const rows: PatchRow[] = [];
+  const adds = r.output.adds;
+  const walk = (a: (typeof adds)[number], depth: number) => {
+    rows.push({ key: `add:${a.ref}`, kind: "add", title: a.title || "New section", detail: depth ? "" : r.addInfo[a.ref]?.where ?? "", reason: a.targets.map((t) => argText.get(t)).filter(Boolean).length ? `answers “${a.targets.map((t) => argText.get(t)).filter(Boolean).join("”, “").slice(0, 160)}”` : "", seconds: r.addInfo[a.ref]?.seconds, depth, defaultOn: true, text: a.analytic });
+    for (const k of adds.filter((x) => x.parentRef === a.ref)) walk(k, depth + 1);
+  };
+  for (const a of adds.filter((x) => !x.parentRef)) walk(a, 0);
+  for (const l of r.output.retargets) {
+    const added = l.addTargets.map((t) => argText.get(t) ?? t);
+    rows.push({ key: `link:${l.sectionId}`, kind: l.addTargets.length ? "link" : "unlink", title: r.titles[l.sectionId] || "Untitled section", detail: l.addTargets.length ? `also answers “${added.join("”, “").slice(0, 140)}”` : "argument no longer on the flow", reason: l.reason, depth: 0, defaultOn: true });
+  }
+  for (const e of r.output.edits) {
+    const info = r.editInfo[e.sectionId];
+    rows.push({
+      key: `edit:${e.sectionId}`,
+      kind: "edit",
+      title: r.titles[e.sectionId] || e.title,
+      detail: info ? `changes ${Math.round(info.share * 100)}% of its words` : "",
+      reason: e.reason,
+      warn: info?.humanEdited ? "You or your partner wrote or changed this section; tick it to replace their words." : info?.large ? "Rewrites most of the section although the argument didn't change." : undefined,
+      seconds: info ? info.seconds - info.previousSeconds : undefined,
+      depth: 0,
+      defaultOn: !!info && !info.humanEdited && !info.large,
+      text: e.analytic,
+    });
+  }
+
+  // After a reload the outcomes are gone; infer them from the live draft.
+  const opKey = p.opId ?? p.id;
+  const inferred: Record<string, PatchOutcome> = {};
+  const editor = getActiveEditor(p.draftId);
+  if (editor) {
+    for (const a of adds) if (findSectionNode(editor, patchSectionId(opKey, a.ref))) inferred[`add:${a.ref}`] = "applied";
+    for (const l of r.output.retargets) {
+      const found = findSectionNode(editor, l.sectionId);
+      const t = (found?.node.attrs.targets as string[] | undefined) ?? [];
+      if (!found) inferred[`link:${l.sectionId}`] = "missing";
+      else if (l.addTargets.every((x) => t.includes(x)) && !l.removeTargets.some((x) => t.includes(x))) inferred[`link:${l.sectionId}`] = "applied";
+    }
+    for (const e of r.output.edits) {
+      const found = findSectionNode(editor, e.sectionId);
+      if (!found) inferred[`edit:${e.sectionId}`] = "missing";
+      else if (p.opId && found.node.attrs.aiOpId === p.opId) inferred[`edit:${e.sectionId}`] = "applied";
+    }
+  }
+  const outcomes: Record<string, PatchOutcome> = { ...inferred, ...(p.outcomes ?? {}) };
+  const isOn = (row: PatchRow) => picked[row.key] ?? row.defaultOn;
+  const pending = rows.filter((row) => isOn(row) && outcomes[row.key] !== "applied" && outcomes[row.key] !== "answered");
+  const anyStale = rows.some((row) => outcomes[row.key] === "stale" || outcomes[row.key] === "partner");
+  const fits = r.estimatedSeconds <= r.limitSeconds;
+  const critical = r.checks.filter((c) => c.severity === "critical");
+
+  async function apply(force = false) {
+    const editor = getActiveEditor(p.draftId);
+    if (!editor || !r) return toast("Open this draft to apply the update.", "warn");
+    setBusy(true);
+    try {
+      // Land on the latest draft, and make sure a partner hasn't applied this same update already.
+      await syncDocNow(p.draftId);
+      if (p.opId && !Object.keys(p.outcomes ?? {}).length) {
+        const claim = await api<{ claimed: boolean }>(`/api/ai/ops/${p.opId}`, { method: "PATCH", json: { claim: true } }).catch(() => ({ claimed: true }));
+        if (!claim.claimed) {
+          upd(p.id, { status: "applied" });
+          toast("Your partner already applied this update; it's in the draft.", "ok");
+          return;
+        }
+      }
+      const selected = new Set(rows.filter(isOn).map((row) => row.key));
+      const cards = await fetchCards(teamId, [...adds.filter((a) => selected.has(`add:${a.ref}`)).flatMap((a) => a.cardIds), ...r.output.edits.filter((e) => selected.has(`edit:${e.sectionId}`)).flatMap((e) => e.cardIds)]);
+      if (!Object.keys(outcomes).length) await saveVersionBeforeAi(p.draftId, `update the ${p.speech}`);
+      const doc = getRoundDoc();
+      const graph = doc ? readGraph(doc, round.ourSide) : EMPTY_GRAPH(round.ourSide);
+      const partnerSections = new Set((snapshot?.others ?? []).filter((o) => o.state.activity === "editing" && o.state.section).map((o) => o.state.section!));
+      const out = applyPatch(editor, r, { opKey, opId: p.opId, selected, prior: outcomes, cards, graph, partnerSections, force });
+      const done = [...selected].every((k) => out[k] === "applied" || out[k] === "answered" || out[k] === "missing");
+      upd(p.id, { outcomes: out, status: done ? "applied" : "ready" });
+      if (done) await markOp("applied");
+      else toast("Some changes were skipped: edited since, locked, or your partner is in that section.", "warn");
+    } catch (e) {
+      toast((e as Error).message, "bad");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2 text-[12.5px]">
+      <p>{r.output.summary}</p>
+      <div className="flex items-center gap-2 font-mono tabular text-[12px]">
+        <span className="text-muted">~{formatClock(r.previousSeconds)}</span>→<span className={cn("font-semibold", fits ? "text-ok" : "text-bad")}>~{formatClock(r.estimatedSeconds)}</span>
+        <span className="text-faint">of {formatClock(r.limitSeconds)}</span>
+        {!fits ? <Badge tone="bad">over</Badge> : null}
+      </div>
+      {critical.length ? <Warn>After this update: {critical.map((c) => c.message).join(" ")}</Warn> : null}
+      {r.remaining.length ? <Warn>Still unanswered: {r.remaining.map((a) => `“${a.text.slice(0, 70)}”`).join("; ")}</Warn> : null}
+      {r.output.notAddressed.length ? <div className="text-xs text-muted">Left unanswered on purpose: {r.output.notAddressed.map((n) => n.reason).join("; ")}</div> : null}
+      {r.dropped.duplicates.length ? <div className="text-xs text-muted">Skipped {r.dropped.duplicates.length} answer{r.dropped.duplicates.length === 1 ? "" : "s"} the draft already has.</div> : null}
+      {r.dropped.linksInPlace ? <div className="text-xs text-muted">{r.dropped.linksInPlace} suggested link{r.dropped.linksInPlace === 1 ? " was" : "s were"} already in place.</div> : null}
+      <ul className="divide-y divide-line rounded-lg border border-line">
+        {rows.map((row) => {
+          const o = outcomes[row.key];
+          const done = o === "applied" || o === "answered";
+          return (
+            <li key={row.key} className="py-1.5 pr-2.5" style={{ paddingLeft: 10 + row.depth * 16 }}>
+              <label className="flex items-start gap-1.5">
+                <input type="checkbox" className="mt-0.5" checked={done || isOn(row)} disabled={p.status !== "ready" || done} onChange={(e) => setPicked((prev) => ({ ...prev, [row.key]: e.target.checked }))} />
+                <Badge tone={row.kind === "add" ? "ok" : row.kind === "edit" ? "accent" : row.kind === "link" ? "info" : "neutral"}>{row.kind}</Badge>
+                <span className="min-w-0 flex-1">
+                  <span className="font-medium">{row.title}</span>
+                  {row.detail ? <span className="text-faint"> · {row.detail}</span> : null}
+                </span>
+                {row.seconds ? <span className="shrink-0 font-mono text-[11px] text-faint">{row.seconds > 0 ? "+" : "−"}{formatClock(Math.abs(row.seconds))}</span> : null}
+              </label>
+              {row.reason ? <div className="pl-5 text-[11.5px] text-muted">{row.reason}</div> : null}
+              {row.warn ? <div className="pl-5 text-[11.5px] text-warn">{row.warn}</div> : null}
+              {row.text ? (
+                <button type="button" className="pl-5 text-[11.5px] text-accent hover:underline" onClick={() => setShown(shown === row.key ? null : row.key)}>
+                  {shown === row.key ? "Hide text" : "Show text"}
+                </button>
+              ) : null}
+              {shown === row.key ? <p className="mt-0.5 whitespace-pre-wrap pl-5 text-[12px] text-fg">{row.text}</p> : null}
+              {o ? (
+                <div className="pl-5">
+                  <Badge tone={PATCH_OUTCOME[o].tone}>{PATCH_OUTCOME[o].label}</Badge>
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+        {!rows.length ? <li className="px-2.5 py-1.5 text-muted">No changes proposed.</li> : null}
+      </ul>
+      {r.output.questions.length ? <div className="text-xs text-info">To confirm: {r.output.questions.join(" ")}</div> : null}
+      {r.run ? <RunInfo run={r.run} /> : null}
+      <div className="flex flex-wrap gap-1.5">
+        {p.status === "ready" && pending.length ? (
+          <Button size="sm" variant="primary" onClick={() => void apply(false)} loading={busy}>
+            <RefreshCw className="size-3.5" /> Apply {Object.keys(outcomes).length ? "remaining" : pending.length === rows.length ? "all" : `${pending.length} selected`}
+          </Button>
+        ) : null}
+        {p.status === "ready" && anyStale ? (
+          <Button size="sm" onClick={() => void apply(true)} disabled={busy}>
+            Apply anyway (replace newer edits)
+          </Button>
+        ) : null}
+        {!fits && (p.status === "applied" || Object.values(outcomes).includes("applied")) ? (
+          <Button size="sm" onClick={() => void startFitOp({ round, speech: p.speech as SpeechId, draftId: p.draftId })}>
+            <Scissors className="size-3.5" /> Fit to time
+          </Button>
+        ) : null}
+        {p.status === "ready" ? (
+          <Button size="sm" variant="ghost" onClick={dismiss}>
+            Dismiss
+          </Button>
+        ) : null}
+      </div>
     </div>
   );
 }

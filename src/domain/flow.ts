@@ -279,8 +279,18 @@ export function computeCoverage(graph: RoundGraph, target: SpeechId, draft: Draf
       if (rank[status] > rank[cur.status]) cur.status = status;
     }
   };
+  const ourSide = SPEECHES[target].side;
   for (const s of draft) {
-    if (s.relation === "extend" || s.relation === "new") continue;
+    if (s.relation === "new") continue;
+    if (s.relation === "extend") {
+      // "Extend our 2AC 4 — it answers their 2NC 7": linking their argument to an extension answers it.
+      const theirs = s.targets.filter((t) => {
+        const a = argById.get(canonical(t));
+        return !!a && a.side !== ourSide;
+      });
+      for (const t of theirs) mark(t, theirs.length > 1 ? "grouped" : "answered", s.sectionId);
+      continue;
+    }
     const status: CoverageStatus = s.relation === "cross_apply" ? "cross_applied" : s.relation === "group" || s.targets.length > 1 ? "grouped" : "answered";
     for (const t of s.targets) mark(t, status, s.sectionId);
   }
@@ -339,7 +349,7 @@ export function computeCoverage(graph: RoundGraph, target: SpeechId, draft: Draf
   for (const s of draft.filter((d) => d.relation === "extend")) {
     for (const t of s.targets) {
       const ours = argById.get(t);
-      if (!ours) continue;
+      if (!ours || ours.side !== ourSide) continue;
       const need = extensionsMap.get(t) ?? { ours, position: posById.get(ours.positionId), against: [], extendedBy: [] };
       need.extendedBy.push(s.sectionId);
       extensionsMap.set(t, need);

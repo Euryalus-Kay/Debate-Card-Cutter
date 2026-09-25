@@ -112,6 +112,8 @@ export interface ContextOptions {
   evidenceMode?: "selected_only" | "selected_plus_library";
   instructions?: string;
   rates?: RateProfile | null;
+  /** leave the draft out of the context text (the caller renders it in its own form) */
+  omitDraftText?: boolean;
 }
 
 export async function buildRoundContext(roundId: string, opts: ContextOptions): Promise<RoundContext> {
@@ -247,7 +249,7 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
     lines.push(`Possibly relevant cards from the team library (excerpts):`);
     for (const c of library) lines.push(renderCard(c, false, rates));
   }
-  if (draft) {
+  if (draft && !opts.omitDraftText) {
     lines.push("");
     lines.push(`CURRENT DRAFT OF THE ${opts.speech}`);
     lines.push(renderDraft(draft));

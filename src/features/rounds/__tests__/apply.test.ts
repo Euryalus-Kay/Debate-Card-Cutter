@@ -4,7 +4,9 @@ import { Editor } from "@tiptap/core";
 import { editorExtensions, type BlockedReason } from "@/shared/editor/schema";
 import { cardToPM, isHumanEdited, sectionOwnHash, type PMNodeJSON } from "@/shared/draft-model";
 import { makeText } from "@/domain/card";
-import { applyRevision, findSectionNode, insertSectionAt, removeSection, sectionNodes } from "../proposals";
+import { applyPatch, applyRevision, findSectionNode, insertSectionAt, removeSection, sectionNodes, type PatchResult } from "../proposals";
+import { patchSectionId } from "@/domain/patch";
+import type { ArgUnit, RoundGraph } from "@/domain/flow";
 import { sectionContentHash } from "@/shared/draft-model";
 import type { SpeechDraftOutput } from "@/server/ai/schemas";
 
@@ -138,5 +140,124 @@ describe("sectionNodes", () => {
     expect(child.attrs!.crossApplyFrom).toBe("arg_9");
     expect(child.attrs!.priority).toBe(1);
     for (const n of nodes) expect(n.attrs!.appliedHash).toBe(sectionOwnHash(n));
+  });
+});
+
+describe("applyPatch: only what changed, placed by code", () => {
+  const a = (id: string, positionId: string, text: string): ArgUnit => ({ id, positionId, speech: "1NC", side: "neg", order: 1, text, role: "claim", cardIds: [], provenance: { type: "user_note", by: "u" }, delivery: "confirmed" });
+  const g: RoundGraph = {
+    ourSide: "aff",
+    positions: [
+      { id: "pol", kind: "da", name: "Politics DA", side: "neg", introducedIn: "1NC", order: 1 },
+      { id: "cp", kind: "cp", name: "States CP", side: "neg", introducedIn: "1NC", order: 2 },
+    ],
+    args: [a("n1", "pol", "Plan drains capital"), a("n2", "pol", "Bill passes now"), a("n3", "pol", "Capital is key"), a("c1", "cp", "States solve"), a("c2", "cp", "Avoids federal politics")],
+    relations: [],
+    decisions: [],
+  };
+  const draftDoc = (locked = false): PMNodeJSON => ({
+    type: "doc",
+    content: [
+      section("sec_pol", [heading("Politics DA"), section("sec_n1", [heading("1. No link", 4), para("They say capital. No link because the plan is bipartisan, so nothing is spent.")], { targets: ["n1"] })], { kind: "position", relation: "none", locked }),
+      section("sec_case", [heading("Case"), para("Extend the advantage because uninsurance kills.")], { kind: "position", relation: "none" }),
+    ],
+  });
+  type Add = PatchResult["output"]["adds"][number];
+  const add = (ref: string, targets: string[], extra: Partial<Add> = {}): Add => ({ ref, parentRef: "", anchor: "", kind: "response", title: `${ref}. Answer`, relation: "answers", targets, crossApplyFrom: "", role: "", analytic: `Answer ${ref} because reasons, so it matters.`, cardIds: [], needsEvidence: "", budgetSeconds: 10, priority: 2, ...extra });
+  const result = (output: Partial<PatchResult["output"]>, positions: Record<string, string>): PatchResult => ({
+    kind: "patch",
+    upToDate: false,
+    output: { summary: "", adds: [], retargets: [], edits: [], notAddressed: [], questions: [], ...output },
+    changes: { unanswered: [], uncertain: [], otherFlows: [], stale: [], vanished: [] },
+    titles: {},
+    addInfo: Object.fromEntries(Object.entries(positions).map(([ref, positionId]) => [ref, { positionId, where: "", seconds: 10 }])),
+    editInfo: {},
+    argHashes: { n1: "h1", n2: "h2", n3: "h3", c1: "hc1", c2: "hc2" },
+    positionNames: { pol: "Politics DA", cp: "States CP" },
+    previousSeconds: 0,
+    estimatedSeconds: 0,
+    limitSeconds: 480,
+    checks: [],
+    remaining: [],
+    dropped: { targets: 0, cards: 0, duplicates: [], linksInPlace: 0 },
+    run: null,
+  });
+  const opts = (selected: string[], extra: Partial<Parameters<typeof applyPatch>[2]> = {}) => ({ opKey: "aop_p", opId: "aop_p", selected: new Set(selected), prior: {}, cards: new Map(), graph: g, partnerSections: new Set<string>(), ...extra });
+  const hashes = (ed: Editor, ids: string[]) => ids.map((id) => sectionContentHash(findSectionNode(ed as never, id)!.node.toJSON() as PMNodeJSON));
+  const count = (ed: Editor, id: string) => (JSON.stringify(ed.getJSON()).match(new RegExp(`"id":"${id}"`, "g")) ?? []).length;
+
+  it("adds one answer under its position; every other section is untouched; applying again adds nothing", () => {
+    const ed = editor(draftDoc());
+    const before = hashes(ed, ["sec_n1", "sec_case"]);
+    const r = result({ adds: [add("a1", ["n2"])] }, { a1: "pol" });
+    const out = applyPatch(ed as never, r, opts(["add:a1"]));
+    expect(out["add:a1"]).toBe("applied");
+    const id = patchSectionId("aop_p", "a1");
+    const parent = findSectionNode(ed as never, "sec_pol")!.node;
+    const kids: string[] = [];
+    parent.forEach((c) => {
+      if (c.type.name === "section") kids.push(String(c.attrs.id));
+    });
+    expect(kids).toEqual(["sec_n1", id]);
+    expect(hashes(ed, ["sec_n1", "sec_case"])).toEqual(before);
+    const added = findSectionNode(ed as never, id)!.node.toJSON() as PMNodeJSON;
+    expect(added.attrs!.basis).toEqual({ n2: "h2" });
+    expect(added.attrs!.positionId).toBe("pol");
+    expect(isHumanEdited(added)).toBe(false);
+    const again = applyPatch(ed as never, r, opts(["add:a1"]));
+    expect(again["add:a1"]).toBe("applied");
+    expect(count(ed, id)).toBe(1);
+  });
+
+  it("puts the answer right after a locked position section instead of inside it", () => {
+    const ed = editor(draftDoc(true));
+    applyPatch(ed as never, result({ adds: [add("a1", ["n2"])] }, { a1: "pol" }), opts(["add:a1"]));
+    expect(ed.state.doc.child(0).attrs.id).toBe("sec_pol");
+    expect(ed.state.doc.child(1).attrs.id).toBe(patchSectionId("aop_p", "a1"));
+    expect(ed.state.doc.child(0).childCount).toBe(2);
+  });
+
+  it("gives a flow the draft doesn't engage one new position section, shared by its answers", () => {
+    const ed = editor(draftDoc());
+    const out = applyPatch(ed as never, result({ adds: [add("a1", ["c1"]), add("a2", ["c2"])] }, { a1: "cp", a2: "cp" }), opts(["add:a1", "add:a2"]));
+    expect(out).toMatchObject({ "add:a1": "applied", "add:a2": "applied" });
+    const wrapper = findSectionNode(ed as never, patchSectionId("aop_p", "pos:cp"))!.node;
+    expect(wrapper.attrs.kind).toBe("position");
+    expect(wrapper.firstChild!.textContent).toBe("States CP");
+    const inside: string[] = [];
+    wrapper.forEach((c) => {
+      if (c.type.name === "section") inside.push(String(c.attrs.id));
+    });
+    expect(inside).toEqual([patchSectionId("aop_p", "a1"), patchSectionId("aop_p", "a2")]);
+  });
+
+  it("skips a new answer to something the draft already answers (a partner got there first)", () => {
+    const ed = editor(draftDoc());
+    const before = JSON.stringify(ed.getJSON());
+    const out = applyPatch(ed as never, result({ adds: [add("a1", ["n1"])] }, { a1: "pol" }), opts(["add:a1"]));
+    expect(out["add:a1"]).toBe("answered");
+    expect(JSON.stringify(ed.getJSON())).toBe(before);
+  });
+
+  it("links are attribute-only: they work inside a locked section and stamp the basis", () => {
+    const ed = editor(draftDoc(true));
+    const out = applyPatch(ed as never, result({ retargets: [{ sectionId: "sec_n1", addTargets: ["n3"], removeTargets: [], reason: "same answer" }] }, {}), opts(["link:sec_n1"]));
+    expect(out["link:sec_n1"]).toBe("applied");
+    const n = findSectionNode(ed as never, "sec_n1")!.node;
+    expect(n.attrs.targets).toEqual(["n1", "n3"]);
+    expect(n.attrs.relation).toBe("group");
+    expect(n.attrs.basis).toEqual({ n3: "h3" });
+  });
+
+  it("edits refuse stale sections and sections the partner is typing in", () => {
+    const ed = editor(draftDoc());
+    const edit = { sectionId: "sec_case", title: "Case", analytic: "Extend the advantage because uninsurance kills 26,000 people a year.", cardIds: [], reason: "sharper" };
+    const r = result({ edits: [edit] }, {});
+    r.editInfo = { sec_case: { baseHash: "not-the-current-hash", share: 0.3, humanEdited: false, large: false, previousSeconds: 5, seconds: 6 } };
+    expect(applyPatch(ed as never, r, opts(["edit:sec_case"]))["edit:sec_case"]).toBe("stale");
+    expect(applyPatch(ed as never, r, opts(["edit:sec_case"], { partnerSections: new Set(["sec_case"]) }))["edit:sec_case"]).toBe("partner");
+    r.editInfo.sec_case.baseHash = hashes(ed, ["sec_case"])[0];
+    expect(applyPatch(ed as never, r, opts(["edit:sec_case"]))["edit:sec_case"]).toBe("applied");
+    expect(findSectionNode(ed as never, "sec_case")!.node.textContent).toContain("26,000");
   });
 });

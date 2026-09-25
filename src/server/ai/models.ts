@@ -17,6 +17,7 @@ export type AiTask =
   | "section_revise" // targeted rewrites (clarify / reword / condense / strengthen)
   | "section_alternatives"
   | "speech_fit" // whole-speech keep/condense/cut plan to fit the time limit
+  | "speech_patch" // update an existing draft: add answers to new arguments, relink, minimal edits
   | "coverage_review" // what's still missing, strategic risks
   | "card_cut" // select passages/highlights from stored source text
   | "card_support" // does the card support the tag
@@ -90,6 +91,11 @@ export const REGISTRY: Record<AiTask, TaskConfig> = {
   speech_fit: {
     primary: { model: MODELS.opus55, effort: "low", maxOutputTokens: 12000, firstChunkMs: 30000 },
     fallbacks: [{ model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 12000 }],
+  },
+  // Mid-round updates: the same strategic tier as fast drafting, but the output is only the changes.
+  speech_patch: {
+    primary: { model: MODELS.opus55, effort: "low", maxOutputTokens: 12000, firstChunkMs: 30000 },
+    fallbacks: [{ model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 12000, firstChunkMs: 30000 }],
   },
   section_alternatives: {
     primary: { model: MODELS.opus55, effort: "low", maxOutputTokens: 8000, firstChunkMs: 30000 },

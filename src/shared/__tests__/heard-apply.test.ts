@@ -68,4 +68,45 @@ describe("applyHeard", () => {
     expect(readArgs(doc).filter((a) => a.provenance.type === "heard").map((a) => a.id)).toEqual([edited]);
     expect(heardLines(doc, "2NC").every((l) => l.status === "unflowed")).toBe(true);
   });
+
+  it("an edited line is re-read in place: same argument, new words, on the flow again; undo restores the old reading", () => {
+    const doc = setup();
+    applyHeard(doc, { speech: "2NC", side: "neg", lines: parseAll(doc), opId: null, by: "u1" });
+    const before = readArgs(doc).find((a) => a.text === "alt causes - china")!;
+    const t = doc.getText(heardKey("2NC", "u1"));
+    applyTextDiff(t, t.toString().replace("alt causes - china", "alt causes - china and india"));
+    expect(heardLines(doc, "2NC").find((l) => l.text.startsWith("alt causes"))!.status).toBe("changed");
+    const r = applyHeard(doc, { speech: "2NC", side: "neg", lines: parseAll(doc), opId: "aop_e", by: "u1" });
+    expect(r.created).toEqual([]);
+    expect(r.updated!.map((u) => u.id)).toEqual([before.id]);
+    const after = readArgs(doc).filter((a) => a.provenance.type === "heard");
+    expect(after).toHaveLength(3);
+    expect(after.find((a) => a.id === before.id)).toMatchObject({ text: "alt causes - china and india", positionId: before.positionId });
+    expect(heardLines(doc, "2NC").every((l) => l.status === "flowed")).toBe(true);
+    revertHeard(doc, r);
+    expect(readArgs(doc).find((a) => a.id === before.id)!.text).toBe("alt causes - china");
+    expect(heardLines(doc, "2NC").find((l) => l.text.startsWith("alt causes"))!.status).toBe("changed");
+  });
+
+  it("a line added later under a header joins that header's position, not an unsorted one", () => {
+    const doc = setup();
+    applyHeard(doc, { speech: "2NC", side: "neg", lines: parseAll(doc), opId: null, by: "u1" });
+    const t = doc.getText(heardKey("2NC", "u1"));
+    applyTextDiff(t, t.toString().replace("2. perm doesn't solve, condo fine (analytic)", "2. perm doesn't solve, condo fine (analytic)\n3. link - plan costs capital"));
+    // Only the new line is sent (as the pad does); the parser alone doesn't know the header above it.
+    const lines = heardLines(doc, "2NC").filter((l) => l.status !== "flowed").map((l) => ({ key: l.textKey, line: l.line, text: l.text }));
+    expect(lines.map((l) => l.text)).toEqual(["3. link - plan costs capital"]);
+    const r = applyHeard(doc, { speech: "2NC", side: "neg", lines: parsedToValidated(parseHeard(lines, { positions: [] }), lines), opId: null, by: "u1" });
+    expect(r.positions).toEqual([]);
+    expect(readArgs(doc).find((a) => a.id === r.created[0])!.positionId).toBe("pos_pol");
+  });
+
+  it("a line flowed again after an undo comes back", () => {
+    const doc = setup();
+    const r = applyHeard(doc, { speech: "2NC", side: "neg", lines: parseAll(doc), opId: "aop_y", by: "u1" });
+    revertHeard(doc, r);
+    expect(readArgs(doc).filter((a) => a.provenance.type === "heard")).toHaveLength(0);
+    applyHeard(doc, { speech: "2NC", side: "neg", lines: parseAll(doc), opId: "aop_z", by: "u1" });
+    expect(readArgs(doc).filter((a) => a.provenance.type === "heard")).toHaveLength(3);
+  });
 });

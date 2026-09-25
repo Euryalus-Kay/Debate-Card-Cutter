@@ -58,6 +58,21 @@ export async function flushDoc(docId: string): Promise<void> {
   if (hit) await hit.sync.flush().catch(() => {});
 }
 
+/**
+ * Send pending edits and pull everyone else's now, waiting at most `timeoutMs`
+ * (offline, the local copy is used as is). Used before applying AI changes so
+ * they land on the latest version of the document.
+ */
+export async function syncDocNow(docId: string, timeoutMs = 4000): Promise<void> {
+  const hit = registry.get(docId);
+  if (!hit) return;
+  const round = hit.sync
+    .flush()
+    .then(() => hit.sync.sync())
+    .catch(() => {});
+  await Promise.race([round, new Promise((r) => setTimeout(r, timeoutMs))]);
+}
+
 /** Send pending edits for every open document, then stop syncing (sign-out). */
 export async function flushAndStopAll(): Promise<void> {
   await Promise.all([...registry.values()].map((r) => r.sync.flush().catch(() => {})));

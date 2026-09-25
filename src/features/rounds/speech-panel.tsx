@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type * as Y from "yjs";
 import { Download, FilePlus2, Plus, Sparkles, CheckCircle2, Copy, Scissors, History } from "lucide-react";
@@ -12,7 +12,7 @@ import { getFormat, speechSeconds, SPEECH_IDS, SPEECHES, type SpeechId } from "@
 import type { RoundGraph } from "@/domain/flow";
 import { capRatesForJudge, estimate, formatClock } from "@/domain/timing";
 import { itemLoad, type DraftItem } from "@/shared/draft-model";
-import { prepUsedMs, readSlots, readTimers, updateSlot, type SlotRecord } from "@/shared/round-doc";
+import { prepUsedMs, readPrefs, readSlots, readTimers, updatePrefs, updateSlot, type SlotRecord } from "@/shared/round-doc";
 import { useRateProfile } from "@/client/use-settings";
 import type { RoundBundle, RoundRecord } from "./types";
 import { useWorkspace } from "./store";
@@ -25,7 +25,7 @@ import { EditorRoundCtx } from "./editor/context";
 import { EditorToolbar, SpeechEditorView, useSpeechEditor } from "./editor/speech-editor";
 import { useDraft } from "./draft-hooks";
 import { OpponentDocView } from "./docs-panel";
-import { GenerateDialog, runSectionAi, startFitOp } from "./ai-actions";
+import { GenerateDialog, runSectionAi, startFitOp, startPatchOp } from "./ai-actions";
 import { registerEditor } from "./editor/active-editor";
 
 export function SpeechPanel({
@@ -286,15 +286,66 @@ function OurSpeechView({ round, bundle, doc, graph, speech, aiEnabled, userId }:
           </div>
         </div>
       </div>
-      <GenerateDialog open={genOpen} onOpenChange={setGenOpen} round={round} speech={speech} draftDoc={draftDoc} editor={editor} graph={graph} />
+      <GenerateDialog open={genOpen} onOpenChange={setGenOpen} round={round} speech={speech} draftDoc={draftDoc} editor={editor} graph={graph} versions={drafts.length} />
       {ws.draftId ? <HistoryDialog draftId={ws.draftId} open={historyOpen} onOpenChange={setHistoryOpen} /> : null}
     </EditorRoundCtx.Provider>
   );
 }
 
+/**
+ * Live pre-drafting (A3): while they speak, each flow update adds answers to the
+ * new arguments to the draft of our next speech, as a suggestion to apply. At
+ * most one update a minute (the last one catches up), one at a time, and only
+ * from the browser that ran the flow update, so partners never double up.
+ */
+function usePredraft(round: RoundRecord, bundle: RoundBundle, doc: Y.Doc | null, speech: SpeechId, aiEnabled: boolean) {
+  const qc = useQueryClient();
+  const prefs = useYDocValue(doc, readPrefs);
+  const next = SPEECH_IDS.slice(SPEECH_IDS.indexOf(speech) + 1).find((s) => SPEECHES[s].side === round.ourSide) ?? null;
+  const target = next ? (bundle.drafts.find((d) => d.speech === next && !d.variant && d.status !== "delivered") ?? bundle.drafts.find((d) => d.speech === next && d.status !== "delivered")) : undefined;
+  const state = useRef({ running: false, last: 0, timer: null as ReturnType<typeof setTimeout> | null });
+  const on = !!prefs?.predraft && aiEnabled && !!next;
+
+  useEffect(() => {
+    const st = state.current;
+    return () => {
+      if (st.timer) clearTimeout(st.timer);
+    };
+  }, []);
+
+  async function run() {
+    const st = state.current;
+    st.timer = null;
+    if (st.running || !next) return;
+    st.running = true;
+    st.last = Date.now();
+    try {
+      let draftId = target?.id;
+      if (!draftId) {
+        const r = await api<{ id: string }>(`/api/rounds/${round.id}/drafts`, { method: "POST", json: { speech: next, title: `${next} draft` } });
+        await qc.invalidateQueries({ queryKey: ["round", round.id] });
+        draftId = r.id;
+      }
+      await startPatchOp({ round, speech: next, draftId, auto: true });
+    } finally {
+      st.running = false;
+    }
+  }
+
+  function onFlowUpdated(created: number) {
+    const st = state.current;
+    if (!on || created <= 0 || st.timer) return;
+    const wait = Math.max(0, 60_000 - (Date.now() - st.last));
+    st.timer = setTimeout(() => void run(), wait);
+  }
+
+  return { next, on, available: aiEnabled && !!next, toggle: () => doc && doc.transact(() => updatePrefs(doc, { predraft: !prefs?.predraft })), onFlowUpdated };
+}
+
 function OpponentSpeechView({ round, bundle, doc, speech, slots, aiEnabled, userId }: { round: RoundRecord; bundle: RoundBundle; doc: Y.Doc | null; speech: SpeechId; slots: Record<SpeechId, SlotRecord> | null; aiEnabled: boolean; userId: string }) {
   const uploads = bundle.uploads.filter((u) => u.attribution?.speech === speech);
   const slot = useYDocValue(doc, (d) => readSlots(d)[speech], [speech]) ?? slots?.[speech];
+  const predraft = usePredraft(round, bundle, doc, speech, aiEnabled);
   return (
     <div className="flex h-full flex-col overflow-y-auto">
       <div className="border-b border-line bg-elev px-4 py-3">
@@ -303,6 +354,13 @@ function OpponentSpeechView({ round, bundle, doc, speech, slots, aiEnabled, user
             Their {speech} <span className="font-normal text-muted">· {SPEECHES[speech].name}</span>
           </div>
           <div className="ml-auto flex gap-1.5">
+            {predraft.available ? (
+              <Tooltip content={`While they speak, each flow update adds answers to the new arguments to your ${predraft.next} draft, as a suggestion in the AI panel. Shared with your partner.`}>
+                <Button size="sm" variant={predraft.on ? "subtle" : "ghost"} onClick={predraft.toggle}>
+                  <Sparkles className="size-3.5" /> Pre-draft the {predraft.next}: {predraft.on ? "on" : "off"}
+                </Button>
+              </Tooltip>
+            ) : null}
             <Button
               size="sm"
               variant={slot?.status === "delivered" ? "subtle" : "secondary"}
@@ -317,7 +375,7 @@ function OpponentSpeechView({ round, bundle, doc, speech, slots, aiEnabled, user
             </Tooltip>
           </div>
         </div>
-        <div className="mt-3">{doc ? <HeardPad roundId={round.id} stateDocId={round.stateDocId} doc={doc} speech={speech} aiEnabled={aiEnabled} userId={userId} legacyNotes={slot?.notes ?? ""} /> : null}</div>
+        <div className="mt-3">{doc ? <HeardPad roundId={round.id} stateDocId={round.stateDocId} doc={doc} speech={speech} aiEnabled={aiEnabled} userId={userId} legacyNotes={slot?.notes ?? ""} onFlowUpdated={predraft.onFlowUpdated} /> : null}</div>
       </div>
       {uploads.length === 0 ? (
         <EmptyState title={`No ${speech} document`}>Add their speech document in the Docs tab on the right (upload .docx/.pdf or paste). It will be marked as documented, not confirmed delivered.</EmptyState>

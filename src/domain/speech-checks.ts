@@ -128,9 +128,11 @@ export function checkSpeech(input: { graph: RoundGraph; speech: SpeechId; sectio
     }
     if (s.relation === "cross_apply" && !s.crossApplyFrom) checks.push({ code: "cov3_cross_apply_source", severity: "warning", message: `"${s.title || "A section"}" cross-applies without saying which of our arguments it uses.`, sectionIds: [s.id] });
     if (s.relation === "extend") {
-      for (const a of t) {
-        if (a.side !== side) checks.push({ code: "ext2_not_ours", severity: "warning", message: `"${s.title}" extends an argument that isn't ours.`, sectionIds: [s.id] });
-        else if (!isRebuttalSource(a.speech, speech)) checks.push({ code: "ext2_source", severity: "warning", message: `"${s.title}" extends our ${a.speech} argument; extensions come from our previous speech on this flow.`, sectionIds: [s.id] });
+      // An extension may also link the arguments of theirs it answers; the extension checks look at ours.
+      const ours = t.filter((a) => a.side === side);
+      if (t.length && !ours.length) checks.push({ code: "ext2_not_ours", severity: "info", message: `"${s.title}" is an extension, but isn't linked to which of our arguments it extends.`, sectionIds: [s.id] });
+      for (const a of ours) {
+        if (!isRebuttalSource(a.speech, speech)) checks.push({ code: "ext2_source", severity: "warning", message: `"${s.title}" extends our ${a.speech} argument; extensions come from our previous speech on this flow.`, sectionIds: [s.id] });
         if (a.role === "link_turn") {
           const nu = sections.some((o) => o.relation === "extend" && targetsOf(o).some((b) => b.positionId === a.positionId && b.role === "non_unique"));
           if (!nu) checks.push({ code: "ext3_link_turn_nonunique", severity: "warning", message: `Extending the link turn on ${nameOf(a.positionId)} without non-uniqueness: it may not be offense.`, sectionIds: [s.id] });
@@ -156,8 +158,10 @@ export function checkSpeech(input: { graph: RoundGraph; speech: SpeechId; sectio
   for (const s of sections) {
     if (s.kind === "position" || s.kind === "overview") continue;
     const isPerm = s.role === "perm" || /\bperm(utation)?\b/i.test(s.title);
+    // Defending the perm against their answers ("perm fails", "perm severs") isn't making one.
+    const defendsPerm = targetsOf(s).some((a) => a.side !== side && /\bperm/i.test(a.text));
     const text = s.analytic.trim();
-    if (isPerm && (words(text) < 12 || !/\b(net benefit|avoid|solve|shield|link|both|compet)/i.test(text))) checks.push({ code: "bare_perm", severity: "warning", message: `"${s.title}" is a bare perm: say what it does and why it avoids their net benefit.`, sectionIds: [s.id] });
+    if (isPerm && !defendsPerm && (words(text) < 12 || !/\b(net benefit|avoid|solve|shield|link|both|compet)/i.test(text))) checks.push({ code: "bare_perm", severity: "warning", message: `"${s.title}" is a bare perm: say what it does and why it avoids their net benefit.`, sectionIds: [s.id] });
     else if (text && !s.cardCites.length && (words(text) < 10 || !WARRANT.test(text)) && s.relation !== "extend") checks.push({ code: "analytic_no_warrant", severity: "info", message: `"${s.title || "An analytic"}" needs a reason ("because …") and what it means for the round.`, sectionIds: [s.id] });
   }
 

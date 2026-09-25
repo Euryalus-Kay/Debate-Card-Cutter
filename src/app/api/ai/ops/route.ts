@@ -11,7 +11,7 @@ import { handle, HttpError, requireAccess, requireUser } from "@/server/authz";
 import { db } from "@/server/db/client";
 import { aiOperations, documents, rounds } from "@/server/db/schema";
 import { newId } from "@/server/ids";
-import { draftSpeech, extractFlow, fitSpeech, interpretFlow, reviseSection, type SectionAction } from "@/server/ai/ops";
+import { draftSpeech, extractFlow, fitSpeech, interpretFlow, patchSpeech, reviseSection, type SectionAction } from "@/server/ai/ops";
 import { AiRunError } from "@/server/ai/run";
 import { aiAllowed } from "@/server/ai/policy";
 import { ratesForSpeech } from "@/server/speakers";
@@ -20,7 +20,7 @@ import { SPEECH_IDS, type SpeechId } from "@/domain/format";
 export const maxDuration = 300;
 
 const Body = z.object({
-  kind: z.enum(["draft_speech", "revise_section", "interpret_flow", "fit_speech", "extract_flow"]),
+  kind: z.enum(["draft_speech", "revise_section", "interpret_flow", "fit_speech", "extract_flow", "patch_speech"]),
   roundId: z.string(),
   speech: z.enum(SPEECH_IDS as unknown as [string, ...string[]]),
   draftId: z.string().nullable().optional(),
@@ -31,6 +31,8 @@ const Body = z.object({
   evidenceMode: z.enum(["selected_only", "selected_plus_library"]).default("selected_plus_library"),
   instructions: z.string().max(4000).default(""),
   targetSeconds: z.number().min(5).max(600).optional(),
+  /** started automatically (live pre-drafting) rather than by a click */
+  auto: z.boolean().optional(),
 });
 
 
@@ -68,7 +70,7 @@ export const POST = handle(async (req: Request) => {
       roundId: input.roundId,
       docId: input.draftId ?? null,
       kind: input.kind === "revise_section" ? `revise:${input.action}` : input.kind,
-      target: { speech: input.speech, sectionId: input.sectionId ?? null },
+      target: { speech: input.speech, sectionId: input.sectionId ?? null, ...(input.auto ? { auto: true } : {}) },
       instruction: input.instructions,
       mode: input.mode,
       status: "streaming",
@@ -147,15 +149,32 @@ export const POST = handle(async (req: Request) => {
           onPartial,
           abortSignal: abort.signal,
         });
+      } else if (input.kind === "patch_speech") {
+        if (!input.draftId) throw new HttpError(400, "Missing draft.");
+        result = await patchSpeech({
+          roundId: input.roundId,
+          speech: input.speech as SpeechId,
+          draftId: input.draftId,
+          instructions: input.instructions,
+          cardIds: input.cardIds,
+          evidenceMode: input.evidenceMode,
+          rates,
+          teamId,
+          onPartial,
+          onStatus: (s) => sink.push?.({ t: "status", data: s }),
+          abortSignal: abort.signal,
+        });
       } else if (input.kind === "extract_flow") {
         result = await extractFlow({ roundId: input.roundId, speech: input.speech as SpeechId, teamId, userId: u.id, onPartial, onStatus: (s) => sink.push?.({ t: "status", data: s }), abortSignal: abort.signal });
       } else {
         result = await interpretFlow({ roundId: input.roundId, speech: input.speech as SpeechId, teamId, userId: u.id, onPartial, abortSignal: abort.signal });
       }
-      const r = result as { run?: { model?: string; usage?: unknown; ttftMs?: number | null; totalMs?: number }; contextRefs?: unknown };
+      const r = result as { run?: { model?: string; usage?: unknown; ttftMs?: number | null; totalMs?: number } | null; contextRefs?: unknown; upToDate?: boolean };
+      // An update with nothing to change has nothing to apply: it doesn't wait in anyone's panel.
+      const nothingToApply = input.kind === "patch_speech" && r.upToDate;
       await db()
         .update(aiOperations)
-        .set({ status: "complete", output: result as never, model: r.run?.model ?? "", usage: { ...(r.run ?? {}) } as never, contextRefs: (r.contextRefs ?? {}) as never, partialText: "", updatedAt: new Date() })
+        .set({ status: "complete", output: result as never, model: r.run?.model ?? "", usage: { ...(r.run ?? {}) } as never, contextRefs: (r.contextRefs ?? {}) as never, partialText: "", updatedAt: new Date(), ...(nothingToApply ? { dismissedAt: new Date() } : {}) })
         .where(eq(aiOperations.id, opId));
       sink.push?.({ t: "done", data: result });
     } catch (e) {

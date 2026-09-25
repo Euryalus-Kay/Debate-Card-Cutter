@@ -10,21 +10,22 @@ import { rounds } from "@/server/db/schema";
 import { applyServerChange, loadDoc } from "@/server/docs/store";
 import { upsertArg, upsertRelation } from "@/shared/round-doc";
 import { readArgs, readRelations } from "@/shared/round-doc";
-import { computeCoverage, positionsAvailableFor2NR, type DraftTarget } from "@/domain/flow";
+import { computeCoverage, isLive, positionsAvailableFor2NR, type ArgUnit, type DraftTarget } from "@/domain/flow";
 import { isBefore, isRebuttal, SPEECHES, speechesToAnswer as speechesToAnswerFor, type SpeechId } from "@/domain/format";
 import { addLoads, countWords, estimateSeconds, presetProfile, type RateProfile } from "@/domain/timing";
 import { cardLoad } from "@/domain/card";
 import { acceptRewrites, allocateWordChange } from "@/domain/length-plan";
-import { allSections, itemLoad, sectionContentHash, type DraftItem, type DraftSection, type PMNodeJSON } from "@/shared/draft-model";
+import { allSections, isHumanEdited, itemLoad, sectionContentHash, type DraftItem, type DraftSection, type PMNodeJSON } from "@/shared/draft-model";
 import { buildRoundContext, renderDraft, type RoundContext } from "./context";
 import { draftTargetsFromDraft } from "./draft-targets";
 import { checkSections, checkSpeech, type CheckSection, type SpeechCheck } from "@/domain/speech-checks";
 import { GLOBAL_RULES, SPEECH_RULES } from "./speech-rules";
 import { runStructured, type RunResult } from "./run";
 import { MODELS } from "./models";
-import { AlternativesSchema, FitPlanSchema, TopUpSchema, FlowExtractSchema, type FlowExtractOutput, FlowInterpretSchema, SectionRevisionSchema, SpeechDraftSchema, type AlternativesOutput, type FitPlanOutput, type FlowInterpretOutput, type SectionRevisionOutput, type SpeechDraftOutput } from "./schemas";
+import { AlternativesSchema, FitPlanSchema, TopUpSchema, FlowExtractSchema, type FlowExtractOutput, FlowInterpretSchema, PatchPlanSchema, type PatchPlanOutput, SectionRevisionSchema, SpeechDraftSchema, type AlternativesOutput, type FitPlanOutput, type FlowInterpretOutput, type SectionRevisionOutput, type SpeechDraftOutput } from "./schemas";
+import { alreadyAnswered, argBasisHash, changedShare, changeSet, isUpToDate, patchSections, placeAnswer, type ChangeSet, type Placement } from "@/domain/patch";
 import { newId } from "@/server/ids";
-import { heardLines, readGraph, type HeardLine } from "@/shared/round-doc";
+import { heardLines, readGraph, readHeardMarks, type HeardLine } from "@/shared/round-doc";
 import { applyHeard, parsedToValidated, type HeardApplyResult } from "@/shared/heard-apply";
 import { parseHeard } from "@/domain/heard-parse";
 import { validateExtraction, type ExtractLine } from "@/domain/flow-extract";
@@ -604,6 +605,356 @@ Return one plan entry for every section id above.`;
   };
 }
 
+// ---------------------------------------------------------------------------
+// Update an existing draft (A3): only what changed
+// ---------------------------------------------------------------------------
+
+export interface PatchInput {
+  roundId: string;
+  speech: SpeechId;
+  draftId: string;
+  instructions: string;
+  cardIds: string[];
+  evidenceMode: "selected_only" | "selected_plus_library";
+  rates?: RateProfile | null;
+  teamId: string;
+  onPartial?: (p: unknown) => void;
+  onStatus?: (s: string) => void;
+  abortSignal?: AbortSignal;
+  /** benchmark override of the model chain */
+  models?: import("./models").ModelSpec[];
+}
+
+export interface PatchRetarget {
+  sectionId: string;
+  addTargets: string[];
+  /** links to arguments no longer on the flow (added by code, never by the model) */
+  removeTargets: string[];
+  reason: string;
+}
+
+export interface PatchEditInfo {
+  /** sectionContentHash when the update was planned; a different hash at apply time means someone edited it since */
+  baseHash: string;
+  /** share of the section's words the edit changes (0–1) */
+  share: number;
+  /** the team wrote this section or changed it after the AI did */
+  humanEdited: boolean;
+  /** rewrites more than half of the section although the argument it answers didn't change */
+  large: boolean;
+  previousSeconds: number;
+  seconds: number;
+}
+
+export type PatchOutput = Omit<PatchPlanOutput, "retargets"> & { retargets: PatchRetarget[] };
+
+const PATCH_TASK = `TASK: UPDATE THE DRAFT, DON'T REWRITE IT. The team already has a draft of this speech. New arguments came in, an argument changed, or the team has a new idea. Change only what that needs:
+- A new argument that an existing section already answers as written: link it to that section (retargets). Never write a second answer to something already answered.
+- A new argument nothing answers: add a section that answers it (adds), written like the draft's other answers (a numbered label, the claim against their specific warrant, because, so what). Set anchor to the id of the existing section that holds that position's answers; code places it. A whole new position gets one new section of kind "position" with its answers as children (their parentRef = its ref).
+- Edit an existing section only when its answer no longer fits (the argument it answers changed) or the team asks. Keep every sentence that still works; never rewrite for style.
+- Never edit a LOCKED section. Leave sections the team wrote or edited alone unless the team's instruction is about them; add a new section instead.
+- Don't touch anything unrelated to the change, and don't re-answer what the draft already covers.
+- New sections cost speaking time: keep them tight, and read a card only when the answer needs evidence and the card is provided (by id). If the speech would run over, say what to cut in questions; don't cut here.`;
+
+function sectionJsonById(json: PMNodeJSON | null): Map<string, PMNodeJSON> {
+  const out = new Map<string, PMNodeJSON>();
+  const walk = (n: PMNodeJSON) => {
+    if (n.type === "section" && typeof n.attrs?.id === "string") out.set(n.attrs.id, n);
+    for (const c of n.content ?? []) walk(c);
+  };
+  if (json) walk(json);
+  return out;
+}
+
+function renderForPatch(items: DraftItem[], json: Map<string, PMNodeJSON>, rates: RateProfile, graph: RoundContext["graph"], depth = 0): string[] {
+  const lines: string[] = [];
+  const pad = "  ".repeat(depth);
+  const argById = new Map(graph.args.map((a) => [a.id, a]));
+  for (const it of items) {
+    if (it.type !== "section") continue;
+    const s = it.section;
+    const j = json.get(s.id);
+    const by = s.origin !== "ai" ? "team" : j && isHumanEdited(j) ? "ai, edited by team" : "ai";
+    lines.push(`${pad}<section id="${s.id}" own="${Math.round(ownSeconds(s, rates))}s"${s.locked ? " LOCKED" : ""} by="${by}"${s.relation !== "none" ? ` relation="${s.relation}"` : ""}${s.role ? ` role="${s.role}"` : ""}>`);
+    if (s.title) lines.push(`${pad}  # ${s.title}`);
+    if (s.targets.length) {
+      const list = s.targets.map((t) => {
+        const a = argById.get(t);
+        return a ? `[${t}] ${a.speech} "${a.text.slice(0, 90)}"` : `[${t}] (no longer on the flow)`;
+      });
+      lines.push(`${pad}  ${s.relation === "extend" ? "extends" : "answers"}: ${list.join("; ")}`);
+    }
+    for (const x of s.items) {
+      if (x.type === "paragraph" && x.text.trim()) lines.push(`${pad}  ${x.text}`);
+      if (x.type === "card") lines.push(`${pad}  [card ${x.cardId ?? "unsaved"}] ${x.tag} — ${x.shortCite} (~${Math.round(estimateSeconds(itemLoad(x), rates.rates))}s)`);
+      if (x.type === "note" && x.text.trim()) lines.push(`${pad}  (team note, not read: ${x.text})`);
+    }
+    lines.push(...renderForPatch(s.items, json, rates, graph, depth + 1));
+    lines.push(`${pad}</section>`);
+  }
+  return lines;
+}
+
+function renderChanges(cs: ChangeSet, graph: RoundContext["graph"]): string {
+  const pos = new Map(graph.positions.map((p) => [p.id, p.name]));
+  const argById = new Map(graph.args.map((a) => [a.id, a]));
+  const line = (a: ArgUnit) =>
+    `- [${a.id}] (${pos.get(a.positionId) ?? "?"}) ${a.speech}${a.label ? ` ${a.label}.` : ""} ${a.text}${a.evidence === "analytic" ? " {analytic}" : a.cites?.length ? ` (${a.cites.join(", ")})` : ""}${a.provenance.type === "heard" && a.provenance.quote !== a.text ? ` {as heard: "${a.provenance.quote}"}` : ""}`;
+  const out: string[] = [];
+  if (cs.unanswered.length) out.push(`New arguments nothing in the draft answers yet (answer or link each; group only where one answer truly covers them; anything you leave, list in notAddressed with the reason):`, ...cs.unanswered.map(line));
+  if (cs.uncertain.length) out.push(`Possibly said (low-confidence readings): answer only if it's cheap, otherwise ask in questions:`, ...cs.uncertain.map(line));
+  if (cs.stale.length) out.push(`Answers written before the argument's words changed (edit only if the answer no longer fits):`, ...cs.stale.map((s) => `- section [${s.sectionId}] "${s.title}" answers ${s.argIds.map((id) => `[${id}], now "${argById.get(id)?.text.slice(0, 140) ?? ""}"`).join("; ")}`));
+  if (cs.vanished.length) out.push(`Sections linked to arguments no longer on the flow (code removes the links; say in questions if a section should go):`, ...cs.vanished.map((v) => `- section [${v.sectionId}] "${v.title}" → ${v.argIds.map((id) => `[${id}]`).join(", ")}`));
+  if (cs.otherFlows.length) out.push(`Unanswered on flows this speech doesn't go for (don't answer unless the team asks; a final rebuttal collapses):`, ...cs.otherFlows.slice(0, 20).map(line));
+  return out.join("\n") || "(nothing new on the flow)";
+}
+
+function summarizeChanges(cs: ChangeSet, graph: RoundContext["graph"]) {
+  const pos = new Map(graph.positions.map((p) => [p.id, p.name]));
+  const arg = (a: ArgUnit) => ({ id: a.id, text: a.text, position: pos.get(a.positionId) ?? "", speech: a.speech });
+  return { unanswered: cs.unanswered.map(arg), uncertain: cs.uncertain.map(arg), otherFlows: cs.otherFlows.map(arg), stale: cs.stale, vanished: cs.vanished };
+}
+
+/**
+ * Update a draft for what changed: new arguments get answers (or links to the
+ * section that already answers them), answers to arguments whose words changed
+ * get minimal edits, and nothing else is touched. The model only proposes;
+ * code validates every id, drops duplicate answers, decides placement, and the
+ * browser applies with lock, staleness and partner checks.
+ */
+export async function patchSpeech(input: PatchInput) {
+  const round = await roundFor(input.roundId);
+  if (SPEECHES[input.speech].side !== round.ourSide) throw new Error("Only your own speeches can be updated.");
+  const ctx = await buildRoundContext(input.roundId, { speech: input.speech, draftId: input.draftId, cardIds: input.cardIds, evidenceMode: input.evidenceMode, instructions: input.instructions, rates: input.rates ?? presetProfile("fast"), omitDraftText: true });
+  if (!ctx.draft || !ctx.draftJson) throw new Error("Open a draft to update.");
+  const rates = ctx.rates;
+  const instructions = input.instructions.trim();
+  const cs = changeSet({ graph: ctx.graph, speech: input.speech, draft: ctx.draft, recorded: ctx.recorded });
+  const json = sectionJsonById(ctx.draftJson);
+  const previousSeconds = Math.round(estimateSeconds(addLoads(...ctx.draft.items.map(itemLoad)), rates.rates));
+  const titles = Object.fromEntries(allSections(ctx.draft).map((s) => [s.id, s.title]));
+  const base = { kind: "patch" as const, changes: summarizeChanges(cs, ctx.graph), titles, previousSeconds, limitSeconds: ctx.limitSeconds, contextRefs: { ...ctx.refs, draftHash: sectionContentHash(ctx.draftJson) } };
+  if (isUpToDate(cs) && !instructions) {
+    const extra = [cs.uncertain.length ? `${cs.uncertain.length} low-confidence reading${cs.uncertain.length === 1 ? "" : "s"} to confirm on the flow` : "", cs.otherFlows.length ? `${cs.otherFlows.length} unanswered on flows this speech doesn't go for` : ""].filter(Boolean);
+    const output: PatchOutput = { summary: `The draft already answers everything new on the flow${extra.length ? ` (${extra.join("; ")})` : ""}.`, adds: [], retargets: [], edits: [], notAddressed: [], questions: [] };
+    const none = {
+      addInfo: {} as Record<string, { positionId: string | null; where: string; seconds: number }>,
+      editInfo: {} as Record<string, PatchEditInfo>,
+      argHashes: {} as Record<string, string>,
+      positionNames: {} as Record<string, string>,
+      checks: [] as SpeechCheck[],
+      remaining: [] as { id: string; text: string }[],
+      dropped: { targets: 0, cards: 0, duplicates: [] as string[], linksInPlace: 0 },
+    };
+    return { ...base, upToDate: true, output, ...none, estimatedSeconds: previousSeconds, run: null };
+  }
+  const n = cs.unanswered.length;
+  input.onStatus?.(n ? `Answering ${n} new argument${n === 1 ? "" : "s"}` : instructions ? "Working in your instruction" : "Updating changed answers");
+
+  const system = `${SYSTEM_BASE}\n\nSPEECH BEING PREPARED\n${SPEECH_RULES[input.speech]}\n\n${PATCH_TASK}`;
+  const prompt = `Update the ${input.speech} for the ${round.ourSide.toUpperCase()}.
+The draft runs ~${previousSeconds} s of ${Math.round(ctx.limitSeconds)} s. This speaker reads analytics at about ${Math.round(rates.rates.analyticWpm)} words per minute (${(rates.rates.analyticWpm / 6).toFixed(0)} words per 10 seconds).
+${instructions ? `Team instruction for this update: ${instructions}` : "No extra instructions: cover what changed."}
+
+CURRENT DRAFT (section ids in brackets; own = seconds of the section's own words and cards)
+${renderForPatch(ctx.draft.items, json, rates, ctx.graph).join("\n") || "(empty)"}
+
+WHAT CHANGED
+${renderChanges(cs, ctx.graph)}
+
+Return only the changes: adds, retargets, edits. Leave everything else out.`;
+
+  const fake = (): PatchPlanOutput => ({
+    summary: `[AI_FAKE] Answers ${cs.unanswered.length} new argument${cs.unanswered.length === 1 ? "" : "s"}.`,
+    adds: cs.unanswered.map((a, i) => ({
+      ref: `n${i + 1}`,
+      parentRef: "",
+      anchor: "",
+      kind: "response" as const,
+      title: `${i + 1}. No link — ${a.text.slice(0, 40)}`,
+      relation: "answers" as const,
+      targets: [a.id],
+      crossApplyFrom: "",
+      role: "no_link" as const,
+      analytic: `[AI_FAKE] They say ${a.text.slice(0, 60)}. That doesn't apply because their evidence is about the status quo, not the plan, so it can't be a reason to vote against us.`,
+      cardIds: [],
+      needsEvidence: "",
+      budgetSeconds: 15,
+      priority: 2,
+    })),
+    retargets: [],
+    edits: [],
+    notAddressed: [],
+    questions: [],
+  });
+  const res = await runStructured({ task: "speech_patch", system, context: ctx.text, prompt, schema: PatchPlanSchema, onPartial: input.onPartial, abortSignal: input.abortSignal, teamId: input.teamId, models: input.models, fake });
+  input.onStatus?.("Checking the update");
+  return { ...base, upToDate: false, ...validatePatch(res.output, ctx, cs, json, input.speech, instructions, previousSeconds), run: meta(res) };
+}
+
+function validatePatch(out: PatchPlanOutput, ctx: RoundContext, cs: ChangeSet, json: Map<string, PMNodeJSON>, speech: SpeechId, instructions: string, previousSeconds: number) {
+  const { graph, rates } = ctx;
+  const argById = new Map(graph.args.map((a) => [a.id, a]));
+  const pool = new Set(ctx.cards.map((c) => c.id));
+  const sections = patchSections(ctx.draft);
+  const secById = new Map(sections.map((s) => [s.id, s]));
+  const draftSecById = new Map(allSections(ctx.draft!).map((s) => [s.id, s]));
+  let droppedTargets = 0;
+  let droppedCards = 0;
+  const duplicates: string[] = [];
+
+  // Retargets: known sections, live arguments not already linked. Links to vanished arguments are removed by code.
+  const retargets = new Map<string, PatchRetarget>();
+  let linksInPlace = 0;
+  for (const r of out.retargets) {
+    const s = secById.get(r.sectionId);
+    if (!s) continue;
+    const add = r.addTargets.filter((t) => argById.has(t) && isLive(argById.get(t)!) && !s.targets.includes(t));
+    if (!add.length) {
+      if (r.addTargets.some((t) => s.targets.includes(t))) linksInPlace++;
+      continue;
+    }
+    const cur = retargets.get(s.id) ?? { sectionId: s.id, addTargets: [], removeTargets: [], reason: r.reason };
+    cur.addTargets = [...new Set([...cur.addTargets, ...add])];
+    retargets.set(s.id, cur);
+  }
+  for (const v of cs.vanished) {
+    const cur = retargets.get(v.sectionId) ?? { sectionId: v.sectionId, addTargets: [], removeTargets: [], reason: "The argument it answered is no longer on the flow." };
+    cur.removeTargets = [...new Set([...cur.removeTargets, ...v.argIds])];
+    retargets.set(v.sectionId, cur);
+  }
+  const linked = sections.map((s) => {
+    const r = retargets.get(s.id);
+    return r ? { ...s, targets: [...s.targets.filter((t) => !r.removeTargets.includes(t)), ...r.addTargets] } : s;
+  });
+
+  // Adds: unique refs, known ids only, no parent cycles, no second answer to something already answered.
+  const seen = new Set<string>();
+  let adds = out.adds.map((a, i) => {
+    let ref = (a.ref || `n${i + 1}`).trim();
+    while (seen.has(ref)) ref = `${ref}_${i}`;
+    seen.add(ref);
+    const targets = a.targets.filter((t) => argById.has(t) || (droppedTargets++, false));
+    const cardIds = a.cardIds.filter((c) => pool.has(c) || (droppedCards++, false));
+    return { ...a, ref, targets, cardIds, anchor: secById.has(a.anchor) ? a.anchor : "" };
+  });
+  const refs = new Set(adds.map((a) => a.ref));
+  adds = adds.map((a) => ({ ...a, parentRef: a.parentRef && a.parentRef !== a.ref && refs.has(a.parentRef) ? a.parentRef : "" }));
+  const parentOf = new Map(adds.map((a) => [a.ref, a.parentRef]));
+  for (const a of adds) {
+    let cur = a.parentRef;
+    for (let steps = 0; cur && steps <= adds.length; steps++) {
+      if (cur === a.ref) {
+        a.parentRef = "";
+        parentOf.set(a.ref, "");
+        break;
+      }
+      cur = parentOf.get(cur) ?? "";
+    }
+  }
+  if (!instructions) {
+    const keep = adds.filter((a) => {
+      const dup = a.relation !== "extend" && a.relation !== "new" && alreadyAnswered(linked, graph, a.targets);
+      if (dup) duplicates.push(a.title || a.ref);
+      return !dup;
+    });
+    const kept = new Set(keep.map((a) => a.ref));
+    adds = keep.map((a) => (a.parentRef && !kept.has(a.parentRef) ? { ...a, parentRef: "" } : a));
+  }
+  // Containers whose answers were all dropped, and sections with nothing to say, go too.
+  for (let pass = 0; pass < 3; pass++) {
+    const hasKids = new Set(adds.map((a) => a.parentRef).filter(Boolean));
+    adds = adds.filter((a) => a.analytic.trim() || a.cardIds.length || a.needsEvidence.trim() || hasKids.has(a.ref) || (a.title.trim() && a.targets.length));
+  }
+
+  // Where each new section goes (the browser re-decides on the live draft when applying).
+  const addByRef = new Map(adds.map((a) => [a.ref, a]));
+  const posOfTargets = (targets: string[]) => targets.map((t) => argById.get(t)?.positionId).find((p): p is string => !!p) ?? null;
+  const positionOf = (a: (typeof adds)[number]): string | null => {
+    let p = posOfTargets(a.targets);
+    for (let cur = a, steps = 0; !p && cur.parentRef && steps < 10; steps++) {
+      const parent = addByRef.get(cur.parentRef);
+      if (!parent) break;
+      p = posOfTargets(parent.targets);
+      cur = parent;
+    }
+    if (!p) p = posOfTargets(adds.filter((k) => k.parentRef === a.ref).flatMap((k) => k.targets));
+    if (!p && a.anchor) {
+      const anc = secById.get(a.anchor)!;
+      p = anc.positionId ?? posOfTargets(anc.targets);
+    }
+    return p;
+  };
+  const addInfo: Record<string, { positionId: string | null; where: string; seconds: number }> = {};
+  for (const a of adds) {
+    const positionId = positionOf(a);
+    let where = "";
+    if (!a.parentRef) {
+      const place: Placement = placeAnswer(linked, graph, positionId, a.anchor);
+      const title = (id: string) => `“${secById.get(id)?.title || "a section"}”`;
+      where = "under" in place ? `under ${title(place.under)}` : "after" in place ? `after ${title(place.after)}` : a.kind === "position" || !positionId ? "at the end" : `at the end, as a new ${graph.positions.find((p) => p.id === positionId)?.name ?? "position"} section`;
+    }
+    addInfo[a.ref] = { positionId, where, seconds: Math.round(estimateSection(a.analytic, a.title, a.cardIds, ctx, rates)) };
+  }
+
+  // Edits: known, unlocked sections, with the section's own cards or provided ones; how much they change.
+  const lockedAround = (id: string) => {
+    for (let cur = secById.get(id); cur; cur = cur.parentId ? secById.get(cur.parentId) : undefined) if (cur.locked) return true;
+    const node = draftSecById.get(id);
+    return !!node && allSections(node).some((c) => c.locked);
+  };
+  const editInfo: Record<string, PatchEditInfo> = {};
+  const edits: PatchOutput["edits"] = [];
+  for (const e of out.edits) {
+    const s = draftSecById.get(e.sectionId);
+    const j = json.get(e.sectionId);
+    if (!s || !j || editInfo[s.id] || lockedAround(s.id)) continue;
+    const own = new Set(s.items.filter((i) => i.type === "card").map((i) => (i as { cardId: string | null }).cardId).filter((x): x is string => !!x));
+    const cardIds = e.cardIds.filter((c) => own.has(c) || pool.has(c));
+    const analytic = e.analytic.trim();
+    if (!analytic && !cardIds.length) continue;
+    const before = s.items
+      .filter((i) => i.type === "paragraph")
+      .map((i) => (i as { text: string }).text)
+      .join("\n\n");
+    const title = e.title.trim() || s.title;
+    const share = changedShare(before, analytic);
+    const sameCards = cardIds.length === own.size && cardIds.every((c) => own.has(c));
+    if (share === 0 && title === s.title && sameCards) continue;
+    const argChanged = cs.stale.some((x) => x.sectionId === s.id);
+    editInfo[s.id] = { baseHash: sectionContentHash(j), share: Math.round(share * 100) / 100, humanEdited: isHumanEdited(j), large: share > 0.5 && !argChanged, previousSeconds: Math.round(ownSeconds(s, rates)), seconds: Math.round(estimateSection(analytic, title, cardIds, ctx, rates)) };
+    edits.push({ ...e, title, analytic, cardIds });
+  }
+
+  // The speech as it would stand: checks and what's still unanswered.
+  const edited = new Map(edits.map((e) => [e.sectionId, e]));
+  const merged: CheckSection[] = checkSections(ctx.draft).map((s) => {
+    const r = retargets.get(s.id);
+    const e = edited.get(s.id);
+    const targets = r ? [...new Set([...s.targets.filter((t) => !r.removeTargets.includes(t)), ...r.addTargets])] : s.targets;
+    const relation = !r ? s.relation : !targets.length ? "none" : s.relation === "none" ? (targets.length > 1 ? "group" : "answers") : s.relation;
+    return { ...s, targets, relation, title: e?.title ?? s.title, analytic: e?.analytic ?? s.analytic };
+  });
+  const cite = (id: string) => ctx.cards.find((c) => c.id === id)?.shortCite ?? "";
+  const added: CheckSection[] = adds.map((a) => ({ id: `new:${a.ref}`, title: a.title, relation: a.relation, targets: a.targets, role: a.role || null, crossApplyFrom: a.crossApplyFrom || null, analytic: a.analytic, cardCites: a.cardIds.map(cite), parentId: a.parentRef ? `new:${a.parentRef}` : a.anchor || null, kind: a.kind }));
+  const report = checkSpeech({ graph, speech, sections: [...merged, ...added], recorded: ctx.recorded });
+  const covered = new Set(report.coverage.items.filter((i) => i.status !== "unanswered" && i.status !== "uncertain").map((i) => i.arg.id));
+  const notAddressed = new Set(out.notAddressed.flatMap((x) => x.targets));
+  const remaining = cs.unanswered.filter((a) => !covered.has(a.id) && !notAddressed.has(a.id)).map((a) => ({ id: a.id, text: a.text }));
+
+  const argHashes: Record<string, string> = {};
+  const referenced = [...adds.flatMap((a) => a.targets), ...[...retargets.values()].flatMap((r) => r.addTargets), ...merged.filter((s) => edited.has(s.id)).flatMap((s) => s.targets)];
+  for (const id of referenced) {
+    const a = argById.get(id);
+    if (a) argHashes[id] = argBasisHash(a);
+  }
+  const positionNames = Object.fromEntries(graph.positions.map((p) => [p.id, p.name]));
+  const addSeconds = Object.values(addInfo).reduce((s, x) => s + x.seconds, 0);
+  const editDelta = Object.values(editInfo).reduce((s, x) => s + x.seconds - x.previousSeconds, 0);
+  const output: PatchOutput = { ...out, adds, retargets: [...retargets.values()], edits, notAddressed: out.notAddressed.filter((x) => x.targets.some((t) => argById.has(t))) };
+  return { output, addInfo, editInfo, argHashes, positionNames, estimatedSeconds: Math.round(previousSeconds + addSeconds + editDelta), checks: report.checks, remaining, dropped: { targets: droppedTargets, cards: droppedCards, duplicates, linksInPlace } };
+}
+
 export interface InterpretInput {
   roundId: string;
   speech: SpeechId;
@@ -717,7 +1068,11 @@ export async function extractFlow(input: ExtractInput) {
 
   const graph = readGraph(doc, round.ourSide);
   const positions = graph.positions;
-  const existing = graph.args.filter((a) => a.speech === speech);
+  // An edited line is read again from scratch: its earlier reading isn't something it can repeat.
+  const marks = new Map(readHeardMarks(doc).map((m) => [m.id, m]));
+  const priorOf = (l: HeardLine) => (l.status === "changed" ? l.markIds.flatMap((id) => marks.get(id)?.argIds ?? []) : []);
+  const replacing = new Set(pending.flatMap(priorOf));
+  const existing = graph.args.filter((a) => a.speech === speech && !replacing.has(a.id));
   const theirs = graph.args.filter((a) => a.side !== side && isBefore(a.speech, speech)).slice(-150);
   const posName = new Map(positions.map((p) => [p.id, p.name]));
   const lines: ExtractLine[] = pending.map((l, i) => ({ n: i + 1, key: l.textKey, line: l.line, text: l.text }));
@@ -744,7 +1099,8 @@ export async function extractFlow(input: ExtractInput) {
       shown.add(k);
       numbered.push(`   (already on the flow) ${c.text}`);
     }
-    numbered.push(`${i + 1}. ${l.text}${l.source === "transcript" ? "   [transcript]" : ""}`);
+    const prior = priorOf(l);
+    numbered.push(`${i + 1}. ${l.text}${l.source === "transcript" ? "   [transcript]" : ""}${prior.length ? `   [edited after it was flowed; read the whole line again]` : ""}`);
   }
   const prompt = `SPEECH: ${speech} (${side.toUpperCase()})
 

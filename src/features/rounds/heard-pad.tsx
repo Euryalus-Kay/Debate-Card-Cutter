@@ -24,7 +24,9 @@ import { useBoundText } from "./use-bound-text";
 type RunSummary = { text: string; undo: () => Promise<void> };
 
 function summarize(r: Partial<HeardApplyResult> & { fallback?: number; rejected?: unknown[] }, ai: boolean): string {
-  const parts = [`${r.created?.length ?? 0} argument${r.created?.length === 1 ? "" : "s"} added`];
+  const parts = r.created?.length || !r.updated?.length ? [`${r.created?.length ?? 0} argument${r.created?.length === 1 ? "" : "s"} added`] : [];
+  if (r.updated?.length) parts.push(`${r.updated.length} edited line${r.updated.length === 1 ? "" : "s"} re-read`);
+  if (r.retired?.length) parts.push(`${r.retired.length} old reading${r.retired.length === 1 ? "" : "s"} removed`);
   if (r.aliased?.length) parts.push(`${r.aliased.length} matched to their doc`);
   if (r.notArguments) parts.push(`${r.notArguments} header/roadmap line${r.notArguments === 1 ? "" : "s"}`);
   if (ai && r.fallback) parts.push(`${r.fallback} read without AI (check them)`);
@@ -34,7 +36,26 @@ function summarize(r: Partial<HeardApplyResult> & { fallback?: number; rejected?
 
 const AUTO_KEY = "clash.heard.auto";
 
-export function HeardPad({ roundId, stateDocId, doc, speech, aiEnabled, userId, legacyNotes }: { roundId: string; stateDocId: string; doc: Y.Doc; speech: SpeechId; aiEnabled: boolean; userId: string; legacyNotes: string }) {
+export function HeardPad({
+  roundId,
+  stateDocId,
+  doc,
+  speech,
+  aiEnabled,
+  userId,
+  legacyNotes,
+  onFlowUpdated,
+}: {
+  roundId: string;
+  stateDocId: string;
+  doc: Y.Doc;
+  speech: SpeechId;
+  aiEnabled: boolean;
+  userId: string;
+  legacyNotes: string;
+  /** called after lines reach the flow, with how many new arguments they made */
+  onFlowUpdated?: (created: number) => void;
+}) {
   const myKey = heardKey(speech, userId);
   const myText = useMemo(() => heardText(doc, speech, userId), [doc, speech, userId]);
   const { ref: padRef, value: padValue, onChange: onPadChange } = useBoundText(myText);
@@ -75,6 +96,7 @@ export function HeardPad({ roundId, stateDocId, doc, speech, aiEnabled, userId, 
             setLast(null);
           },
         });
+        onFlowUpdated?.(result.created.length + (result.updated?.length ?? 0));
         return;
       }
       setStatus("Reading your notes…");
@@ -91,6 +113,7 @@ export function HeardPad({ roundId, stateDocId, doc, speech, aiEnabled, userId, 
           setLast(null);
         },
       });
+      onFlowUpdated?.((result.created?.length ?? 0) + (result.updated?.length ?? 0));
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) setStatus("Your partner's update is running; yours will follow.");
       else toast(e instanceof Error ? e.message : "Couldn't update the flow.", "bad");

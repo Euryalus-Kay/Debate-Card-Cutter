@@ -20,7 +20,24 @@ export const RD = {
   slots: "slots",
   timers: "timers",
   strategy: "strategy",
+  prefs: "prefs",
 } as const;
+
+/** Team preferences for this round, shared live between partners. */
+export interface RoundPrefs {
+  /** after each flow update from their speech, update the draft of our next speech with answers to the new arguments */
+  predraft: boolean;
+}
+
+export function readPrefs(doc: Y.Doc): RoundPrefs {
+  const m = doc.getMap(RD.prefs);
+  return { predraft: m.get("predraft") === true };
+}
+
+export function updatePrefs(doc: Y.Doc, fields: Partial<RoundPrefs>): void {
+  const m = doc.getMap(RD.prefs);
+  for (const [k, v] of Object.entries(fields)) if (v !== undefined) m.set(k, v);
+}
 
 export interface SlotRecord {
   speech: SpeechId;
@@ -316,6 +333,8 @@ export interface HeardMark {
   argIds: string[];
   /** for not_argument: roadmap, header, filler, question, … */
   category: string;
+  /** for a header: the position the lines under it belong to */
+  positionId?: string | null;
   opId: string | null;
   by: string;
 }

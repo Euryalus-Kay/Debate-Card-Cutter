@@ -14,7 +14,8 @@ export const GET = handle(async (_req: Request, ctx: { params: Promise<{ roundId
     .orderBy(desc(aiOperations.createdAt))
     .limit(60);
   // Finished, unapplied proposals come back with their output so a refresh never loses them.
-  const pendingIds = ops.filter((o) => o.status === "complete" && !o.appliedAt && !o.dismissedAt && o.kind !== "interpret_flow").slice(0, 8).map((o) => o.id);
+  // Flow reading applies itself on the server, so it is never a pending proposal.
+  const pendingIds = ops.filter((o) => o.status === "complete" && !o.appliedAt && !o.dismissedAt && o.kind !== "interpret_flow" && o.kind !== "extract_flow").slice(0, 8).map((o) => o.id);
   const outputs = pendingIds.length
     ? await db().select({ id: aiOperations.id, output: aiOperations.output }).from(aiOperations).where(inArray(aiOperations.id, pendingIds))
     : [];

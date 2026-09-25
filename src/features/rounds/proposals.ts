@@ -5,11 +5,15 @@ import type { Editor } from "@tiptap/react";
 import type { Node as PMNode } from "@tiptap/pm/model";
 import type { Transaction } from "@tiptap/pm/state";
 import { api } from "@/client/api";
-import { cardToPM, highlightCss, sectionContentHash, sectionOwnHash, type PMNodeJSON } from "@/shared/draft-model";
+import { cardToPM, draftFromPM, highlightCss, sectionContentHash, sectionOwnHash, type PMNodeJSON } from "@/shared/draft-model";
 import { makeId, BYPASS_LOCKS } from "@/shared/editor/schema";
 import { fullCite, shortCite, citationGaps, type Citation } from "@/domain/citation";
 import { normalizeHighlights, normalizeSpans, type BodyBlock, type BodyText, type VerificationStatus } from "@/domain/card";
 import type { SpeechDraftOutput, SectionRevisionOutput, AlternativesOutput, FitPlanOutput } from "@/server/ai/schemas";
+import type { PatchEditInfo, PatchOutput } from "@/server/ai/ops";
+import type { RoundGraph } from "@/domain/flow";
+import type { SpeechCheck } from "@/domain/speech-checks";
+import { alreadyAnswered, basisOf, patchSections, patchSectionId, placeAnswer, type PatchSection, type Placement } from "@/domain/patch";
 
 export interface Validation {
   unsupportedDropClaims?: string[];
@@ -67,7 +71,54 @@ export type Proposal =
       startedAt: number;
       /** per-section outcome after applying */
       outcomes?: Record<string, ApplyResult>;
+    }
+  | {
+      id: string;
+      opId: string | null;
+      kind: "patch";
+      draftId: string;
+      speech: string;
+      status: "running" | "ready" | "failed" | "applied" | "dismissed";
+      partial: unknown;
+      result: PatchResult | null;
+      error: string | null;
+      startedAt: number;
+      /** progress while the update is planned */
+      note?: string | null;
+      /** started automatically by live pre-drafting */
+      auto?: boolean;
+      /** per-change outcome after applying, keyed add:<ref> / link:<sectionId> / edit:<sectionId> */
+      outcomes?: Record<string, PatchOutcome>;
     };
+
+export interface ArgLite {
+  id: string;
+  text: string;
+  position: string;
+  speech: string;
+}
+
+export interface PatchResult {
+  kind: "patch";
+  upToDate: boolean;
+  output: PatchOutput;
+  changes: { unanswered: ArgLite[]; uncertain: ArgLite[]; otherFlows: ArgLite[]; stale: { sectionId: string; title: string; argIds: string[] }[]; vanished: { sectionId: string; title: string; argIds: string[] }[] };
+  titles: Record<string, string>;
+  addInfo: Record<string, { positionId: string | null; where: string; seconds: number }>;
+  editInfo: Record<string, PatchEditInfo>;
+  argHashes: Record<string, string>;
+  positionNames: Record<string, string>;
+  previousSeconds: number;
+  estimatedSeconds: number;
+  limitSeconds: number;
+  checks: SpeechCheck[];
+  remaining: { id: string; text: string }[];
+  dropped: { targets: number; cards: number; duplicates: string[]; linksInPlace?: number };
+  run: RunMeta | null;
+}
+
+/** applied / stale / locked / missing, or: already answered, partner editing it now. */
+export type PatchOutcome = ApplyResult | "answered" | "partner";
 
 export interface FitResult {
   /** "fill" expands a short speech; "cut" trims a long one */
@@ -95,12 +146,24 @@ interface ProposalState {
   proposals: Proposal[];
   add: (p: Proposal) => void;
   update: (id: string, patch: Partial<Proposal>) => void;
+  /** A newer update of a draft replaces older automatic ones nobody has touched (their changes are in the newer one). */
+  supersede: (draftId: string, keepId: string) => void;
 }
 
 export const useProposals = create<ProposalState>((set) => ({
   proposals: [],
   add: (p) => set((s) => ({ proposals: [p, ...s.proposals].slice(0, 30) })),
   update: (id, patch) => set((s) => ({ proposals: s.proposals.map((p) => (p.id === id ? ({ ...p, ...patch } as Proposal) : p)) })),
+  supersede: (draftId, keepId) =>
+    set((s) => {
+      const keep = s.proposals.find((p) => p.id === keepId);
+      if (!keep) return s;
+      return {
+        proposals: s.proposals.map((p) =>
+          p.kind === "patch" && p.auto && p.draftId === draftId && p.id !== keepId && p.startedAt < keep.startedAt && p.status === "ready" && !Object.keys(p.outcomes ?? {}).length ? { ...p, status: "dismissed" as const } : p,
+        ),
+      };
+    }),
 }));
 
 // ---------------------------------------------------------------------------
@@ -279,7 +342,7 @@ export function insertSectionAt(editor: Editor, node: PMNodeJSON, where: { under
 export function applyRevision(
   editor: Editor,
   sectionId: string,
-  rev: { title: string; analytic: string; cardIds: string[]; needsEvidence?: string; role?: string },
+  rev: { title: string; analytic: string; cardIds: string[]; needsEvidence?: string; role?: string; attrs?: Record<string, unknown> },
   baseHash: string,
   cards: Map<string, CardRowLite>,
   opId: string | null,
@@ -297,8 +360,11 @@ export function applyRevision(
     if (child.type.name === "card" && child.attrs.cardId) existingCards.set(String(child.attrs.cardId), child.toJSON() as PMNodeJSON);
   });
   const nested: PMNodeJSON[] = [];
+  // Team notes stay; an old "Needs evidence" note is replaced when the revision says what it needs now.
+  const notes: PMNodeJSON[] = [];
   node.forEach((child) => {
     if (child.type.name === "section") nested.push(child.toJSON() as PMNodeJSON);
+    if (child.type.name === "note" && !(rev.needsEvidence !== undefined && child.textContent.startsWith("Needs evidence:"))) notes.push(child.toJSON() as PMNodeJSON);
   });
   const level = node.attrs.kind === "position" ? 3 : 4;
   const content: PMNodeJSON[] = [{ type: "heading", attrs: { level }, content: rev.title ? [{ type: "text", text: rev.title }] : [] }, ...paragraphs(rev.analytic)];
@@ -308,12 +374,151 @@ export function applyRevision(
     else if (cards.get(id)) content.push(cardNode(cards.get(id)!));
   }
   if (rev.needsEvidence?.trim()) content.push({ type: "note", content: [{ type: "text", text: `Needs evidence: ${rev.needsEvidence.trim()}` }] });
-  content.push(...nested);
-  const newJson: PMNodeJSON = { type: "section", attrs: { ...node.attrs, origin: "ai", aiOpId: opId, role: rev.role ?? node.attrs.role }, content };
+  content.push(...notes, ...nested);
+  const newJson: PMNodeJSON = { type: "section", attrs: { ...node.attrs, ...(rev.attrs ?? {}), origin: "ai", aiOpId: opId, role: rev.role ?? node.attrs.role }, content };
   // Hash the content as the editor will hold it (schema defaults filled in).
   newJson.attrs!.appliedHash = sectionOwnHash(editor.schema.nodeFromJSON(newJson).toJSON() as PMNodeJSON);
   const newNode = editor.schema.nodeFromJSON(newJson);
   return dispatchChanged(editor, editor.state.tr.replaceWith(pos, pos + node.nodeSize, newNode).setMeta(BYPASS_LOCKS, false)) ? "applied" : "locked";
+}
+
+// ---------------------------------------------------------------------------
+// Applying an update (A3): only what changed, placed by code on the live draft
+// ---------------------------------------------------------------------------
+
+/** The sections of the draft as it is right now. */
+export function liveSections(editor: Editor): PatchSection[] {
+  return patchSections(draftFromPM(editor.getJSON() as PMNodeJSON));
+}
+
+const EDITOR_KIND: Record<string, string> = { position: "position", overview: "overview", impact_calc: "overview", judge_instruction: "overview", extension: "extension", response: "response" };
+
+function relationFor(current: string, count: number): string {
+  if (!count) return "none";
+  if (current === "none" || current === "answers" || current === "group") return count > 1 ? "group" : "answers";
+  return current;
+}
+
+/**
+ * Apply the selected changes of an update: links first (attribute-only), then
+ * edits (refused when stale, locked, or where the partner is typing), then new
+ * sections, each placed by code on the live draft and given a deterministic
+ * id so applying twice never duplicates. New answers to arguments the draft
+ * already answers (a partner got there first) are skipped.
+ */
+export function applyPatch(
+  editor: Editor,
+  r: PatchResult,
+  opts: { opKey: string; opId: string | null; selected: Set<string>; prior: Record<string, PatchOutcome>; cards: Map<string, CardRowLite>; graph: RoundGraph; partnerSections: Set<string>; force?: boolean },
+): Record<string, PatchOutcome> {
+  const out: Record<string, PatchOutcome> = { ...opts.prior };
+  const todo = (key: string) => opts.selected.has(key) && out[key] !== "applied" && out[key] !== "answered";
+
+  for (const link of r.output.retargets) {
+    const key = `link:${link.sectionId}`;
+    if (!todo(key)) continue;
+    const found = findSectionNode(editor, link.sectionId);
+    if (!found) {
+      out[key] = "missing";
+      continue;
+    }
+    const current = (found.node.attrs.targets as string[]) ?? [];
+    const next = [...new Set([...current.filter((t) => !link.removeTargets.includes(t)), ...link.addTargets])];
+    const basis: Record<string, string> = { ...((found.node.attrs.basis as Record<string, string> | null) ?? {}), ...(basisOf(link.addTargets, r.argHashes) ?? {}) };
+    for (const t of link.removeTargets) delete basis[t];
+    const tr = editor.state.tr
+      .setNodeAttribute(found.pos, "targets", next)
+      .setNodeAttribute(found.pos, "relation", relationFor(String(found.node.attrs.relation ?? "none"), next.length))
+      .setNodeAttribute(found.pos, "basis", Object.keys(basis).length ? basis : null);
+    out[key] = dispatchChanged(editor, tr) ? "applied" : "locked";
+  }
+
+  for (const e of r.output.edits) {
+    const key = `edit:${e.sectionId}`;
+    if (!todo(key)) continue;
+    if (opts.partnerSections.has(e.sectionId) && !opts.force) {
+      out[key] = "partner";
+      continue;
+    }
+    const info = r.editInfo[e.sectionId];
+    const found = findSectionNode(editor, e.sectionId);
+    const targets = (found?.node.attrs.targets as string[] | undefined) ?? [];
+    out[key] = applyRevision(editor, e.sectionId, { title: e.title, analytic: e.analytic, cardIds: e.cardIds, attrs: { basis: basisOf(targets, r.argHashes) } }, info?.baseHash ?? "", opts.cards, opts.opId, opts.force);
+  }
+
+  const adds = r.output.adds;
+  const chosen = new Set(adds.filter((a) => opts.selected.has(`add:${a.ref}`)).map((a) => a.ref));
+  const parentOf = (a: (typeof adds)[number]) => (a.parentRef && chosen.has(a.parentRef) ? a.parentRef : "");
+  const build = (a: (typeof adds)[number], depth: number, done: string[]): PMNodeJSON => {
+    done.push(a.ref);
+    const content: PMNodeJSON[] = [{ type: "heading", attrs: { level: depth === 0 ? 3 : 4 }, content: a.title ? [{ type: "text", text: a.title }] : [] }, ...paragraphs(a.analytic)];
+    for (const id of a.cardIds) {
+      const c = opts.cards.get(id);
+      if (c) content.push(cardNode(c));
+    }
+    if (a.needsEvidence.trim()) content.push({ type: "note", content: [{ type: "text", text: `Needs evidence: ${a.needsEvidence.trim()}` }] });
+    for (const child of adds) if (chosen.has(child.ref) && parentOf(child) === a.ref && out[`add:${child.ref}`] !== "applied") content.push(build(child, depth + 1, done));
+    if (content.length === 1) content.push({ type: "paragraph" });
+    return stamp(editor, {
+      type: "section",
+      attrs: { id: patchSectionId(opts.opKey, a.ref), kind: EDITOR_KIND[a.kind] ?? "response", relation: a.relation, targets: a.targets, role: a.role || null, budgetSec: Math.round(a.budgetSeconds) || null, priority: a.priority || null, crossApplyFrom: a.crossApplyFrom || null, positionId: r.addInfo[a.ref]?.positionId ?? null, basis: basisOf(a.targets, r.argHashes), origin: "ai", aiOpId: opts.opId },
+      content,
+    });
+  };
+  const depthOf = (sections: PatchSection[], id: string) => {
+    const byId = new Map(sections.map((s) => [s.id, s]));
+    let d = 0;
+    for (let cur = byId.get(id); cur?.parentId; cur = byId.get(cur.parentId)) d++;
+    return d;
+  };
+  for (const a of adds) {
+    const key = `add:${a.ref}`;
+    const parent = parentOf(a);
+    // Children go in with their parent, unless the parent went in on an earlier apply.
+    if (!chosen.has(a.ref) || !todo(key) || (parent && out[`add:${parent}`] !== "applied")) continue;
+    const id = patchSectionId(opts.opKey, a.ref);
+    if (findSectionNode(editor, id)) {
+      out[key] = "applied";
+      continue;
+    }
+    const sections = liveSections(editor);
+    if (a.relation !== "extend" && a.relation !== "new" && alreadyAnswered(sections, opts.graph, a.targets)) {
+      out[key] = "answered";
+      continue;
+    }
+    const positionId = r.addInfo[a.ref]?.positionId ?? null;
+    let place: Placement = parent ? { under: patchSectionId(opts.opKey, parent) } : placeAnswer(sections, opts.graph, positionId, a.anchor);
+    const done: string[] = [];
+    let node: PMNodeJSON;
+    if ("end" in place && a.kind !== "position" && positionId) {
+      // A flow this speech doesn't engage yet: its answers go in one new position section.
+      const wrapperId = patchSectionId(opts.opKey, `pos:${positionId}`);
+      if (findSectionNode(editor, wrapperId)) {
+        place = { under: wrapperId };
+        node = build(a, 1, done);
+      } else {
+        node = stamp(editor, {
+          type: "section",
+          attrs: { id: wrapperId, kind: "position", relation: "none", targets: [], positionId, origin: "ai", aiOpId: opts.opId },
+          content: [{ type: "heading", attrs: { level: 3 }, content: [{ type: "text", text: r.positionNames[positionId] ?? "New position" }] }, build(a, 1, done)],
+        });
+      }
+    } else {
+      const depth = "under" in place ? depthOf(sections, place.under) + 1 : "after" in place ? depthOf(sections, place.after) : 0;
+      node = build(a, depth, done);
+    }
+    let result = insertSectionAt(editor, node, place);
+    // The spot vanished or got locked since the plan: add it at the end rather than lose the answer.
+    if ((result === "missing" || result === "locked") && !("end" in place)) result = insertSectionAt(editor, node, { end: true });
+    for (const ref of done) out[`add:${ref}`] = result;
+  }
+  return out;
+}
+
+/** Stamp an AI-written section with the hash of its own content, as the editor will hold it. */
+function stamp(editor: Editor, node: PMNodeJSON): PMNodeJSON {
+  node.attrs!.appliedHash = sectionOwnHash(editor.schema.nodeFromJSON(node).toJSON() as PMNodeJSON);
+  return node;
 }
 
 /** Insert a node after the section the cursor is in (or at the end), never splitting text. */

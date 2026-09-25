@@ -117,7 +117,7 @@ export function RoundWorkspace({ roundId }: { roundId: string }) {
       </div>
       <div className="flex min-h-0 flex-1">
         <aside className="hidden w-[320px] shrink-0 flex-col border-r border-line bg-elev md:flex">
-          <CoveragePanel round={round} doc={doc} graph={graph} recorded={recorded} slots={slots} />
+          <CoveragePanel round={round} doc={doc} graph={graph} recorded={recorded} slots={slots} aiEnabled={aiEnabled} />
         </aside>
         <section className="flex min-w-0 flex-1 flex-col">
           <Tabs value={ws.center} onValueChange={(v) => ws.set({ center: v as "speech" | "flow" })} className="flex min-h-0 flex-1 flex-col">

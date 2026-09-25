@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import type * as Y from "yjs";
-import { AlertTriangle, ChevronDown, ChevronRight, CircleDashed, Info } from "lucide-react";
-import { Badge, cn, EmptyState, Tooltip } from "@/components/ui";
+import { AlertTriangle, ChevronDown, ChevronRight, CircleDashed, Info, Sparkles } from "lucide-react";
+import { Badge, Button, cn, EmptyState, Tooltip } from "@/components/ui";
 import { detectConflicts, liveOffenseOnKickedPositions, possiblyKickedPositions, POSITION_KIND_LABEL, type ArgUnit, type CoverageItem, type CoverageStatus, type RoundGraph } from "@/domain/flow";
 import { SPEECHES, speechesToAnswer, validatePrepContext, type SpeechId, SPEECH_IDS } from "@/domain/format";
 import type { SlotRecord } from "@/shared/round-doc";
@@ -12,6 +12,9 @@ import type { RoundRecord } from "./types";
 import { useWorkspace } from "./store";
 import { useDraft } from "./draft-hooks";
 import { checkSections, checkSpeech } from "@/domain/speech-checks";
+import { changeSet } from "@/domain/patch";
+import { startPatchOp } from "./ai-actions";
+import { useProposals } from "./proposals";
 
 export const STATUS_META: Record<CoverageStatus, { label: string; tone: "ok" | "teal" | "info" | "neutral" | "bad" | "warn"; hint: string }> = {
   answered: { label: "Answered", tone: "ok", hint: "A section of your draft answers this argument directly." },
@@ -36,7 +39,7 @@ export function ArgLine({ arg, compact }: { arg: ArgUnit; compact?: boolean }) {
   );
 }
 
-export function CoveragePanel({ round, graph, recorded, slots }: { round: RoundRecord; doc: Y.Doc | null; graph: RoundGraph | null; recorded: Set<SpeechId>; slots: Record<SpeechId, SlotRecord> | null }) {
+export function CoveragePanel({ round, graph, recorded, slots, aiEnabled }: { round: RoundRecord; doc: Y.Doc | null; graph: RoundGraph | null; recorded: Set<SpeechId>; slots: Record<SpeechId, SlotRecord> | null; aiEnabled: boolean }) {
   const ws = useWorkspace();
   const speech = ws.speech;
   const { sync: draftSync } = useDocSync(ws.draftId);
@@ -49,6 +52,9 @@ export function CoveragePanel({ round, graph, recorded, slots }: { round: RoundR
   }, [graph, speech, ours, draft, recorded]);
   const report = checked?.coverage ?? null;
   const [showAllChecks, setShowAllChecks] = useState(false);
+  // What an update of the open draft would answer (final rebuttals: only the flows the draft goes for).
+  const toAnswer = useMemo(() => (graph && speech && ours && draft ? changeSet({ graph, speech, draft, recorded }).unanswered.length : 0), [graph, speech, ours, draft, recorded]);
+  const updating = useProposals((s) => s.proposals.some((p) => p.kind === "patch" && p.draftId === ws.draftId && p.status === "running" && !p.auto));
 
   const issues = useMemo(() => {
     if (!speech || !slots) return [];
@@ -111,6 +117,13 @@ export function CoveragePanel({ round, graph, recorded, slots }: { round: RoundR
                 </Badge>
               ))}
           </div>
+        ) : null}
+        {aiEnabled && ws.draftId && toAnswer > 0 ? (
+          <Tooltip content="Adds answers to just these arguments (or links the sections that already answer them). Nothing else in your draft changes; you review before it goes in.">
+            <Button size="xs" variant="primary" className="mt-2" loading={updating} onClick={() => void startPatchOp({ round, speech, draftId: ws.draftId! })}>
+              <Sparkles className="size-3" /> Answer the {toAnswer} remaining
+            </Button>
+          </Tooltip>
         ) : null}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">

@@ -63,6 +63,16 @@ describe("checkSpeech", () => {
     expect(answered.find((d) => d.arg.id === "a2")).toBeUndefined();
   });
 
+  it("an extension linked to their argument answers it, and only our arguments count as extended", () => {
+    const g = graph([arg("x1", "pol", "2AC", "aff", "no_link", "No link: the plan is regulation"), arg("b1", "pol", "2NC", "neg", "link", "Regulation needs staff and money")]);
+    const ext = { sectionId: "s", title: "Extend no link", relation: "extend" as const, targets: ["x1", "b1"] };
+    const cov = computeCoverage(g, "1AR", [ext], new Set(["2NC", "1NR"]));
+    expect(cov.items.find((i) => i.arg.id === "b1")?.status).toBe("answered");
+    expect(cov.extensions.map((e) => e.ours.id)).toEqual(["x1"]);
+    const r = checkSpeech({ graph: g, speech: "1AR", sections: [section("s", ["x1", "b1"], { relation: "extend", title: "Extend no link", analytic: "Extend 2AC 2: the plan is regulation, not spending, so there is no link." })], recorded: new Set(["2NC", "1NR"]) });
+    expect(r.checks.map((c) => c.code)).not.toContain("ext2_not_ours");
+  });
+
   it("the 1NR isn't asked to answer what the 2NC already covered", () => {
     const g = graph([arg("x1", "pol", "2AC", "aff", "no_link", "No link"), arg("x2", "cp", "2AC", "aff", "perm", "Perm do both"), arg("c1", "pol", "2NC", "neg", "link", "Link extension")]);
     const cov1NR = computeCoverage(g, "1NR", [], new Set(["2AC", "2NC"]));
