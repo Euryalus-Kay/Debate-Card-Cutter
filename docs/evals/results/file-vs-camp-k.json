@@ -1,0 +1,38 @@
+{
+  "at": "2026-09-25T23:26:41.412Z",
+  "note": "Blind pairwise judgment (Opus 5.5 medium), both orders; scores only.",
+  "results": [
+    {
+      "order": "built first, camp",
+      "winner": "built",
+      "built": {
+        "tagAccuracy": 7,
+        "evidence": 7,
+        "analytics": 7,
+        "readiness": 8
+      },
+      "camp": {
+        "tagAccuracy": 4,
+        "evidence": 4,
+        "analytics": 3,
+        "readiness": 3
+      }
+    },
+    {
+      "order": "camp first, built",
+      "winner": "built",
+      "built": {
+        "tagAccuracy": 8,
+        "evidence": 7,
+        "analytics": 7,
+        "readiness": 8
+      },
+      "camp": {
+        "tagAccuracy": 4,
+        "evidence": 5,
+        "analytics": 3,
+        "readiness": 3
+      }
+    }
+  ]
+}
