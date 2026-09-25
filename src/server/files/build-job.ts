@@ -169,7 +169,10 @@ export async function runFileBuild(jobId: string): Promise<void> {
             const r = rows.find((x) => x.id === it.researchJobId);
             if (!r || ["queued", "running"].includes(r.status)) continue;
             const res = (r.result ?? {}) as { cardIds?: string[]; summary?: string };
-            if (r.status === "succeeded" && res.cardIds?.length) Object.assign(it, { status: "cut", cardId: res.cardIds[0] });
+            // A new card identical to one already in the file (research found the same passage) counts as missing.
+            const fresh = res.cardIds?.find((id) => !cp.items.some((x) => x !== it && x.cardId === id));
+            if (r.status === "succeeded" && fresh) Object.assign(it, { status: "cut", cardId: fresh });
+            else if (r.status === "succeeded" && res.cardIds?.length) Object.assign(it, { status: "not_found", note: "Research found only a card this file already uses." });
             else Object.assign(it, { status: "not_found", note: res.summary ?? `research ${r.status}` });
             changed = true;
           }
@@ -177,7 +180,9 @@ export async function runFileBuild(jobId: string): Promise<void> {
         // Start more: the library first; research only for what it doesn't have.
         const slots = IN_FLIGHT - cp.items.filter((i) => i.status === "researching").length;
         for (const it of cp.items.filter((i) => i.status === "pending").slice(0, Math.max(0, slots))) {
-          const found = await findEvidence(job.teamId, [{ id: it.key, text: it.search ? `${it.label} (source: ${it.search})` : it.label, intent: "support" }], { side, perNeed: 8, maxCards: 1 });
+          // A card already placed in this file isn't placed again: each item gets its own evidence.
+          const placed = new Set(cp.items.map((x) => x.cardId).filter((x): x is string => !!x));
+          const found = await findEvidence(job.teamId, [{ id: it.key, text: it.search ? `${it.label} (source: ${it.search})` : it.label, intent: "support" }], { side, perNeed: 8, maxCards: 1, exclude: placed });
           const best = found.cardIds[0];
           if (best && (found.byCard.get(best)?.[0]?.fit ?? 0) >= 3) {
             Object.assign(it, { status: "library", cardId: best, note: found.byCard.get(best)?.[0]?.use });

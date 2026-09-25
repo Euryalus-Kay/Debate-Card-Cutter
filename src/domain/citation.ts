@@ -99,6 +99,8 @@ export function shortCite(c: Citation): string {
   else if (c.authors.length > 2) who = `${familyName(c.authors[0])} et al.`;
   else if (c.organizationShort) who = c.organizationShort;
   else if (c.organization) who = c.organization;
+  // No named author or organization: debate convention cites the publication (the gap stays flagged).
+  else if (c.publication?.trim()) who = c.publication.trim().replace(/^the\s+/i, "").slice(0, 40);
   else who = "Unknown author";
   return `${who} ${yy}`;
 }
