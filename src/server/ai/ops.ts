@@ -13,7 +13,8 @@ import { readArgs, readRelations } from "@/shared/round-doc";
 import { computeCoverage, isLive, positionsAvailableFor2NR, type ArgUnit, type DraftTarget } from "@/domain/flow";
 import { isBefore, isRebuttal, SPEECHES, speechesToAnswer as speechesToAnswerFor, type SpeechId } from "@/domain/format";
 import { addLoads, countWords, estimateSeconds, presetProfile, type RateProfile } from "@/domain/timing";
-import { cardLoad } from "@/domain/card";
+import { cardLoad, readAloud } from "@/domain/card";
+import { spanWarnings, stripIds } from "@/domain/span-check";
 import { acceptRewrites, allocateWordChange } from "@/domain/length-plan";
 import { allSections, isHumanEdited, itemLoad, sectionContentHash, type DraftItem, type DraftSection, type PMNodeJSON } from "@/shared/draft-model";
 import { buildRoundContext, renderDraft, type RoundContext } from "./context";
@@ -24,7 +25,7 @@ import { runStructured, type RunResult } from "./run";
 import { draftProgress, extractProgress, fitProgress, patchProgress, taskTiming } from "./progress";
 import type { Progress } from "@/domain/progress";
 import { MODELS } from "./models";
-import { AlternativesSchema, FitPlanSchema, TopUpSchema, FlowExtractSchema, type FlowExtractOutput, FlowInterpretSchema, PatchPlanSchema, type PatchPlanOutput, SectionRevisionSchema, SpeechDraftSchema, type AlternativesOutput, type FitPlanOutput, type FlowInterpretOutput, type SectionRevisionOutput, type SpeechDraftOutput } from "./schemas";
+import { AlternativesSchema, CommentReplySchema, SpanEditSchema, FitPlanSchema, TopUpSchema, FlowExtractSchema, type FlowExtractOutput, FlowInterpretSchema, PatchPlanSchema, type PatchPlanOutput, SectionRevisionSchema, SpeechDraftSchema, type AlternativesOutput, type FitPlanOutput, type FlowInterpretOutput, type SectionRevisionOutput, type SpeechDraftOutput } from "./schemas";
 import { alreadyAnswered, argBasisHash, changedShare, changeSet, isUpToDate, patchSections, placeAnswer, type ChangeSet, type Placement } from "@/domain/patch";
 import { newId } from "@/server/ids";
 import { heardLines, readGraph, readHeardMarks, type HeardLine } from "@/shared/round-doc";
@@ -90,6 +91,7 @@ export function validateDraft(out: SpeechDraftOutput, ctx: RoundContext, speech:
     return { ...s, ref, parentRef: s.parentRef === ref ? "" : s.parentRef };
   });
   const sections = uniq.map((s) => {
+    s = { ...s, title: stripIds(s.title), analytic: stripIds(s.analytic), needsEvidence: stripIds(s.needsEvidence) };
     const targets = s.targets.filter((t) => {
       const ok = argIds.has(t);
       if (!ok) droppedTargets.push(t);
@@ -125,8 +127,9 @@ export function validateDraft(out: SpeechDraftOutput, ctx: RoundContext, speech:
   const DROP = /\b(dropped|drops|conceded|concedes|never answered|no answer to|didn'?t answer|did not answer|went unanswered)\b/i;
   const unconfirmed = speechesToAnswerFor(speech).filter((s) => !ctx.confirmed.has(s));
   const unsupportedDropClaims = unconfirmed.length ? sections.filter((s) => DROP.test(s.analytic)).map((s) => s.title) : [];
+  const clean = { ...out, strategy: { summary: stripIds(out.strategy.summary), choices: out.strategy.choices.map(stripIds), risks: out.strategy.risks.map(stripIds) }, outline: (out.outline ?? []).map(stripIds), omitted: out.omitted.map((o) => ({ ...o, reason: stripIds(o.reason) })), questions: out.questions.map(stripIds) };
   return {
-    output: { ...out, sections },
+    output: { ...clean, sections },
     validation: { unsupportedDropClaims, droppedTargets, droppedCards, unaddressed, newInRebuttal, positionsNotInBlock, estimatedSeconds: estimated, limitSeconds: ctx.limitSeconds, sectionSeconds, checks },
   };
 }
@@ -364,7 +367,7 @@ It targets: ${targets.map((a) => `[${a!.id}] ${a!.text}`).join("; ") || "(no tar
 ${input.instructions ? `Team instruction: ${input.instructions}` : ""}`;
     const res = await runStructured({ task: "section_alternatives", system, context: ctx.text, prompt, schema: AlternativesSchema, onPartial: input.onPartial, abortSignal: input.abortSignal, teamId: input.teamId });
     const valid = new Set(ctx.cards.map((c) => c.id));
-    const output: AlternativesOutput = { options: res.output.options.map((o) => ({ ...o, cardIds: o.cardIds.filter((c) => valid.has(c)) })) };
+    const output: AlternativesOutput = { options: res.output.options.map((o) => ({ ...o, label: stripIds(o.label), approach: stripIds(o.approach), tradeoff: stripIds(o.tradeoff), title: stripIds(o.title), analytic: stripIds(o.analytic), cardIds: o.cardIds.filter((c) => valid.has(c)) })) };
     return { kind: "alternatives" as const, output, baseHash, run: meta(res), contextRefs: ctx.refs, cards: summarizeCards(ctx) };
   }
   const prompt = `${ACTION_TEXT[input.action]}
@@ -379,7 +382,7 @@ It targets: ${targets.map((a) => `[${a!.id}] ${a!.text}${a!.warrant ? ` (warrant
 Return the revised section: its heading (title), the analytic text to say, and which card ids to read (from the section's cards or the provided evidence).`;
   const res = await runStructured({ task: "section_revise", system, context: ctx.text, prompt, schema: SectionRevisionSchema, onPartial: input.onPartial, abortSignal: input.abortSignal, teamId: input.teamId });
   const valid = new Set(ctx.cards.map((c) => c.id));
-  const output: SectionRevisionOutput = { ...res.output, cardIds: res.output.cardIds.filter((c) => valid.has(c)) };
+  const output: SectionRevisionOutput = { ...res.output, title: stripIds(res.output.title), analytic: stripIds(res.output.analytic), note: stripIds(res.output.note), needsEvidence: stripIds(res.output.needsEvidence), cardIds: res.output.cardIds.filter((c) => valid.has(c)) };
   const seconds = estimateSection(output.analytic, output.title, output.cardIds, ctx, rates);
   return { kind: "revision" as const, output, baseHash, estimatedSeconds: seconds, previousSeconds: currentSeconds, run: meta(res), contextRefs: ctx.refs, cards: summarizeCards(ctx) };
 }
@@ -614,7 +617,7 @@ Return one plan entry for every section id above.`;
   return {
     kind: "fit" as const,
     mode: fill ? ("fill" as const) : ("cut" as const),
-    output: { ...res.output, plan },
+    output: { ...res.output, summary: stripIds(res.output.summary), sacrificed: res.output.sacrificed.map(stripIds), plan: plan.map((e) => ({ ...e, title: stripIds(e.title), analytic: stripIds(e.analytic), reason: stripIds(e.reason) })) },
     baseHashes,
     titles,
     perSection,
@@ -867,7 +870,7 @@ function validatePatch(out: PatchPlanOutput, ctx: RoundContext, cs: ChangeSet, j
     seen.add(ref);
     const targets = a.targets.filter((t) => argById.has(t) || (droppedTargets++, false));
     const cardIds = a.cardIds.filter((c) => pool.has(c) || (droppedCards++, false));
-    return { ...a, ref, targets, cardIds, anchor: secById.has(a.anchor) ? a.anchor : "" };
+    return { ...a, ref, targets, cardIds, anchor: secById.has(a.anchor) ? a.anchor : "", title: stripIds(a.title), analytic: stripIds(a.analytic), needsEvidence: stripIds(a.needsEvidence) };
   });
   const refs = new Set(adds.map((a) => a.ref));
   adds = adds.map((a) => ({ ...a, parentRef: a.parentRef && a.parentRef !== a.ref && refs.has(a.parentRef) ? a.parentRef : "" }));
@@ -942,13 +945,13 @@ function validatePatch(out: PatchPlanOutput, ctx: RoundContext, cs: ChangeSet, j
     if (!s || !j || editInfo[s.id] || lockedAround(s.id)) continue;
     const own = new Set(s.items.filter((i) => i.type === "card").map((i) => (i as { cardId: string | null }).cardId).filter((x): x is string => !!x));
     const cardIds = e.cardIds.filter((c) => own.has(c) || pool.has(c));
-    const analytic = e.analytic.trim();
+    const analytic = stripIds(e.analytic);
     if (!analytic && !cardIds.length) continue;
     const before = s.items
       .filter((i) => i.type === "paragraph")
       .map((i) => (i as { text: string }).text)
       .join("\n\n");
-    const title = e.title.trim() || s.title;
+    const title = stripIds(e.title) || s.title;
     const share = changedShare(before, analytic);
     const sameCards = cardIds.length === own.size && cardIds.every((c) => own.has(c));
     if (share === 0 && title === s.title && sameCards) continue;
@@ -982,8 +985,129 @@ function validatePatch(out: PatchPlanOutput, ctx: RoundContext, cs: ChangeSet, j
   const positionNames = Object.fromEntries(graph.positions.map((p) => [p.id, p.name]));
   const addSeconds = Object.values(addInfo).reduce((s, x) => s + x.seconds, 0);
   const editDelta = Object.values(editInfo).reduce((s, x) => s + x.seconds - x.previousSeconds, 0);
-  const output: PatchOutput = { ...out, adds, retargets: [...retargets.values()], edits, notAddressed: out.notAddressed.filter((x) => x.targets.some((t) => argById.has(t))) };
+  const output: PatchOutput = { ...out, summary: stripIds(out.summary), adds, retargets: [...retargets.values()].map((r) => ({ ...r, reason: stripIds(r.reason) })), edits: edits.map((e) => ({ ...e, reason: stripIds(e.reason) })), notAddressed: out.notAddressed.filter((x) => x.targets.some((t) => argById.has(t))).map((x) => ({ ...x, reason: stripIds(x.reason) })), questions: out.questions.map(stripIds) };
   return { output, addInfo, editInfo, argHashes, positionNames, estimatedSeconds: Math.round(previousSeconds + addSeconds + editDelta), checks: report.checks, remaining, dropped: { targets: droppedTargets, cards: droppedCards, duplicates, linksInPlace } };
+}
+
+// ---------------------------------------------------------------------------
+// Precise edits (A7): change exactly the selected words, or answer an @AI comment
+// ---------------------------------------------------------------------------
+
+export type SpanAction = "sharpen" | "shorten" | "warrant" | "answer" | "lay" | "grammar" | "custom" | "comment";
+
+const SPAN_ACTION_TEXT: Record<Exclude<SpanAction, "comment">, string> = {
+  sharpen: "Make these words hit harder: name the specific warrant they attack and why it fails, in about the same length.",
+  shorten: "Say the same thing in about half the words. Keep the claim and the reason.",
+  warrant: "Add the missing reason (because …) and why it matters for the round, in one short clause or sentence.",
+  answer: "Rewrite these words so they directly answer the argument this section answers (named below), engaging its actual words.",
+  lay: "Rewrite for a lay judge: plain English, no jargon or abbreviations, a clear comparison, same argument.",
+  grammar: "Fix grammar, flow, and clarity only. Do not change the argument.",
+  custom: "Follow the debater's instruction.",
+};
+
+export interface SpanInput {
+  roundId: string;
+  speech: SpeechId;
+  draftId: string;
+  sectionId: string | null;
+  /** the selected words, and the text just before and after them */
+  text: string;
+  before: string;
+  after: string;
+  action: SpanAction;
+  instructions: string;
+  /** for a comment: the thread so far (oldest first) */
+  thread?: { by: string; text: string; ai?: boolean }[];
+  rates?: RateProfile | null;
+  teamId: string;
+  onPartial?: (p: unknown) => void;
+  abortSignal?: AbortSignal;
+}
+
+const squash = (t: string) => t.replace(/\s+/g, " ").trim();
+const readAloudText = (c: Extract<DraftItem, { type: "card" }>) => readAloud(c.body).text;
+
+/**
+ * Rewrite exactly the words a debater selected, or reply to a comment on them.
+ * The selection must be the debater's own words (never card text, which is
+ * verbatim). Anything the new words add that the section, its cards, and the
+ * flow don't contain (an author, a date, a number) comes back as a warning.
+ */
+export async function editSpan(input: SpanInput) {
+  const ctx = await buildRoundContext(input.roundId, { speech: input.speech, draftId: input.draftId, evidenceMode: "selected_only", rates: input.rates ?? presetProfile("fast"), omitDraftText: true });
+  if (!ctx.draft) throw new Error("Open a draft first.");
+  const section = input.sectionId ? allSections(ctx.draft).find((s) => s.id === input.sectionId) ?? null : null;
+  // The debater's own words: headings, paragraphs and notes (cards excluded).
+  const ownText = (items: DraftItem[]): string =>
+    items
+      .map((i) => (i.type === "paragraph" || i.type === "heading" || i.type === "note" ? i.text : i.type === "section" ? ownText(i.section.items) : ""))
+      .join("\n");
+  const scope = section ? ownText(section.items) : ownText(ctx.draft.items);
+  if (!squash(input.text) || !squash(scope).includes(squash(input.text))) throw new Error("Those words aren't in the draft's own text any more (or they include card text, which stays verbatim). Select them again.");
+  const argById = new Map(ctx.graph.args.map((a) => [a.id, a]));
+  const targets = (section?.targets ?? []).map((t) => argById.get(t)).filter((a): a is ArgUnit => !!a);
+  const cardText = (items: DraftItem[]): string => items.map((i) => (i.type === "card" ? `${i.tag} ${i.shortCite} ${readAloudText(i)}` : i.type === "section" ? cardText(i.section.items) : "")).join("\n");
+  const allowed = [scope, section ? cardText(section.items) : cardText(ctx.draft.items), ...targets.map((a) => `${a.text} ${(a.cites ?? []).join(" ")}`), ctx.graph.args.map((a) => (a.cites ?? []).join(" ")).join(" ")].join("\n");
+  const comment = input.action === "comment";
+  const system = `${SYSTEM_BASE}
+
+SPEECH BEING PREPARED
+${SPEECH_RULES[input.speech]}
+
+TASK: ${comment ? "REPLY IN A COMMENT THREAD ON THE SPEECH. The debaters are discussing a few words of their speech and asked you (@AI). Answer the question or give the critique, specific to these words and this round. If different words would be better, give them in replacement: the full new text for exactly the commented words." : "CHANGE ONLY THE SELECTED WORDS. Return new text for exactly the selected words, so that the text before + your text + the text after reads naturally."}
+- Analytics are the debaters' own reasoning: never attribute them to an author, and never add evidence, statistics, dates, authors, or quotations that aren't in the provided cards or on the flow.
+- Card text is verbatim from sources and is never part of what you change.
+- Keep the argument's meaning unless asked to change it.`;
+  const prompt = `SPEECH: ${input.speech}${section ? `
+SECTION: "${section.title}"${targets.length ? `
+IT ANSWERS: ${targets.map((a) => `[${a.id}] ${a.speech} "${a.text.slice(0, 200)}"${a.evidence === "analytic" ? " (analytic)" : ""}`).join("; ")}` : ""}
+THE SECTION'S OWN WORDS (context):
+${ownText(section.items).slice(0, 3000)}` : ""}
+
+${comment ? "COMMENTED WORDS" : "SELECTED WORDS"}:
+"""${input.text}"""
+TEXT RIGHT BEFORE: """${input.before.slice(-400)}"""
+TEXT RIGHT AFTER: """${input.after.slice(0, 400)}"""
+${
+  comment
+    ? `
+THREAD SO FAR:
+${(input.thread ?? []).map((m) => `${m.ai ? "AI" : m.by}: ${m.text}`).join("\n")}`
+    : `
+REQUEST: ${SPAN_ACTION_TEXT[input.action as Exclude<SpanAction, "comment">]}${input.instructions.trim() ? `\nThe debater's instruction: ${input.instructions.trim()}` : ""}`
+}`;
+  if (comment) {
+    const res = await runStructured({
+      task: "span_edit",
+      system,
+      context: ctx.text,
+      prompt,
+      schema: CommentReplySchema,
+      onPartial: input.onPartial,
+      abortSignal: input.abortSignal,
+      teamId: input.teamId,
+      fake: () => ({ reply: `[AI_FAKE] This answer needs its warrant: say why their evidence doesn't apply to the plan.`, replacement: `${input.text} because their evidence is about the status quo, not the plan`, note: "Adds the warrant." }),
+    });
+    const replacement = stripIds(res.output.replacement);
+    const changed = replacement && squash(replacement) !== squash(input.text);
+    return { kind: "comment_reply" as const, reply: stripIds(res.output.reply), replacement: changed ? replacement : "", note: changed ? stripIds(res.output.note) : "", base: input.text, warnings: changed ? spanWarnings({ replacement, allowed }) : [], run: meta(res) };
+  }
+  const res = await runStructured({
+    task: "span_edit",
+    system,
+    context: ctx.text,
+    prompt,
+    schema: SpanEditSchema,
+    onPartial: input.onPartial,
+    abortSignal: input.abortSignal,
+    teamId: input.teamId,
+    fake: () => ({ replacement: input.action === "shorten" ? input.text.split(/\s+/).slice(0, Math.max(3, Math.ceil(input.text.split(/\s+/).length / 2))).join(" ") : `${input.text} [AI_FAKE ${input.action}]`, note: `[AI_FAKE] ${input.action}` }),
+  });
+  const replacement = stripIds(res.output.replacement);
+  if (!replacement) throw new Error("The AI didn't return new words. Try again or rephrase the instruction.");
+  const warnings = spanWarnings({ replacement, allowed });
+  if (input.action === "shorten" && countWords(replacement) >= countWords(input.text)) warnings.push("It isn't shorter than the original.");
+  return { kind: "span_edit" as const, replacement, note: stripIds(res.output.note), base: input.text, warnings, run: meta(res) };
 }
 
 export interface InterpretInput {

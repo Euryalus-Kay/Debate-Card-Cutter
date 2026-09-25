@@ -12,7 +12,7 @@ import { getFormat, speechSeconds, SPEECH_IDS, SPEECHES, type SpeechId } from "@
 import type { RoundGraph } from "@/domain/flow";
 import { capRatesForJudge, estimate, formatClock } from "@/domain/timing";
 import { itemLoad, type DraftItem } from "@/shared/draft-model";
-import { prepUsedMs, readPrefs, readSlots, readTimers, updatePrefs, updateSlot, type SlotRecord } from "@/shared/round-doc";
+import { prepUsedMs, readActivity, readPrefs, readSlots, readTimers, updatePrefs, updateSlot, type SlotRecord } from "@/shared/round-doc";
 import { useRateProfile } from "@/client/use-settings";
 import type { RoundBundle, RoundRecord } from "./types";
 import { useWorkspace } from "./store";
@@ -20,6 +20,9 @@ import { HeardPad } from "./heard-pad";
 import { claimForSection, useRoundResearch } from "./round-research";
 import { findSectionNode, useProposals } from "./proposals";
 import { AiProgress } from "./ai-progress";
+import { SelectionMenu, SpanSuggestions } from "./editor/span-ai";
+import type { SpanEnv } from "./editor/span-common";
+import { useCommentMarks } from "./comments";
 import { HistoryDialog } from "./history-dialog";
 import { speechSpeaker, useTeamMembers } from "./speakers";
 import { EditorRoundCtx } from "./editor/context";
@@ -97,12 +100,16 @@ function OurSpeechView({ round, bundle, doc, graph, speech, aiEnabled, userId }:
   const deduction = round.settings?.prepOverage === "deduct" && overSec > 0 && nextOurs === speech ? Math.round(overSec) : 0;
   const limit = speechSeconds(fmt, speech) - deduction;
   const partnerSections = useMemo(() => new Map((snapshot?.others ?? []).filter((o) => o.state.section).map((o) => [o.state.section!, o.state.name ?? "Partner"])), [snapshot?.others]);
-  // The AI job working on this draft right now, shown next to "Build / revise".
+  // The AI job working on this draft right now (yours or your partner's), shown next to "Build / revise".
   const working = useProposals((s) => s.proposals.find((p) => p.draftId === ws.draftId && p.status === "running" && (p.kind === "draft" || p.kind === "patch" || p.kind === "fit")));
+  const partnerJob = (useYDocValue(doc, readActivity) ?? []).find((a) => a.draftId === ws.draftId && a.by !== userId && a.status === "running" && a.kind !== "span" && a.kind !== "comment");
 
   useEffect(() => {
     draftSync?.setPresence({ section: ws.selectedSectionId ?? undefined, activity: "editing", name: user.name });
   }, [draftSync, ws.selectedSectionId, user.name]);
+  // Select words for "Ask AI" or a comment; comments show as tinted words.
+  const spanEnv: SpanEnv | null = ws.draftId ? { roundId: round.id, speech, draftId: ws.draftId, draftDoc, userId, userName: user.name, aiEnabled } : null;
+  useCommentMarks(editor, draftDoc);
 
   async function createDraft(variant?: string) {
     setCreating(true);
@@ -232,6 +239,13 @@ function OurSpeechView({ round, bundle, doc, graph, speech, aiEnabled, userId }:
               <button className="flex max-w-56 items-center rounded-md px-1.5 py-1 hover:bg-hover" onClick={() => ws.set({ right: "ai" })} aria-label="Show AI progress">
                 <AiProgress compact progress={working.progress} since={working.startedAt} label={working.kind === "fit" ? "Fitting" : working.kind === "patch" ? "Updating" : "Drafting"} />
               </button>
+            ) : partnerJob ? (
+              <Tooltip content={`${partnerJob.byName}'s AI is ${partnerJob.label}. You can keep editing; its changes arrive as a suggestion.`}>
+                <button className="flex max-w-64 items-center gap-1 rounded-md px-1.5 py-1 hover:bg-hover" onClick={() => ws.set({ right: "ai" })} aria-label="Show your partner's AI progress">
+                  <span className="text-[11.5px] font-medium text-muted">{partnerJob.byName.split(" ")[0]}:</span>
+                  <AiProgress compact progress={{ stage: partnerJob.stage, done: partnerJob.done, total: partnerJob.total, etaMs: partnerJob.etaMs, fraction: partnerJob.fraction, at: partnerJob.at }} since={partnerJob.startedAt} label={partnerJob.stage} />
+                </button>
+              </Tooltip>
             ) : null}
             {aiEnabled ? (
               <Button size="sm" variant="primary" onClick={() => setGenOpen(true)}>
@@ -260,7 +274,14 @@ function OurSpeechView({ round, bundle, doc, graph, speech, aiEnabled, userId }:
           </div>
         </div>
         <EditorToolbar editor={editor} />
-        <SpeechEditorView editor={editor} />
+        <SpeechEditorView editor={editor}>
+          {spanEnv ? (
+            <>
+              <SelectionMenu editor={editor} env={spanEnv} />
+              <SpanSuggestions editor={editor} draftId={spanEnv.draftId} />
+            </>
+          ) : null}
+        </SpeechEditorView>
         <div className="shrink-0 border-t border-line bg-elev px-3 py-2">
           <div className="flex items-center gap-3 text-xs">
             <span className="font-medium">

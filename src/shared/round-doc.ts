@@ -454,3 +454,57 @@ export function recordedSpeeches(doc: Y.Doc, withDocs: Iterable<SpeechId> = []):
   for (const a of readArgs(doc)) if (a.delivery !== "planned") out.add(a.speech);
   return out;
 }
+
+// ---------------------------------------------------------------------------
+// AI activity (A7): who is running which AI job, and how far along it is, shared
+// live so partners see each other's work. Written by the browser that started
+// the job (from its progress stream); plain values under flat keys.
+// ---------------------------------------------------------------------------
+
+export const AI_ACTIVITY = "ai_activity";
+
+export interface AiActivity {
+  /** local id of the job (the proposal id) */
+  id: string;
+  /** the server's AI operation id, once known (partners fetch the finished proposal by it) */
+  opId?: string | null;
+  by: string;
+  byName: string;
+  /** draft | patch | fit | revision | span | comment | flow */
+  kind: string;
+  /** what it works on, in words ("the 1AR", "their 2NC notes") */
+  label: string;
+  speech: SpeechId | null;
+  draftId: string | null;
+  status: "running" | "ready" | "failed" | "applied" | "dismissed";
+  stage: string;
+  done: number;
+  total: number | null;
+  etaMs: number | null;
+  fraction: number;
+  startedAt: number;
+  /** last write (ms); a running entry not updated for a while is shown as stalled */
+  at: number;
+}
+
+export function putActivity(doc: Y.Doc, a: AiActivity): void {
+  doc.getMap(AI_ACTIVITY).set(a.id, a);
+}
+
+export function patchActivity(doc: Y.Doc, id: string, fields: Partial<AiActivity>): void {
+  const m = doc.getMap(AI_ACTIVITY) as Y.Map<AiActivity>;
+  const cur = m.get(id);
+  if (cur) m.set(id, { ...cur, ...fields, at: Date.now() });
+}
+
+export function readActivity(doc: Y.Doc): AiActivity[] {
+  return [...(doc.getMap(AI_ACTIVITY) as Y.Map<AiActivity>).values()].filter(Boolean).sort((a, b) => b.startedAt - a.startedAt);
+}
+
+/** Drop finished entries older than `maxAgeMs` (and running ones silent for an hour) to keep the map small. */
+export function pruneActivity(doc: Y.Doc, now: number, maxAgeMs = 15 * 60_000): void {
+  const m = doc.getMap(AI_ACTIVITY) as Y.Map<AiActivity>;
+  for (const [id, a] of m.entries()) {
+    if (!a || (a.status !== "running" && now - a.at > maxAgeMs) || now - a.at > 60 * 60_000) m.delete(id);
+  }
+}

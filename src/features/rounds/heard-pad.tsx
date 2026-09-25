@@ -20,6 +20,7 @@ import { parseHeard } from "@/domain/heard-parse";
 import { applyHeard, parsedToValidated, revertHeard, type HeardApplyResult } from "@/shared/heard-apply";
 import { heardAuthorOf, heardKey, heardLines, heardText, heardTextKeys, readPositions, transcriptKey } from "@/shared/round-doc";
 import { useBoundText } from "./use-bound-text";
+import { activityEnd, activityOp, activityProgress, activityStart } from "./ai-activity";
 
 type RunSummary = { text: string; undo: () => Promise<void> };
 
@@ -100,13 +101,25 @@ export function HeardPad({
         return;
       }
       setStatus("Reading your notes…");
+      const aid = `flow_${Date.now().toString(36)}`;
+      activityStart({ id: aid, kind: "flow", label: `putting their ${speech} on the flow`, speech, draftId: null });
       await flushDoc(stateDocId);
       let opId: string | null = null;
       const result = (await runOp({ kind: "extract_flow", roundId, speech, mode: "fast" }, (e) => {
-        if (e.t === "op") opId = e.id;
+        if (e.t === "op") {
+          opId = e.id;
+          activityOp(aid, e.id);
+        }
         if (e.t === "status") setStatus(e.data);
-        if (e.t === "progress") setStatus(e.data.stage);
+        if (e.t === "progress") {
+          setStatus(e.data.stage);
+          activityProgress(aid, e.data);
+        }
+      }).catch((err) => {
+        activityEnd(aid, "failed");
+        throw err;
       })) as Partial<HeardApplyResult> & { fallback?: number };
+      activityEnd(aid, "applied", summarize(result, true));
       setLast({
         text: summarize(result, true),
         undo: async () => {

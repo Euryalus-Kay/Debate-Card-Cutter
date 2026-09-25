@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import type * as Y from "yjs";
 import { AlertTriangle, Check, Loader2, RefreshCw, Scissors, Sparkles, X } from "lucide-react";
 import { api } from "@/client/api";
-import { syncDocNow, useDocSync } from "@/client/sync/hooks";
+import { syncDocNow, useDocSync, useYDocValue } from "@/client/sync/hooks";
 import { Badge, Button, cn, EmptyState, toast } from "@/components/ui";
 import { useApp } from "@/components/shell/app-shell";
 import { formatClock } from "@/domain/timing";
@@ -12,14 +13,15 @@ import type { AlternativesOutput, PatchPlanOutput, SectionRevisionOutput, Speech
 import type { RoundGraph } from "@/domain/flow";
 import type { SpeechId } from "@/domain/format";
 import { patchSectionId } from "@/domain/patch";
-import { readGraph } from "@/shared/round-doc";
+import { readActivity, readGraph, type AiActivity } from "@/shared/round-doc";
 import { useWorkspace } from "./store";
 import { applyDraft, applyPatch, applyRevision, fetchCards, findSectionNode, removeSection, sectionNodes, useProposals, type ApplyResult, type PatchOutcome, type Proposal } from "./proposals";
 import type { RoundRecord } from "./types";
 import { getActiveEditor, getRoundDoc } from "./editor/active-editor";
 import { saveVersionBeforeAi } from "./history-dialog";
 import { startFitOp } from "./ai-actions";
-import { AiProgress } from "./ai-progress";
+import { AiProgress, useNow } from "./ai-progress";
+import { activityDecided } from "./ai-activity";
 
 interface OpRow {
   id: string;
@@ -33,12 +35,38 @@ interface OpRow {
   output: unknown;
 }
 
-export function AiPanel({ round, aiEnabled }: { round: RoundRecord; aiEnabled: boolean }) {
+export function AiPanel({ round, aiEnabled, doc }: { round: RoundRecord; aiEnabled: boolean; doc: Y.Doc | null }) {
+  const { user } = useApp();
   // Newest first: a proposal restored from history never sits above the one you just asked for.
   const proposals = useProposals((s) => s.proposals)
     .filter((p) => p.draftId)
     .sort((a, b) => b.startedAt - a.startedAt);
   const history = useQuery({ queryKey: ["ai-ops", round.id], queryFn: () => api<{ ops: OpRow[] }>(`/api/rounds/${round.id}/ai-ops`), refetchInterval: 15_000 });
+  const activity = useYDocValue(doc, readActivity) ?? [];
+  const others = activity.filter((a) => a.by !== user.id);
+  // A partner's job just finished: fetch its proposal now instead of at the next poll.
+  const readyKey = others
+    .filter((a) => a.status === "ready" && a.opId)
+    .map((a) => a.opId)
+    .join(",");
+  const { refetch } = history;
+  useEffect(() => {
+    if (readyKey) void refetch();
+  }, [readyKey, refetch]);
+  // A partner applied or dismissed a proposal (theirs or mine): my copy of it follows.
+  const decidedKey = activity
+    .filter((a) => (a.status === "applied" || a.status === "dismissed") && a.opId)
+    .map((a) => `${a.opId}:${a.status}`)
+    .join(",");
+  useEffect(() => {
+    if (!decidedKey) return;
+    const store = useProposals.getState();
+    for (const pair of decidedKey.split(",")) {
+      const [opId, status] = pair.split(":");
+      const p = store.proposals.find((x) => x.opId === opId && x.status === "ready");
+      if (p && (p.kind !== "patch" || !Object.keys(p.outcomes ?? {}).length)) store.update(p.id, { status: status as "applied" | "dismissed" });
+    }
+  }, [decidedKey]);
   // Rehydrate finished-but-unapplied proposals (after refresh, or ones your partner started).
   useEffect(() => {
     const ops = history.data?.ops ?? [];
@@ -61,6 +89,7 @@ export function AiPanel({ round, aiEnabled }: { round: RoundRecord; aiEnabled: b
         <div className="m-3 rounded-lg bg-warn-soft px-3 py-2 text-xs text-warn">AI is off for this round (tournament rules setting). Flow, evidence, timers, and drafting still work.</div>
       ) : null}
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        <PartnerActivity items={others} />
         {proposals.length === 0 ? (
           <EmptyState icon={<Sparkles className="size-7" />} title="No AI suggestions yet">
             Use &ldquo;Build / revise&rdquo; above the draft, or the ✦ menu on any section. Suggestions appear here for you to review; nothing changes your draft until you apply it.
@@ -81,6 +110,27 @@ export function AiPanel({ round, aiEnabled }: { round: RoundRecord; aiEnabled: b
           </div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/** What the partner's AI is doing right now (and what it just finished). */
+function PartnerActivity({ items }: { items: AiActivity[] }) {
+  const now = useNow(items.length > 0);
+  const shown = items.filter((a) => (a.status === "running" && now - a.at < 5 * 60_000) || (a.status !== "running" && now - a.at < 90_000));
+  if (!shown.length) return null;
+  return (
+    <div className="mb-3 space-y-2 rounded-xl border border-line bg-sunken/60 p-2.5">
+      {shown.map((a) => (
+        <div key={a.id} className="text-[12.5px]">
+          <div className="mb-1 flex items-center gap-1.5">
+            <span className="font-medium">{a.byName.split(" ")[0]}&apos;s AI</span>
+            <span className="text-muted">is {a.status === "running" ? a.label : `done ${a.label}`}</span>
+            {a.status !== "running" ? <Badge tone={a.status === "failed" ? "bad" : a.status === "ready" ? "accent" : "ok"}>{a.status === "ready" ? "ready below" : a.status}</Badge> : null}
+          </div>
+          {a.status === "running" ? <AiProgress progress={{ stage: a.stage, done: a.done, total: a.total, etaMs: a.etaMs, fraction: a.fraction, at: a.at }} since={a.startedAt} label={a.stage} /> : <div className="text-[11.5px] text-muted">{a.stage}</div>}
+        </div>
+      ))}
     </div>
   );
 }
@@ -106,6 +156,7 @@ function ProposalCard({ p, round }: { p: Proposal; round: RoundRecord }) {
   void sync;
 
   async function markOp(field: "applied" | "dismissed") {
+    activityDecided(p.opId, field);
     if (p.opId) await api(`/api/ai/ops/${p.opId}`, { method: "PATCH", json: { [field]: true } }).catch(() => {});
   }
 

@@ -16,6 +16,7 @@ export type AiTask =
   | "speech_draft_fast"
   | "section_revise" // targeted rewrites (clarify / reword / condense / strengthen)
   | "section_alternatives"
+  | "span_edit" // rewrite exactly the selected words, or reply to an @AI comment on them
   | "speech_fit" // whole-speech keep/condense/cut plan to fit the time limit
   | "speech_patch" // update an existing draft: add answers to new arguments, relink, minimal edits
   | "coverage_review" // what's still missing, strategic risks
@@ -96,6 +97,11 @@ export const REGISTRY: Record<AiTask, TaskConfig> = {
   speech_patch: {
     primary: { model: MODELS.opus55, effort: "low", maxOutputTokens: 12000, firstChunkMs: 30000 },
     fallbacks: [{ model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 12000, firstChunkMs: 30000 }],
+  },
+  // Selection edits and comment replies are interactive: answer in seconds.
+  span_edit: {
+    primary: { model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 3000, firstChunkMs: 12000 },
+    fallbacks: [{ model: MODELS.opus55, effort: "low", maxOutputTokens: 3000 }],
   },
   section_alternatives: {
     primary: { model: MODELS.opus55, effort: "low", maxOutputTokens: 8000, firstChunkMs: 30000 },

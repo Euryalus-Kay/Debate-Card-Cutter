@@ -17,6 +17,7 @@ import { FlowGrid } from "./flow-grid";
 import { ResearchDialog } from "./round-research";
 import { SidePanel } from "./side-panel";
 import { setRoundDoc } from "./editor/active-editor";
+import { setActivityUser } from "./ai-activity";
 
 export function aiEnabledFor(round: RoundRecord): boolean {
   if (round.aiOverride) return true;
@@ -38,8 +39,9 @@ export function RoundWorkspace({ roundId }: { roundId: string }) {
   const [overrideOpen, setOverrideOpen] = useState(false);
   useEffect(() => {
     setRoundDoc(doc);
+    setActivityUser({ id: user.id, name: user.name });
     return () => setRoundDoc(null);
-  }, [doc]);
+  }, [doc, user.id, user.name]);
 
   // Reset per-round UI state when switching rounds.
   useEffect(() => {

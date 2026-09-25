@@ -354,3 +354,28 @@ body {
 .animate-pulse-soft {
   animation: pulse-soft 1.6s ease-in-out infinite;
 }
+
+/* Anchored spans (A7): words an AI edit is working on, and words with comments. */
+.speech-editor .anchored-ai {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-bottom: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.speech-editor .anchored-ai-running {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  animation: anchored-pulse 1.4s ease-in-out infinite;
+}
+.speech-editor .anchored-comment {
+  background: color-mix(in srgb, #f59f00 18%, transparent);
+  border-bottom: 2px solid color-mix(in srgb, #f59f00 65%, transparent);
+  cursor: pointer;
+}
+@keyframes anchored-pulse {
+  50% {
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .speech-editor .anchored-ai-running {
+    animation: none;
+  }
+}

@@ -6,7 +6,7 @@ import type { Editor } from "@tiptap/react";
 import type * as Y from "yjs";
 import { Sparkles, Zap, Brain, RefreshCw, Copy } from "lucide-react";
 import { api } from "@/client/api";
-import { runOp } from "@/client/ai";
+import { runOp, type OpEvent } from "@/client/ai";
 import { flushDoc } from "@/client/sync/hooks";
 import { Button, cn, Dialog, Field, Textarea, toast } from "@/components/ui";
 import type { RoundGraph } from "@/domain/flow";
@@ -19,10 +19,26 @@ import { useWorkspace } from "./store";
 import { findSectionNode, useProposals, type PatchResult, type Proposal } from "./proposals";
 import { getRoundDoc } from "./editor/active-editor";
 import { useDraft } from "./draft-hooks";
+import { activityEnd, activityOp, activityProgress, activityStart } from "./ai-activity";
 import type { RoundRecord } from "./types";
 
 function draftHash(editor: Editor | null): string | null {
   return editor ? sectionContentHash(editor.getJSON() as PMNodeJSON) : null;
+}
+
+/** Stream events into the proposal, and into the shared activity so the partner sees it. */
+function onEvent(pid: string, e: OpEvent) {
+  const store = useProposals.getState();
+  if (e.t === "op") {
+    store.update(pid, { opId: e.id });
+    activityOp(pid, e.id);
+  }
+  if (e.t === "partial") store.update(pid, { partial: e.data as never });
+  if (e.t === "status") store.update(pid, { note: e.data });
+  if (e.t === "progress") {
+    store.update(pid, { progress: { ...e.data, at: Date.now() } });
+    activityProgress(pid, e.data);
+  }
 }
 
 export async function startDraftOp(args: { round: RoundRecord; speech: SpeechId; draftId: string; editor: Editor | null; mode: "fast" | "deep"; instructions: string; cardIds: string[]; evidenceMode: "selected_only" | "selected_plus_library" }) {
@@ -30,20 +46,18 @@ export async function startDraftOp(args: { round: RoundRecord; speech: SpeechId;
   const pid = makeId("prop");
   store.add({ id: pid, opId: null, kind: "draft", draftId: args.draftId, speech: args.speech, status: "running", partial: null, result: null, error: null, startedAt: Date.now(), baseDraftHash: draftHash(args.editor) });
   useWorkspace.getState().set({ right: "ai" });
+  activityStart({ id: pid, kind: "draft", label: `writing the ${args.speech}`, speech: args.speech, draftId: args.draftId });
   await flushDoc(args.draftId);
   try {
     const result = await runOp(
       { kind: "draft_speech", roundId: args.round.id, speech: args.speech, draftId: args.draftId, mode: args.mode, cardIds: args.cardIds, evidenceMode: args.evidenceMode, instructions: args.instructions },
-      (e) => {
-        if (e.t === "op") store.update(pid, { opId: e.id });
-        if (e.t === "partial") useProposals.getState().update(pid, { partial: e.data as never });
-        if (e.t === "status") useProposals.getState().update(pid, { note: e.data });
-        if (e.t === "progress") useProposals.getState().update(pid, { progress: { ...e.data, at: Date.now() } });
-      },
+      (e) => onEvent(pid, e),
     );
     useProposals.getState().update(pid, { status: "ready", result: result as never, note: null, progress: null });
+    activityEnd(pid, "ready");
   } catch (e) {
     useProposals.getState().update(pid, { status: "failed", error: (e as Error).message });
+    activityEnd(pid, "failed");
     toast((e as Error).message, "bad");
   }
 }
@@ -54,17 +68,16 @@ export async function startFitOp(args: { round: RoundRecord; speech: SpeechId; d
   const pid = makeId("prop");
   store.add({ id: pid, opId: null, kind: "fit", draftId: args.draftId, speech: args.speech, status: "running", partial: null, result: null, error: null, startedAt: Date.now() });
   useWorkspace.getState().set({ right: "ai" });
+  activityStart({ id: pid, kind: "fit", label: `fitting the ${args.speech} to time`, speech: args.speech, draftId: args.draftId });
   // Make sure the server sees the latest text.
   await flushDoc(args.draftId);
   try {
-    const result = await runOp({ kind: "fit_speech", roundId: args.round.id, speech: args.speech, draftId: args.draftId, instructions: args.instructions ?? "", mode: "fast" }, (e) => {
-      if (e.t === "op") store.update(pid, { opId: e.id });
-      if (e.t === "partial") useProposals.getState().update(pid, { partial: e.data });
-      if (e.t === "progress") useProposals.getState().update(pid, { progress: { ...e.data, at: Date.now() } });
-    });
+    const result = await runOp({ kind: "fit_speech", roundId: args.round.id, speech: args.speech, draftId: args.draftId, instructions: args.instructions ?? "", mode: "fast" }, (e) => onEvent(pid, e));
     useProposals.getState().update(pid, { status: "ready", result: result as never, progress: null });
+    activityEnd(pid, "ready");
   } catch (e) {
     useProposals.getState().update(pid, { status: "failed", error: (e as Error).message });
+    activityEnd(pid, "failed");
     toast((e as Error).message, "bad");
   }
 }
@@ -80,21 +93,19 @@ export async function startPatchOp(args: { round: RoundRecord; speech: SpeechId;
   const pid = makeId("prop");
   store.add({ id: pid, opId: null, kind: "patch", draftId: args.draftId, speech: args.speech, status: "running", partial: null, result: null, error: null, startedAt: Date.now(), auto: args.auto });
   if (!args.auto) useWorkspace.getState().set({ right: "ai" });
+  activityStart({ id: pid, kind: "patch", label: args.auto ? `pre-drafting the ${args.speech}` : `updating the ${args.speech}`, speech: args.speech, draftId: args.draftId });
   await flushDoc(args.draftId);
   try {
     const result = (await runOp(
       { kind: "patch_speech", roundId: args.round.id, speech: args.speech, draftId: args.draftId, instructions: args.instructions ?? "", cardIds: args.cardIds ?? useWorkspace.getState().basket, evidenceMode: "selected_plus_library", mode: "fast", auto: !!args.auto },
-      (e) => {
-        if (e.t === "op") store.update(pid, { opId: e.id });
-        if (e.t === "partial") useProposals.getState().update(pid, { partial: e.data });
-        if (e.t === "status") useProposals.getState().update(pid, { note: e.data });
-        if (e.t === "progress") useProposals.getState().update(pid, { progress: { ...e.data, at: Date.now() } });
-      },
+      (e) => onEvent(pid, e),
     )) as PatchResult;
     useProposals.getState().update(pid, { status: args.auto && result.upToDate ? "dismissed" : "ready", result, note: null, progress: null });
     useProposals.getState().supersede(args.draftId, pid);
+    activityEnd(pid, result.upToDate ? "dismissed" : "ready", result.upToDate ? "Nothing to change" : undefined);
     return result;
   } catch (e) {
+    activityEnd(pid, "failed");
     useProposals.getState().update(pid, { status: args.auto ? "dismissed" : "failed", error: (e as Error).message });
     if (!args.auto) toast((e as Error).message, "bad");
     return null;
@@ -110,19 +121,23 @@ export async function runSectionAi(args: { round: RoundRecord; speech: SpeechId;
   const kind = args.action === "alternatives" ? "alternatives" : "revision";
   store.add({ id: pid, opId: null, kind, draftId: args.draftId, speech: args.speech, sectionId: args.sectionId, action: args.action, status: "running", partial: null, result: null, error: null, startedAt: Date.now() } as Proposal);
   useWorkspace.getState().set({ right: "ai" });
+  let heading = "";
+  found.node.forEach((c) => {
+    if (!heading && c.type.name === "heading") heading = c.textContent.trim();
+  });
+  activityStart({ id: pid, kind: "revision", label: `revising “${heading.slice(0, 40) || "a section"}” (${args.action})`, speech: args.speech, draftId: args.draftId });
   // Make sure the server sees the latest text before it reads the section.
   await flushDoc(args.draftId);
   try {
     const result = await runOp(
       { kind: "revise_section", roundId: args.round.id, speech: args.speech, draftId: args.draftId, sectionId: args.sectionId, action: args.action, instructions: args.instructions ?? "", cardIds: useWorkspace.getState().basket },
-      (e) => {
-        if (e.t === "op") store.update(pid, { opId: e.id });
-        if (e.t === "partial") useProposals.getState().update(pid, { partial: e.data });
-      },
+      (e) => onEvent(pid, e),
     );
     useProposals.getState().update(pid, { status: "ready", result: result as never });
+    activityEnd(pid, "ready");
   } catch (e) {
     useProposals.getState().update(pid, { status: "failed", error: (e as Error).message });
+    activityEnd(pid, "failed");
     toast((e as Error).message, "bad");
   }
 }

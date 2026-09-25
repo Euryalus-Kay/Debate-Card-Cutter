@@ -4,7 +4,7 @@ import { create } from "zustand";
 import type { SpeechId } from "@/domain/format";
 
 export type CenterTab = "speech" | "flow";
-export type RightTab = "details" | "evidence" | "docs" | "cx" | "ai";
+export type RightTab = "details" | "evidence" | "docs" | "cx" | "ai" | "comments";
 
 interface WorkspaceState {
   roundId: string | null;
@@ -14,6 +14,8 @@ interface WorkspaceState {
   right: RightTab;
   selectedArgId: string | null;
   selectedSectionId: string | null;
+  /** the comment thread to show in the Comments tab */
+  selectedThreadId: string | null;
   /** card ids the user has selected for the next generation request */
   basket: string[];
   shrinkUnread: boolean;
@@ -29,6 +31,7 @@ export const useWorkspace = create<WorkspaceState>((set) => ({
   right: "details",
   selectedArgId: null,
   selectedSectionId: null,
+  selectedThreadId: null,
   basket: [],
   shrinkUnread: false,
   set: (p) => set(p),

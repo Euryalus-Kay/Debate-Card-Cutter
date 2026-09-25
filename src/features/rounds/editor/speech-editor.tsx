@@ -12,6 +12,7 @@ import { cn, IconButton, Tooltip, toast } from "@/components/ui";
 import { CardView, SectionView } from "./node-views";
 import { useWorkspace } from "../store";
 import { insertSectionAfterCurrent } from "../proposals";
+import { AnchoredMarks } from "./anchored-marks";
 
 const blockedMessages: Record<BlockedReason, string> = {
   locked_section: "That section is locked. Unlock it (lock icon) to edit.",
@@ -43,6 +44,7 @@ export function useSpeechEditor(doc: Y.Doc | null, editable: boolean) {
     return [
       ...base,
       Collaboration.configure({ document: doc, field: DRAFT_FRAGMENT }),
+      AnchoredMarks,
       Placeholder.configure({ placeholder: "Start typing, add a section, or generate a draft…" }),
     ];
   }, [doc]);
@@ -179,12 +181,14 @@ export function EditorToolbar({ editor }: { editor: Editor | null }) {
   );
 }
 
-export function SpeechEditorView({ editor }: { editor: Editor | null }) {
+export function SpeechEditorView({ editor, children }: { editor: Editor | null; children?: React.ReactNode }) {
   const ws = useWorkspace();
   return (
     <div className={cn("speech-editor min-h-0 flex-1 overflow-y-auto", ws.shrinkUnread && "shrink-unread")}>
-      <div className="mx-auto max-w-[860px] pl-10">
+      {/* Overlays (AI suggestions under their words) are positioned inside the scrolling content. */}
+      <div className="relative mx-auto max-w-[860px] pl-10">
         <EditorContent editor={editor} />
+        {children}
       </div>
     </div>
   );

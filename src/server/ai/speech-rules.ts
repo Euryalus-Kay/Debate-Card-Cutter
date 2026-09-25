@@ -23,7 +23,8 @@ export const GLOBAL_RULES = `GLOBAL RULES (every speech)
 10. Extensions: extend by author (or number) AND warrant, answer their latest response to it, and give the implication. A tag-only "extend Smith" is not an extension.
 11. Don't pad. A short precise answer beats a long vague one. Group only arguments that genuinely share a warrant (never group T/theory standards, turns, or major positions).
 12. Adapt to the judge profile: for lay judges use plain language, fewer arguments, big-picture reasons, and slower pacing; for flow judges, line by line.
-13. You are helping high-school students. Keep everything appropriate for students and on the debate task; never attack opponents or judges personally.`;
+13. You are helping high-school students. Keep everything appropriate for students and on the debate task; never attack opponents or judges personally.
+14. Ids are for the targets and cardIds fields only. In anything a debater reads or says (titles, analytics, notes, replies, questions), never write an id or bracketed code; name arguments by speech, number, author, and words ("their 2NC 11", "the Lee 26 card").`;
 
 export const SPEECH_RULES: Record<SpeechId, string> = {
   "1AC": `1AC (first affirmative constructive).

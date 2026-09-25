@@ -73,6 +73,21 @@ export const PatchPlanSchema = z.object({
 });
 export type PatchPlanOutput = z.infer<typeof PatchPlanSchema>;
 
+/** A change to exactly the words a debater selected (A7). */
+export const SpanEditSchema = z.object({
+  replacement: z.string().describe("The new text for exactly the selected words. It must read naturally between the text before and after them. Plain text."),
+  note: z.string().describe("One short sentence: what changed and why."),
+});
+export type SpanEditOutput = z.infer<typeof SpanEditSchema>;
+
+/** The AI's reply in a comment thread on the speech, with an optional change to the commented words (A7). */
+export const CommentReplySchema = z.object({
+  reply: z.string().describe("Your reply in the thread: answer the question or give the critique, specific to these words and this round, in two to five sentences."),
+  replacement: z.string().describe("Only if changing the commented words would help: the full new text for exactly those words. Otherwise an empty string."),
+  note: z.string().describe("If you suggested new words: one short sentence on what they change. Otherwise an empty string."),
+});
+export type CommentReplyOutput = z.infer<typeof CommentReplySchema>;
+
 export const SectionRevisionSchema = z.object({
   title: z.string(),
   analytic: z.string(),

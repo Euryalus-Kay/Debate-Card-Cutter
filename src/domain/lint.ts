@@ -85,7 +85,7 @@ function truncate(s: string, n: number) {
 
 const NUMBER_WORDS: Record<string, string> = { percent: "%", "per cent": "%" };
 
-function numbersIn(text: string): string[] {
+export function numbersIn(text: string): string[] {
   // A trailing % covers the whole range: "7–9%" and "7 to 9 percent" mean 7% and 9%.
   const t = text
     .toLowerCase()

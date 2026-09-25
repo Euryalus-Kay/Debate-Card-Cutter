@@ -11,7 +11,7 @@ import { handle, HttpError, requireAccess, requireUser } from "@/server/authz";
 import { db } from "@/server/db/client";
 import { aiOperations, documents, rounds } from "@/server/db/schema";
 import { newId } from "@/server/ids";
-import { draftSpeech, extractFlow, fitSpeech, interpretFlow, patchSpeech, reviseSection, type SectionAction } from "@/server/ai/ops";
+import { draftSpeech, editSpan, extractFlow, fitSpeech, interpretFlow, patchSpeech, reviseSection, type SectionAction, type SpanAction } from "@/server/ai/ops";
 import { AiRunError } from "@/server/ai/run";
 import { aiAllowed } from "@/server/ai/policy";
 import { ratesForSpeech } from "@/server/speakers";
@@ -20,7 +20,7 @@ import { SPEECH_IDS, type SpeechId } from "@/domain/format";
 export const maxDuration = 300;
 
 const Body = z.object({
-  kind: z.enum(["draft_speech", "revise_section", "interpret_flow", "fit_speech", "extract_flow", "patch_speech"]),
+  kind: z.enum(["draft_speech", "revise_section", "interpret_flow", "fit_speech", "extract_flow", "patch_speech", "edit_span"]),
   roundId: z.string(),
   speech: z.enum(SPEECH_IDS as unknown as [string, ...string[]]),
   draftId: z.string().nullable().optional(),
@@ -33,6 +33,12 @@ const Body = z.object({
   targetSeconds: z.number().min(5).max(600).optional(),
   /** started automatically (live pre-drafting) rather than by a click */
   auto: z.boolean().optional(),
+  /** edit_span: the selected words, the text around them, and what to do (or "comment" to reply in a thread) */
+  spanAction: z.enum(["sharpen", "shorten", "warrant", "answer", "lay", "grammar", "custom", "comment"]).optional(),
+  text: z.string().max(6000).optional(),
+  before: z.string().max(2000).optional(),
+  after: z.string().max(2000).optional(),
+  thread: z.array(z.object({ by: z.string().max(80), text: z.string().max(4000), ai: z.boolean().optional() })).max(30).optional(),
 });
 
 
@@ -69,7 +75,7 @@ export const POST = handle(async (req: Request) => {
       teamId,
       roundId: input.roundId,
       docId: input.draftId ?? null,
-      kind: input.kind === "revise_section" ? `revise:${input.action}` : input.kind,
+      kind: input.kind === "revise_section" ? `revise:${input.action}` : input.kind === "edit_span" ? `span:${input.spanAction}` : input.kind,
       target: { speech: input.speech, sectionId: input.sectionId ?? null, ...(input.auto ? { auto: true } : {}) },
       instruction: input.instructions,
       mode: input.mode,
@@ -166,6 +172,24 @@ export const POST = handle(async (req: Request) => {
           onPartial,
           onStatus: (s) => sink.push?.({ t: "status", data: s }),
           onProgress,
+          abortSignal: abort.signal,
+        });
+      } else if (input.kind === "edit_span") {
+        if (!input.draftId || !input.spanAction || !input.text) throw new HttpError(400, "Select some words first.");
+        result = await editSpan({
+          roundId: input.roundId,
+          speech: input.speech as SpeechId,
+          draftId: input.draftId,
+          sectionId: input.sectionId ?? null,
+          text: input.text,
+          before: input.before ?? "",
+          after: input.after ?? "",
+          action: input.spanAction as SpanAction,
+          instructions: input.instructions,
+          thread: input.thread,
+          rates,
+          teamId,
+          onPartial,
           abortSignal: abort.signal,
         });
       } else if (input.kind === "extract_flow") {

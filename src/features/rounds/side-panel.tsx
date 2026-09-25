@@ -14,9 +14,21 @@ import { DocsPanel } from "./docs-panel";
 import { EvidencePanel } from "./evidence-panel";
 import { AiPanel } from "./ai-panel";
 import { CxPanel } from "./cx-panel";
+import { CommentsPanel } from "./comments";
+import { useDocSync, useYDocValue } from "@/client/sync/hooks";
+import { useApp } from "@/components/shell/app-shell";
+import { readThreads } from "@/shared/comments";
+import type { SpanEnv } from "./editor/span-common";
 
 export function SidePanel({ round, bundle, doc, graph, aiEnabled }: { round: RoundRecord; bundle: RoundBundle; doc: Y.Doc | null; graph: RoundGraph | null; aiEnabled: boolean }) {
   const ws = useWorkspace();
+  const { user } = useApp();
+  // Comments belong to the open draft of one of our speeches.
+  const ours = !!ws.speech && SPEECHES[ws.speech].side === round.ourSide;
+  const { sync: draftSync } = useDocSync(ours ? ws.draftId : null);
+  const draftDoc = draftSync?.doc ?? null;
+  const openThreads = (useYDocValue(draftDoc, readThreads) ?? []).filter((t) => !t.resolved).length;
+  const env: SpanEnv | null = ours && ws.draftId && ws.speech ? { roundId: round.id, speech: ws.speech, draftId: ws.draftId, draftDoc, userId: user.id, userName: user.name, aiEnabled } : null;
   return (
     <Tabs value={ws.right} onValueChange={(v) => ws.set({ right: v as RightTab })} className="flex min-h-0 flex-1 flex-col">
       <TabsList>
@@ -24,6 +36,7 @@ export function SidePanel({ round, bundle, doc, graph, aiEnabled }: { round: Rou
         <TabsTrigger value="evidence">Evidence</TabsTrigger>
         <TabsTrigger value="docs">Docs</TabsTrigger>
         <TabsTrigger value="cx">CX</TabsTrigger>
+        <TabsTrigger value="comments">{openThreads ? `Comments ${openThreads}` : "Comments"}</TabsTrigger>
         <TabsTrigger value="ai">AI</TabsTrigger>
       </TabsList>
       <TabsContent value="details" className="min-h-0 flex-1 overflow-y-auto">
@@ -38,8 +51,11 @@ export function SidePanel({ round, bundle, doc, graph, aiEnabled }: { round: Rou
       <TabsContent value="cx" className="min-h-0 flex-1 overflow-y-auto">
         <CxPanel round={round} doc={doc} />
       </TabsContent>
+      <TabsContent value="comments" className="flex min-h-0 flex-1 flex-col">
+        <CommentsPanel env={env} />
+      </TabsContent>
       <TabsContent value="ai" className="flex min-h-0 flex-1 flex-col">
-        <AiPanel round={round} aiEnabled={aiEnabled} />
+        <AiPanel round={round} aiEnabled={aiEnabled} doc={doc} />
       </TabsContent>
     </Tabs>
   );

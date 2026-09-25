@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { cn } from "@/components/ui";
 import { formatEta, type Progress } from "@/domain/progress";
 
-function useNow(active: boolean): number {
+export function useNow(active: boolean): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!active) return;
