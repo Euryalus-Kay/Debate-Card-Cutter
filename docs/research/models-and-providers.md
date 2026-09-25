@@ -810,3 +810,22 @@ Plan for this product [I]:
 | Human (original college file) | 5.98 | −1.38 ± 0.26 | — | — |
 
 All models land within ±10% of the target length (read-plan alignment). Human highlighting in these college files is deliberately choppy (24 fragments per 100 read words vs 8 for Opus), which the fluency-oriented rubric penalizes. **Decision: highlighting and card cutting stay on Opus 5.5 · low** (ties the best quality, fastest of the top tier). Sonnet 5 (thinking off) is the budget fallback at half the cost.
+
+## 15. Update (2026-09-25, evening): drafting quality (Opus 5.5 low vs medium, Gemini 3.8 Flash); prices re-checked
+
+**Prices** (platform.claude.com/docs/en/about-claude/pricing, read 2026-09-25): Opus 5.5 $4 in / $20 out per million tokens (1-hour cache write $8, cache hit $0.20); Sonnet 5 $2 / $10 (the launch price is now the standard price; the planned rise to $3 / $15 "will not occur"); Haiku 4.5 $1 / $5; web search $10 per 1,000 searches; web fetch no extra charge. On free use the page says only: "New users receive a small amount of free credits to test the API." There is no ongoing free tier.
+
+**Drafting benchmark** (`scripts/bench/draft-quality.ts`; synthetic test round; 1AR and 2AC; 3 drafts per configuration; each challenger draft compared blind with an Opus 5.5 low draft by two judges from different model families, Claude Opus 5.5 (medium) and Gemini 3.8 Flash (medium), in both orders; judges see exactly the evidence the drafters saw; drafts pass through the product's automatic trim/fill to time).
+- Run 1 is invalid: judges were given only the selected cards while drafters also had library cards, so the judges called a real library card fabricated (marked in `draft-quality-run1.json`).
+- Run 2 (`draft-quality-run2.json`) is valid for Gemini. Its Opus-medium comparison was confounded by a length-fix bug (several medium drafts stayed over time), so it was re-run.
+- Run 3 (`draft-quality-run3.json`): Opus low vs medium with the fixed length logic.
+
+| Challenger vs Opus 5.5 low | 1AR: challenger wins (Claude / Gemini judge) | 2AC: challenger wins | Avg score low → challenger | Draft time | Cost per draft |
+|---|---|---|---|---|---|
+| **Opus 5.5 medium** (run 3) | **75%** (83% / 67%) | **67%** (83% / 50%) | 7.4 → 7.9 | 92–118 s (low: 37–48 s) | $0.24–0.27 (low: $0.14) |
+| Gemini 3.8 Flash medium (run 2) | 17% (0% / 33%) | 33% (0% / 67%) | 7.7 → 7.2 | 25–28 s | $0.02 |
+| Gemini 3.8 Flash low (run 2) | 17% (0% / 33%) | 17% (0% / 33%) | 7.9 → 6.9 | 23–25 s | $0.015 |
+
+Judges' reasons for medium: sharper strategic moves (e.g. "the compact needs congressional consent, so the CP links to its own net benefit"), extending conceded arguments, and turning the other team's evidence. Even Gemini's own judge preferred Opus low over Gemini in three of four comparisons.
+
+**Decisions.** Fast drafts stay on Opus 5.5 low (in-round default, about 40–50 s). Deep drafts stay on Opus 5.5 medium: measurably better (about 70% of blind comparisons) at about twice the time and 75% more cost, so it's the right choice whenever there are 2+ minutes. Gemini stays out of the product: it loses on drafting, only ties on highlighting at 3× the time (§14), and its terms bar apps used by under-18s.

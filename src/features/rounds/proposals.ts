@@ -20,6 +20,7 @@ export interface Validation {
   estimatedSeconds: number;
   limitSeconds: number;
   sectionSeconds: Record<string, number>;
+  lengthAdjust?: { mode: "trim" | "grow"; fromSeconds: number; toSeconds: number; sections: number };
 }
 
 export type Proposal =
@@ -35,6 +36,8 @@ export type Proposal =
       error: string | null;
       startedAt: number;
       baseDraftHash: string | null;
+      /** progress after the plan streams in (e.g. trimming to time) */
+      note?: string | null;
     }
   | {
       id: string;

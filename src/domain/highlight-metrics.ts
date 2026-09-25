@@ -56,8 +56,10 @@ export interface HighlightMetrics {
   meanFragmentWords: number;
   /** share of fragments that are a single word */
   oneWordFragmentShare: number;
-  /** share of fragments ending on an article, preposition, or conjunction */
+  /** share of fragments ending on an article, preposition, or conjunction (normal mid-sentence; kept for comparison) */
   danglingShare: number;
+  /** read sentences that stop on such a word while the source sentence goes on (H-4) */
+  danglingEnds: number;
   /** highlight edges that fall inside a word */
   partialWordFragments: number;
   /** fragments per 100 read words (choppiness) */
@@ -94,16 +96,26 @@ export function highlightMetrics(body: BodyBlock[]): HighlightMetrics {
   // Sentences of the read text: split where a read word is followed by sentence punctuation in the source.
   const sentences: string[][] = [];
   let sent: string[] = [];
+  let danglingEnds = 0;
   for (const b of body) {
     if (b.kind !== "text") continue;
     const words = wordsOf(b);
+    let lastRead: Word | null = null;
     for (let i = 0; i < words.length; i++) {
       const w = words[i];
-      if (w.read) sent.push(w.text);
+      if (w.read) {
+        sent.push(w.text);
+        lastRead = w;
+      }
       const after = b.text.slice(w.end, words[i + 1]?.start ?? b.text.length);
-      if (/[.!?]/.test(after) && sent.length) {
-        sentences.push(sent);
-        sent = [];
+      const end = /[.!?]/.test(after) || i === words.length - 1;
+      if (end) {
+        if (lastRead && lastRead !== w && DANGLING.has(lastRead.text.toLowerCase())) danglingEnds++;
+        lastRead = null;
+        if (sent.length) {
+          sentences.push(sent);
+          sent = [];
+        }
       }
     }
   }
@@ -117,6 +129,7 @@ export function highlightMetrics(body: BodyBlock[]): HighlightMetrics {
     meanFragmentWords: lens.length ? lens.reduce((a, b) => a + b, 0) / lens.length : 0,
     oneWordFragmentShare: lens.length ? lens.filter((l) => l === 1).length / lens.length : 0,
     danglingShare: fragments.length ? fragments.filter((f) => DANGLING.has(f[f.length - 1].text.toLowerCase())).length / fragments.length : 0,
+    danglingEnds,
     partialWordFragments: partial,
     fragmentsPer100: read ? (fragments.length / read) * 100 : 0,
     sentencesWithVerbShare: sentences.length ? withVerb / sentences.length : 0,

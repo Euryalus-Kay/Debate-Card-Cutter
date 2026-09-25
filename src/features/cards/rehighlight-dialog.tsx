@@ -17,7 +17,7 @@ interface Proposal {
   body: BodyBlock[];
   read: string;
   metrics: { readWords: number; fragments: number; fragmentsPer100: number };
-  issues: { code: string; message: string }[];
+  issues: { code: string; message: string; note?: boolean }[];
   protectedWords: string[];
   model?: string;
   ms: number;
@@ -119,12 +119,26 @@ export function RehighlightDialog({
               <p className="leading-relaxed">{proposal.read}</p>
             </div>
             {proposal.protectedWords.length ? <p className="text-[12px] text-muted">Kept &ldquo;{[...new Set(proposal.protectedWords)].join("”, “")}&rdquo; in the read so the author&apos;s meaning doesn&apos;t change.</p> : null}
-            {proposal.issues.length ? (
+            {proposal.issues.some((i) => !i.note) ? (
               <ul className="space-y-0.5 text-[12px] text-warn">
-                {proposal.issues.map((i, k) => (
-                  <li key={k}>{i.message}</li>
-                ))}
+                {proposal.issues
+                  .filter((i) => !i.note)
+                  .map((i, k) => (
+                    <li key={k}>{i.message}</li>
+                  ))}
               </ul>
+            ) : null}
+            {proposal.issues.some((i) => i.note) ? (
+              <div className="text-[12px] text-muted">
+                <div className="font-medium text-fg">Left out of the read (the other team can read it)</div>
+                <ul className="list-disc space-y-0.5 pl-4">
+                  {proposal.issues
+                    .filter((i) => i.note)
+                    .map((i, k) => (
+                      <li key={k}>{i.message}</li>
+                    ))}
+                </ul>
+              </div>
             ) : null}
             <div className="max-h-72 overflow-y-auto rounded-md border border-line p-2">
               <CardBodyView body={proposal.body} shrink />

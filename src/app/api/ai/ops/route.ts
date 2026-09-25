@@ -105,6 +105,7 @@ export const POST = handle(async (req: Request) => {
           rates,
           teamId,
           onPartial,
+          onStatus: (s) => sink.push?.({ t: "status", data: s }),
           abortSignal: abort.signal,
         });
       } else if (input.kind === "revise_section") {

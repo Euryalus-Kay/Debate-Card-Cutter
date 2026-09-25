@@ -12,7 +12,7 @@
 import { z } from "zod";
 import { runStructured } from "@/server/ai/run";
 import type { ModelSpec } from "@/server/ai/models";
-import { applyReadPlan, type ReadPlan } from "@/domain/align";
+import { applyReadPlan, type AppliedPlan, type ReadNote, type ReadPlan } from "@/domain/align";
 import { highlightMetrics, type HighlightMetrics } from "@/domain/highlight-metrics";
 import { makeText, readAloud, type BodyBlock, type BodyText } from "@/domain/card";
 
@@ -24,13 +24,19 @@ export const ReadPlanSchema = z.object({
 });
 export type ReadPlanOutput = z.infer<typeof ReadPlanSchema>;
 
-export const HIGHLIGHT_RULES = `How to highlight a debate card (the highlighted words are exactly what the speaker reads aloud; everything else stays in the card, unread):
-1. Write the read as sentences a judge can follow at speed. Each read sentence keeps its subject, its verb, and its object or complement, so the words make sense heard in order, e.g. "climate change poses an existential threat to civilization", not "climate existential threat civilization".
-2. Carry the author's point AND its reason: the claim plus the warrant (the cause, mechanism, data, or evidence behind it). A card that only asserts the tag is weak.
-3. Cut everything that doesn't carry the argument: attributions ("according to the report"), hedging filler that doesn't change the meaning, examples beyond the best one, repetition, adjectives and adverbs that add nothing.
-4. Never change what the author says: keep negations (not, no, never, fail) and real qualifiers (may, could, likely, some, only) in any sentence you read, keep numbers with what they measure, and never read a view the author goes on to reject as if it were theirs.
-5. Read in phrases, not scattered words: prefer runs of 3+ words; single words only for a number or a key noun; don't end a phrase on "the, a, of, to, and" unless the next phrase finishes it.
-6. Only whole words; only words that appear in the card; in the card's order.`;
+export const HIGHLIGHT_RULES = `How to highlight a debate card (the highlighted words are exactly what the speaker reads aloud; everything else stays in the card, unread). Judges hear only the read words, and opponents check them against the full text.
+1. Read in sentences a judge can follow at speed. Each read sentence is grammatical English on its own, with its subject, its verb, and its object or complement: "climate change poses an existential threat to civilization", not "climate existential threat civilization".
+2. Read the author's point AND its reason: the claim plus a warrant (the cause, mechanism, data, or evidence behind it). The read alone must support the tag.
+3. Cut what doesn't carry the argument: attributions ("he said", "according to"), institutional detail, examples beyond the best one, repetition, and intensifiers that don't change what's true ("very", "dramatically"). Keep load-bearing modifiers: an adjective like "slower-than-expected" can be the whole mechanism.
+4. Never make the author say something else:
+   - Read every negation that applies to words you read (not, no, never, cannot, without, fail to). Skipping the rejected half of "not X but Y" or "X, not Y" is fine.
+   - Read hedges and scope words with the words they govern (may, could, likely, suggests, some, most, often, nearly): "may fear", not "fear".
+   - Numbers travel with their frame: the unit, the bound ("as much as", "up to", "at least"), the baseline ("from 52 to 38 minutes"), and the scope or time ("in a pilot at two ports", "by 2030").
+   - Don't stop right before a "but / however / although / unless" clause that limits what you read: read it, or leave that claim out.
+   - Never read a view the author reports in order to reject it ("critics argue …") as if it were the author's.
+5. Read phrases, not scattered words: prefer runs of 3+ words; single words only for a number or a key noun. A read sentence never ends on "the / a / of / to / and / that". After "a" or "an", the next word you read must still take that article.
+6. Join sentences only faithfully: skip forward within a paragraph, in order, and never pair a subject from one sentence with a predicate about something else in another.
+7. Only whole words; only words that appear in the card; in the card's order.`;
 
 const SYSTEM = `You highlight evidence cards for high school policy debate.
 
@@ -52,8 +58,10 @@ export interface HighlightRequest {
 }
 
 export interface QualityIssue {
-  code: "too_long" | "too_short" | "choppy" | "dangling" | "not_in_card" | "no_verb";
+  code: "too_long" | "too_short" | "choppy" | "dangling" | "not_in_card" | "no_verb" | "tag_number_unread" | "straw_man" | ReadNote["code"];
   message: string;
+  /** shown to the debater but not a reason to redo the highlighting */
+  note?: boolean;
 }
 
 export interface HighlightResult {
@@ -79,16 +87,35 @@ export function defaultTargetWords(body: BodyBlock[]): number {
   return Math.max(35, Math.min(90, Math.round(words * 0.2)));
 }
 
-export function assessRead(metrics: HighlightMetrics, targetWords: number, unmatched: string[]): QualityIssue[] {
+const numbersIn = (t: string) => new Set((t.match(/\d[\d,.]*\d|\d/g) ?? []).map((n) => n.replace(/,/g, "")));
+
+export function assessRead(metrics: HighlightMetrics, targetWords: number, applied: Pick<AppliedPlan, "unmatchedShort" | "notes">, ctx: { tag?: string; cardText?: string } = {}): QualityIssue[] {
   const issues: QualityIssue[] = [];
+  const unmatched = applied.unmatchedShort;
   if (metrics.readWords > targetWords * 1.3) issues.push({ code: "too_long", message: `The read is ${metrics.readWords} words; the target is about ${targetWords}. Cut the least important phrases.` });
   if (metrics.readWords < targetWords * 0.7) issues.push({ code: "too_short", message: `The read is ${metrics.readWords} words; the target is about ${targetWords}. Add the next most important support.` });
-  if (metrics.fragmentsPer100 > 30 && metrics.readWords >= 20) issues.push({ code: "choppy", message: `The read is split into ${metrics.fragments} separate pieces (${metrics.fragmentsPer100.toFixed(0)} per 100 words). Read longer phrases.` });
-  if (metrics.danglingShare > 0.3) issues.push({ code: "dangling", message: `${Math.round(metrics.danglingShare * 100)}% of the read phrases end on a word like "the/of/to/and", which leaves the listener hanging.` });
+  if (metrics.readWords >= 20 && (metrics.fragmentsPer100 > 30 || (metrics.fragments >= 4 && metrics.oneWordFragmentShare > 0.35)))
+    issues.push({ code: "choppy", message: `The read is split into ${metrics.fragments} separate pieces (${metrics.fragmentsPer100.toFixed(0)} per 100 words, ${Math.round(metrics.oneWordFragmentShare * 100)}% single words). Read longer phrases.` });
+  if (metrics.danglingEnds >= 2) issues.push({ code: "dangling", message: `${metrics.danglingEnds} read sentences stop on a word like "is/the/of" while the sentence goes on, which leaves the listener hanging.` });
   if (metrics.sentencesWithVerbShare < 0.6) issues.push({ code: "no_verb", message: "Several read sentences have no verb, so they don't say anything happens." });
   if (unmatched.length > 2) issues.push({ code: "not_in_card", message: `These words aren't in the card (or were out of order) and were dropped: ${unmatched.slice(0, 8).join(", ")}.` });
+  // The read alone must support the tag: a figure the tag cites (and the card contains) has to be read.
+  if (ctx.tag && ctx.cardText) {
+    const inCard = numbersIn(ctx.cardText);
+    const read = numbersIn(metrics.readText);
+    const missing = [...numbersIn(ctx.tag)].filter((n) => inCard.has(n) && !read.has(n));
+    if (missing.length) issues.push({ code: "tag_number_unread", message: `The tag cites ${missing.join(", ")}, but the read skips it. Read the figure (with its unit and bound) or the tag isn't supported by what's read.` });
+  }
+  for (const n of applied.notes) {
+    if (n.strawMan) issues.push({ code: "straw_man", message: `${n.message} Read the author's own conclusion instead.` });
+    else issues.push({ code: n.code, message: n.message, note: true });
+  }
   return issues;
 }
+
+/** Problems worth a second attempt (notes are only shown). */
+export const fixableIssues = (issues: QualityIssue[]) => issues.filter((i) => !i.note);
+const fixable = fixableIssues;
 
 function numbered(blocks: BodyText[]): string {
   return blocks.map((b, i) => `[${i + 1}] ${b.text}`).join("\n\n");
@@ -112,21 +139,22 @@ export async function highlightCard(req: HighlightRequest): Promise<HighlightRes
     return res.output;
   };
 
+  const ctx = { tag: req.tag, cardText: blocks.map((b) => b.text).join("\n") };
   let plan = await ask("");
   let applied = applyReadPlan(blocks, plan);
   let body = rebuild(req.body, applied.body);
   let metrics = highlightMetrics(body);
-  let issues = assessRead(metrics, req.targetWords, applied.unmatchedShort);
+  let issues = assessRead(metrics, req.targetWords, applied, ctx);
   let repaired = false;
-  if (issues.length && req.repair !== false) {
-    const feedback = `\n\nYOUR PREVIOUS readShort, as it lands in the card (… marks skipped text):\n"${metrics.readText}"\n\nFix these problems and return the full plan again:\n${issues.map((i) => `- ${i.message}`).join("\n")}`;
+  if (fixable(issues).length && req.repair !== false) {
+    const feedback = `\n\nYOUR PREVIOUS readShort, as it lands in the card (… marks skipped text):\n"${metrics.readText}"\n\nFix these problems and return the full plan again:\n${fixable(issues).map((i) => `- ${i.message}`).join("\n")}`;
     const second = await ask(feedback);
     const applied2 = applyReadPlan(blocks, second);
     const body2 = rebuild(req.body, applied2.body);
     const metrics2 = highlightMetrics(body2);
-    const issues2 = assessRead(metrics2, req.targetWords, applied2.unmatchedShort);
+    const issues2 = assessRead(metrics2, req.targetWords, applied2, ctx);
     // Keep the revision only if it is at least as good.
-    if (issues2.length <= issues.length) {
+    if (fixable(issues2).length <= fixable(issues).length) {
       plan = second;
       applied = applied2;
       body = body2;

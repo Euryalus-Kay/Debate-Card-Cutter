@@ -172,8 +172,14 @@ function DraftProposal({ p, busy, setBusy, teamId, markOp, upd }: { p: Extract<P
           </label>
         ))}
       </div>
+      {p.status === "running" && p.note ? <p className="mt-2 animate-pulse-soft text-xs text-muted">{p.note}…</p> : null}
       {v ? (
         <div className="mt-2 space-y-1">
+          {v.lengthAdjust ? (
+            <div className="text-xs text-muted">
+              {v.lengthAdjust.mode === "trim" ? "Trimmed" : "Filled out"} from {formatClock(v.lengthAdjust.fromSeconds)} to {formatClock(v.lengthAdjust.toSeconds)} ({v.lengthAdjust.sections} {v.lengthAdjust.sections === 1 ? "section" : "sections"} rewritten to length; cards unchanged).
+            </div>
+          ) : null}
           <div className={cn("text-xs", v.estimatedSeconds > v.limitSeconds ? "text-bad" : "text-muted")}>
             Estimated {formatClock(v.estimatedSeconds)} of {formatClock(v.limitSeconds)}
             {v.estimatedSeconds < v.limitSeconds * 0.85 ? ` — leaves ~${formatClock(v.limitSeconds - v.estimatedSeconds)} unused; after adding it, "Fill to time" below the draft can expand it.` : ""}

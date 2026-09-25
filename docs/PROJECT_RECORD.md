@@ -96,6 +96,12 @@ exposed through a Cloudflare tunnel (`zaincardcutter.xyz`).
 | P-17 | Export/deliver/AI read the server copy, so edits typed in the last moment could be missing | Fixed: flush pending edits first (found by E2E) |
 | P-18 | "Add section" split the current paragraph and could leave keyboard focus on a toolbar/lock button (a typed space toggled a lock) | Fixed: insert after the current section, focus synchronously, select the heading; toolbar keeps editor focus (found by E2E on the production build) |
 | P-19 | Judge-paradigm reading: Haiku 4.5 misread "won't judge kick unless told to" as "no"; "slow down on tags" read as overall slow | Fixed: Sonnet 5 (thinking off) + explicit value definitions; stable over 3 runs |
+| P-20 | The AI cutter over-highlighted: it read 53% of short (~118-word) excerpts, while the user's own cards read ~17% of ~600 words (≈100 words, 80% of read sentences keep a verb) | Fixed (D-20): longer excerpts with context, read length set in seconds, highlighting written as sentences; measured on 16 real cards |
+| P-21 | Drafts missed the time limit: deep (medium) 2AC drafts ran 472–542 s of 480; a fast 1AR ran 252 s of 300 | Fixed (D-21): automatic trim/fill to time after every draft |
+| P-22 | First Opus low-vs-medium drafting test was invalid: judges saw only selected cards while drafters also saw library cards, so judges called a real library card (Roper '15) "fabricated" | Fixed in run 2 (judges get the drafters' exact evidence); run 1 marked flawed in its results file |
+| P-23 | Automatic fill overshot (fast 2AC filled 5:39 → 8:06 of 8:00, found by the AI E2E test); the word allocator dropped small changes entirely; dense trims needed more than one pass | Fixed: fills are accepted most-important-first only while the speech stays under 98% of the limit; small changes are concentrated in fewer sections; up to three trim passes, each aiming lower (unit tests + 6 live drafts + E2E) |
+| P-24 | Qualifier protection could pull words from a skipped clause into the read ("The plan, which would cost $5B, solves" → "The plan would solves"; "regulation, not subsidies, because" → "regulation not because") | Fixed: research-based head rules (D-20a); regression tests with the research's synthetic examples |
+| P-25 | Tag-number check flagged ranges: tag "7–9%" vs card "7%–9%" | Fixed: a trailing % covers the whole range; unit test |
 
 ## 3. Architecture decisions
 | ID | Decision | Rationale (evidence) |
@@ -122,6 +128,10 @@ exposed through a Cloudflare tunnel (`zaincardcutter.xyz`).
 | D-17 | Cross-ex notes are separate shared texts (one per CX), never flow arguments, labeled as CX in AI context (SEQ-4) | CX answers matter only when a speech uses them |
 | D-18 | Prep overage is shown as time over; the round can apply the tournament rule "deduct from the next speech" | KSHSAA / NDT rules differ by tournament |
 | D-19 | Backfiles stay browsable as files: the round's Evidence tab lists each file's pockets/hats/blocks and inserts a whole block (cards linked to their library copies) after the current section | Debaters use prepared blocks, not single cards, in rounds |
+| D-20 | Highlighting engine: the model writes the words to read aloud as sentences (short read = highlight, long read = underline) using only the card's words in order; code aligns them onto the verbatim text with a fewest-fragments search, adds back any skipped negation or hedge ("not", "may", "unless" …), measures readability (fragments per 100 words, one-word pieces, dangling function words, sentences with a verb), and repairs once if off target or choppy. Read length is chosen in seconds at the speaker's card pace (Re-highlight: 10/20/30 s or custom) | Debaters need highlighted text that reads as sentences and keeps the author's meaning. Blind test on 16 of the user's real cards: Opus 5.5 low 7.4/10 vs the original human highlighting 6.0 (both judges), all models within ±10% of the target length (`highlight-bench-run1.json`) |
+| D-20a | Highlight safeguards from `docs/research/highlighting.md` §6 (28 sources; measured on 31 camp cards and 2,695 open-source cards), applied after alignment, adding or dropping only the card's own words: a skipped negator is restored when the word it governs is read (not for "not only", "not X but Y", "X, not Y", "or not"); a hedge or scope word (may, could, likely, suggests, some, most, often, rarely …) is restored with the words up to the one it governs; a read number keeps its bound ("as much as", "up to", "nearly"), magnitude ("billion", "percent") and symbol (%, $); an article that no longer fits the next read word gets its skipped adjective back; a read sentence doesn't stop on "the/of/and"; an attribution ("Some analysts argue that") is read when the author's rebuttal is read. Notes shown to the debater: a skipped limiting clause (although/unless), a skipped rebuttal sentence, a skipped baseline ("from 52 … to 38"). Reading an attributed view whose rebuttal is skipped (straw man), or skipping a figure the tag cites, triggers one redo | Faithfulness first, then grammar, then brevity (research §6 ordering). Benchmark on 16 real cards: 7.36 → 7.44 average judge score, 8.4 → 6.8 fragments per 100 read words, dangling phrase ends 5% → 2% (`highlight-bench-run2.json`) |
+| D-21 | Every draft is brought to time before it is shown: if it runs over the limit (or leaves more than 10% unused), code computes an exact analytic word count per section from the speaker's measured pace (lower-priority sections give up more; floors and caps per section) and one Sonnet 5 call rewrites those sections to length. Cards are never touched; the panel says what was trimmed or filled | Models budget words loosely (P-16, P-21); an over-time speech isn't deliverable. Word allocation is unit-tested (`length-plan.test.ts`) |
+| D-22 | Models after the drafting benchmark: fast drafts on Opus 5.5 low, deep drafts on Opus 5.5 medium (wins about 70% of blind comparisons against low, at about twice the time); Gemini 3.8 Flash not used (loses on drafting, ties on highlighting only at 3× the time, and its terms bar apps used by under-18s). No Gemini key in any deployment | `docs/research/models-and-providers.md` §14–15; `draft-quality-run2.json`, `draft-quality-run3.json` |
 
 ### Measured AI cost and latency (telemetry, standard API prices; `scripts/ai-costs.ts`)
 | Operation | Model | Avg time | Avg cost |
@@ -131,6 +141,8 @@ exposed through a Cloudflare tunnel (`zaincardcutter.xyz`).
 | Fit / fill to time (+ top-up) | Opus 5.5 (low) + Sonnet 5 | 28 s | $0.12–0.15 |
 | Flow interpretation | Opus 5.5 (low) | 18 s | $0.07 |
 | Cut one card | Opus 5.5 (low) | 8 s | $0.05 |
+| Re-highlight one card | Opus 5.5 (low) | 7 s | $0.025 |
+| Trim/fill a draft to time (when needed) | Sonnet 5 (thinking off) | 5–15 s | $0.01–0.05 |
 | Section rewrite | Sonnet 5 (thinking off) | 5 s | $0.03 |
 | Judge paradigm | Sonnet 5 (thinking off) | 7 s | $0.01 |
 | Web discovery (per research job) | Sonnet 5 + web search | 18 s | ≈ $0.08 |
@@ -139,7 +151,7 @@ A typical round (two or three drafts, a fit, a few rewrites, one research job) c
 ## 4. External dependencies requiring user action
 | ID | What | Status |
 |---|---|---|
-| EXT-01 | Recover v1 data from Supabase dashboard (restore or download backup) | Requested |
+| EXT-01 | Recover v1 data from Supabase dashboard (restore or download backup) | Withdrawn at the user's request (2026-09-25): all data lives on Vercel (Neon Postgres + Vercel Blob). The unreachable Supabase project was left untouched |
 | EXT-02 | Revoke leaked Perplexity key | Requested |
 | EXT-03 | Consider making the GitHub repo private | Recommended |
 | EXT-04 | Optional search keys (Tavily/Exa) to widen discovery beyond Anthropic web search + OpenAlex | Optional; research works without them |
@@ -175,4 +187,12 @@ Each entry is marked **verified**, **partially verified**, or **unverified**.
 | 09-25 | AI E2E (`E2E_AI=1`): AI 2AC → apply → Fill to time (6:49 → 7:36 of 8:00) | pass | verified |
 | 09-25 | Word export rendered by macOS Quick Look: Verbatim headings, bold 13 pt cites, underline/emphasis, unread text shrunk | pass; highlights are present in the file (`w:highlight`, same markup as Verbatim) but Quick Look/TextEdit don't display Word highlights | partially verified: confirm highlight display once in Word or Google Docs |
 | 09-25 | Insert a block from an imported backfile into a speech (E2E) | pass | verified |
+| 09-25 | Highlighting benchmark: 16 of the user's real human-highlighted cards, 7 model settings + the human version, two blind judges from different families | Opus 5.5 low 7.36 (ties Opus medium and Gemini 3.8 Flash medium; faster); human 5.98; all models within ±10% of target length | verified (`highlight-bench-run1.json`) |
+| 09-25 | Highlight safeguards (research checks H-4/5/7/8/9/10) | 19 alignment tests incl. the research's synthetic examples; Opus low re-benchmarked 7.44 (no regression) | verified (`highlight-bench-run2.json`) |
+| 09-25 | Re-highlight in the library (browser): Short preset → 52 words (~10 s), bounds and % signs kept, 5.7 s | pass | verified |
+| 09-25 | Card cutter end to end on a synthetic source (negations, "at most", attribution) | verified card, 34 words read, 6.9 s | verified |
+| 09-25 | Drafting quality, Opus 5.5 low vs medium, blind, two judge families | medium wins 75% (1AR) and 67% (2AC); 2–2.5× slower | verified (`draft-quality-run3.json`) |
+| 09-25 | Drafting quality, Gemini 3.8 Flash (low/medium) vs Opus 5.5 low | Gemini wins 17–33%; Claude judge 0% | verified (`draft-quality-run2.json`) |
+| 09-25 | Automatic trim/fill to time: 6 live drafts (2 fills, 2 trims, 2 already in range) and a padded 1AR (7:05 → 4:42) | all end within the limit | verified |
+| 09-25 | Unit/integration suite | 130 tests, 17 files | verified |
 | 09-25 | Production (after each deploy): smoke test 14/14; QA data removed; 0 users | pass (last: 07:05) | verified |

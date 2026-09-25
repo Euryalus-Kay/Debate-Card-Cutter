@@ -48,6 +48,11 @@ describe("lintCard", () => {
   it("errors when the tag cites a number absent from the body", () => {
     expect(codes([hl("Costs rose 12 percent last year.", "Costs rose 12 percent")], "Costs rose 40%")).toContain("error:tag_number_not_in_body");
     expect(codes([hl("Costs rose 12 percent last year.", "Costs rose 12 percent")], "Costs rose 12%")).not.toContain("error:tag_number_not_in_body");
+    // A range's trailing % covers both ends ("7–9%" is 7% to 9%).
+    const units = [hl("After five to ten years, upzoning increases housing units by 7%–9%.", "upzoning increases housing units by 7%–9%")];
+    expect(codes(units, "Upzoning raises housing units 7–9%")).not.toContain("error:tag_number_not_in_body");
+    expect(codes(units, "Upzoning raises housing units 7 to 9 percent")).not.toContain("error:tag_number_not_in_body");
+    expect(codes(units, "Upzoning raises housing units 7–19%")).toContain("error:tag_number_not_in_body");
   });
 
   it("warns on possible power tags and straw arguments", () => {

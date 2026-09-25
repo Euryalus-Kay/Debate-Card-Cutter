@@ -34,9 +34,10 @@ export async function startDraftOp(args: { round: RoundRecord; speech: SpeechId;
       (e) => {
         if (e.t === "op") store.update(pid, { opId: e.id });
         if (e.t === "partial") useProposals.getState().update(pid, { partial: e.data as never });
+        if (e.t === "status") useProposals.getState().update(pid, { note: e.data });
       },
     );
-    useProposals.getState().update(pid, { status: "ready", result: result as never });
+    useProposals.getState().update(pid, { status: "ready", result: result as never, note: null });
   } catch (e) {
     useProposals.getState().update(pid, { status: "failed", error: (e as Error).message });
     toast((e as Error).message, "bad");
@@ -144,7 +145,7 @@ export function GenerateDialog({
           {(
             [
               { v: "fast", icon: Zap, title: "Fast", text: "First sections in seconds, full speech in about a minute. Best during prep time." },
-              { v: "deep", icon: Brain, title: "Deep", text: "More strategic reasoning; about two minutes. Best before the round or with time to spare." },
+              { v: "deep", icon: Brain, title: "Deep", text: "Stronger strategy (preferred in about 7 of 10 blind tests); about two minutes. Best before the round or with time to spare." },
             ] as const
           ).map((m) => (
             <button key={m.v} onClick={() => setMode(m.v)} className={cn("rounded-lg border p-3 text-left", mode === m.v ? "border-accent bg-accent-soft/60" : "border-line hover:bg-hover")}>

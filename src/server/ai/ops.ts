@@ -14,6 +14,7 @@ import { computeCoverage, positionsAvailableFor2NR, type DraftTarget } from "@/d
 import { isRebuttal, SPEECHES, speechesToAnswer as speechesToAnswerFor, type SpeechId } from "@/domain/format";
 import { addLoads, countWords, estimateSeconds, presetProfile, type RateProfile } from "@/domain/timing";
 import { cardLoad } from "@/domain/card";
+import { acceptRewrites, allocateWordChange } from "@/domain/length-plan";
 import { allSections, itemLoad, sectionContentHash, type DraftItem, type DraftSection, type PMNodeJSON } from "@/shared/draft-model";
 import { buildRoundContext, renderDraft, type RoundContext } from "./context";
 import { GLOBAL_RULES, SPEECH_RULES } from "./speech-rules";
@@ -39,6 +40,15 @@ export interface Validation {
   estimatedSeconds: number;
   limitSeconds: number;
   sectionSeconds: Record<string, number>;
+  /** set when the draft was automatically trimmed or filled to time */
+  lengthAdjust?: LengthAdjust;
+}
+
+export interface LengthAdjust {
+  mode: "trim" | "grow";
+  fromSeconds: number;
+  toSeconds: number;
+  sections: number;
 }
 
 function estimateSection(analytic: string, title: string, cardIds: string[], ctx: RoundContext, rates: RateProfile): number {
@@ -120,9 +130,13 @@ export interface DraftSpeechInput {
   rates?: RateProfile | null;
   teamId: string;
   onPartial?: (p: unknown) => void;
+  /** short progress notes after the plan is written (e.g. trimming to time) */
+  onStatus?: (s: string) => void;
   abortSignal?: AbortSignal;
   /** benchmark override of the model chain */
   models?: import("./models").ModelSpec[];
+  /** benchmark switch: skip the automatic trim/fill to time */
+  noLengthFix?: boolean;
 }
 
 export async function draftSpeech(input: DraftSpeechInput) {
@@ -142,8 +156,111 @@ ${ctx.draft && ctx.draft.items.length ? "There is already a draft. Build the com
 
 Output a complete, deliverable speech plan: top-level position sections (kind "position", or "overview") containing response/extension sections (parentRef = the position's ref). Every response targets the actual flow ids it answers. Use "omitted" for anything you deliberately leave unanswered, with the reason. Put anything uncertain in "questions".`;
   const res = await runStructured({ task: input.mode === "deep" ? "speech_draft" : "speech_draft_fast", system, context: ctx.text, prompt, schema: SpeechDraftSchema, onPartial: input.onPartial, abortSignal: input.abortSignal, teamId: input.teamId, models: input.models });
-  const { output, validation } = validateDraft(res.output, ctx, input.speech, round.ourSide, rates);
+  let { output, validation } = validateDraft(res.output, ctx, input.speech, round.ourSide, rates);
+  if (!input.noLengthFix) {
+    const fixed = await fitDraftLength(output, validation, ctx, input, round.ourSide, system);
+    if (fixed) ({ output, validation } = fixed);
+  }
   return { output, validation, run: meta(res), contextRefs: { ...ctx.refs, draftHash: ctx.draftJson ? sectionContentHash(ctx.draftJson) : null }, cards: summarizeCards(ctx) };
+}
+
+const fmtSec = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+
+/**
+ * Bring a fresh draft to time. Planners budget words loosely (deeper thinking
+ * tends to run long, fast drafts run short), and a speech over the limit isn't
+ * deliverable. When the draft runs over (or leaves more than 10% unused), code
+ * computes an exact analytic word count per section from the speaker's
+ * measured rate and one quick call rewrites those sections to it. A trim that
+ * still leaves the speech over gets up to two more passes; fills are accepted
+ * only while the speech stays under 98% of the limit. Cards are never touched.
+ */
+export async function fitDraftLength(output: SpeechDraftOutput, validation: Validation, ctx: RoundContext, input: DraftSpeechInput, ourSide: "aff" | "neg", system: string): Promise<{ output: SpeechDraftOutput; validation: Validation } | null> {
+  const limit = validation.limitSeconds;
+  const from = validation.estimatedSeconds;
+  let current = { output, validation };
+  let mode: "trim" | "grow" | null = null;
+  const rewritten = new Set<string>();
+  for (let pass = 0; pass < 3; pass++) {
+    const before = current.validation.estimatedSeconds;
+    const m = before > limit ? "trim" : pass === 0 && before < limit * 0.9 ? "grow" : null;
+    if (!m || (mode && m !== mode) || input.abortSignal?.aborted) break;
+    mode = m;
+    input.onStatus?.(m === "grow" ? `Leaves ${fmtSec(limit - before)} unused; filling out the answers` : pass ? `Still ${fmtSec(before - limit)} over; trimming again` : `Runs ${fmtSec(before)} of ${fmtSec(limit)}; trimming to fit`);
+    // Trims of dense sections come back a little long, so each extra trim pass aims lower. Fills come back
+    // well short of their word targets, so they aim at the full limit; the 98% cap keeps them from running over.
+    const step = await lengthPass(current.output, current.validation, ctx, input, ourSide, system, m, m === "trim" ? 0.97 - 0.02 * pass : 1);
+    if (!step) break;
+    current = step;
+    for (const id of step.changed) rewritten.add(id);
+  }
+  if (!mode || !rewritten.size) return null;
+  return { output: current.output, validation: { ...current.validation, lengthAdjust: { mode, fromSeconds: Math.round(from), toSeconds: Math.round(current.validation.estimatedSeconds), sections: rewritten.size } } };
+}
+
+async function lengthPass(output: SpeechDraftOutput, validation: Validation, ctx: RoundContext, input: DraftSpeechInput, ourSide: "aff" | "neg", system: string, mode: "trim" | "grow", aim: number) {
+  const limit = validation.limitSeconds;
+  const before = validation.estimatedSeconds;
+  const rates = ctx.rates;
+  const secondsPerWord = 60 / rates.rates.analyticWpm;
+  const deltaWords = Math.round((limit * aim - before) / secondsPerWord);
+  const items = output.sections.map((s) => ({ id: s.ref, words: countWords(s.analytic), priority: s.priority })).filter((i) => i.words >= (mode === "trim" ? 25 : 15));
+  const targets = allocateWordChange(items, deltaWords);
+  if (!targets.size) return null;
+
+  const byRef = new Map(output.sections.map((s) => [s.ref, s]));
+  const argText = new Map(ctx.graph.args.map((a) => [a.id, `${a.speech} "${a.text.slice(0, 120)}"`]));
+  const cardText = new Map(ctx.cards.map((c) => [c.id, `${c.tag} (${c.shortCite})`]));
+  const blocks = [...targets].map(([ref, words]) => {
+    const s = byRef.get(ref)!;
+    return `<section id="${ref}" target_words="${words}">
+# ${s.title}
+${s.targets.length ? `Answers: ${s.targets.map((t) => argText.get(t) ?? t).join("; ")}\n` : ""}Current text (${countWords(s.analytic)} words):
+${s.analytic}
+Cards read in this section: ${s.cardIds.map((c) => cardText.get(c) ?? c).join("; ") || "none"}
+</section>`;
+  });
+  const prompt =
+    mode === "trim"
+      ? `This speech runs over its time limit. Shorten each section's analytic text to the stated number of words: as close as you can, never more. Keep the central warrant, the signposting, and what the section does strategically; cut repetition, throat-clearing, restated tags, and secondary points first. Do not add arguments, claims about what the other team said, or references to evidence not listed for that section.
+
+${blocks.join("\n\n")}
+
+Return every section above, using its id as sectionId, with its full shortened text.`
+      : `This speech leaves speaking time unused. Rewrite each section's analytic text to the stated number of words: as close as you can, never more. Keep the same argument, order, and signposting; add depth — the specific warrant against their argument, comparison with their evidence, impact calculus, "even if" framing — never filler or repetition. Refer only to the cards listed for that section, and never attribute a claim to an author or card that isn't listed.
+
+${blocks.join("\n\n")}
+
+Return every section above, using its id as sectionId, with its full rewritten text.`;
+  try {
+    const res = await runStructured({
+      task: "section_revise",
+      system,
+      // Trimming only needs the sections; filling needs the round to add real depth.
+      context: mode === "grow" ? ctx.text : undefined,
+      prompt,
+      schema: TopUpSchema,
+      abortSignal: input.abortSignal,
+      teamId: input.teamId,
+      models: [
+        { model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 12000, firstChunkMs: 30000 },
+        { model: MODELS.opus55, effort: "low", maxOutputTokens: 12000 },
+      ],
+    });
+    const rewrites = res.output.sections
+      .filter((r) => targets.has(r.sectionId) && byRef.has(r.sectionId) && r.analytic.trim())
+      .map((r) => ({ id: r.sectionId, have: countWords(byRef.get(r.sectionId)!.analytic), got: countWords(r.analytic), want: targets.get(r.sectionId)!, priority: byRef.get(r.sectionId)!.priority, text: r.analytic.trim() }));
+    const keep = acceptRewrites(mode, rewrites, before, limit * 0.98, secondsPerWord);
+    if (process.env.DEBUG_LENGTH) console.log(`[length ${mode}] ${Math.round(before)}s/${limit}s Δ${deltaWords}w targets ${JSON.stringify([...targets])} got ${JSON.stringify(rewrites.map(({ text: _t, ...r }) => r))} keep ${[...keep]}`);
+    if (!keep.size) return null;
+    const text = new Map(rewrites.filter((r) => keep.has(r.id)).map((r) => [r.id, r.text]));
+    const fitted = validateDraft({ ...output, sections: output.sections.map((s) => (text.has(s.ref) ? { ...s, analytic: text.get(s.ref)! } : s)) }, ctx, input.speech, ourSide, rates);
+    return { ...fitted, changed: [...keep] };
+  } catch (e) {
+    // Best effort: an untrimmed draft still shows its time in red, and Fit to time is one click away.
+    console.warn(`draft length ${mode} failed: ${(e as Error).message}`);
+    return null;
+  }
 }
 
 function summarizeCards(ctx: RoundContext) {

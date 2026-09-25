@@ -86,7 +86,11 @@ function truncate(s: string, n: number) {
 const NUMBER_WORDS: Record<string, string> = { percent: "%", "per cent": "%" };
 
 function numbersIn(text: string): string[] {
-  const t = text.toLowerCase().replace(/per ?cent/g, "%");
+  // A trailing % covers the whole range: "7–9%" and "7 to 9 percent" mean 7% and 9%.
+  const t = text
+    .toLowerCase()
+    .replace(/per ?cent/g, "%")
+    .replace(/(\d[\d,.]*)(\s*(?:[–—-]|to)\s*)(\d[\d,.]*)\s?%/g, "$1%$2$3%");
   return (t.match(/\$?\d[\d,.]*\s?%?/g) ?? []).map((n) => n.replace(/[,\s]/g, "").replace(/\.$/, "")).filter((n) => n.replace(/[^\d]/g, "").length > 0);
 }
 

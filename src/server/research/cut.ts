@@ -10,9 +10,9 @@ import type { ModelSpec } from "@/server/ai/models";
 import { makeText, readAloud, highlightRatio, type BodyText, type CardIssue, type Span } from "@/domain/card";
 import { normalizeWithMap, tagWarnings, verifyAgainstSource, type VerificationResult } from "@/domain/verify";
 import { countWords } from "@/domain/timing";
-import { applyReadPlan } from "@/domain/align";
+import { applyReadPlan, type ReadNote } from "@/domain/align";
 import { highlightMetrics } from "@/domain/highlight-metrics";
-import { assessRead, defaultTargetWords, highlightCard, HIGHLIGHT_RULES, type QualityIssue } from "./highlight";
+import { assessRead, defaultTargetWords, fixableIssues, highlightCard, HIGHLIGHT_RULES, type QualityIssue } from "./highlight";
 
 export const CardCutSchema = z.object({
   verdict: z.enum(["cut", "no_support"]),
@@ -192,6 +192,8 @@ export interface BuiltCut {
   highlightRatio: number;
   /** read-aloud quality problems left after the quality gate (empty when fine) */
   readQuality?: QualityIssue[];
+  /** context the read leaves out that an opponent could use (limiting clause, rebuttal, attribution, baseline) */
+  readNotes: ReadNote[];
 }
 
 export class CutRejected extends Error {}
@@ -246,6 +248,7 @@ export function buildCut(out: CardCutOutput, src: NumberedSource, sourceText: st
     tag,
     verification,
     issues,
+    readNotes: applied.notes,
     missingPhrases: missing,
     paragraphRange: [s + 1, e + 1],
     readWords: countWords(readAloud(body).text),
@@ -301,12 +304,13 @@ export async function cutCard(req: CutRequest): Promise<CutResult> {
     const built = buildCut(run.output, numbered, req.sourceText, req.dehyphenate);
     // Read quality gate: if the planned read is off target or choppy, re-highlight the excerpt once.
     const target = defaultTargetWords(built.body);
-    const quality = assessRead(highlightMetrics(built.body), target, built.missingPhrases);
+    const cardText = built.body.map((b) => b.text).join("\n");
+    const quality = assessRead(highlightMetrics(built.body), target, { unmatchedShort: built.missingPhrases, notes: built.readNotes }, { tag: built.tag, cardText });
     built.readQuality = quality;
-    if (quality.length) {
+    if (fixableIssues(quality).length) {
       try {
         const redo = await highlightCard({ tag: built.tag, body: built.body, targetWords: target, models: req.models, teamId: req.teamId, signal: req.signal, repair: false });
-        if (redo.issues.length < quality.length && verifyAgainstSource(redo.body, req.sourceText, { dehyphenate: req.dehyphenate }).ok) {
+        if (fixableIssues(redo.issues).length < fixableIssues(quality).length && verifyAgainstSource(redo.body, req.sourceText, { dehyphenate: req.dehyphenate }).ok) {
           built.body = redo.body as BodyText[];
           built.readWords = redo.metrics.readWords;
           built.highlightRatio = highlightRatio(redo.body);
@@ -316,6 +320,8 @@ export async function cutCard(req: CutRequest): Promise<CutResult> {
         /* keep the first highlighting */
       }
     }
+    // What the final read leaves out that an opponent could use goes on the card for the debater to see.
+    for (const q of built.readQuality ?? []) if (q.note || q.code === "straw_man") built.issues.push({ severity: q.code === "straw_man" ? "warning" : "info", code: q.code, message: q.message });
     // Tag honesty: every number in the tag must appear exactly as written in the card.
     if (tagWarnings(built.tag, built.body).some((w) => w.code === "number_not_in_body")) {
       try {

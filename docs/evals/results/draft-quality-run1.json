@@ -1,0 +1,345 @@
+{
+  "note": "FLAWED JUDGING \u2014 do not use for conclusions. The drafters saw selected + library evidence, but the judges were given selected-only evidence, so they called real library cards (e.g. Roper '15) fabricated. Superseded by draft-quality-run2.json.",
+  "at": "2026-09-25T14:00:14.424Z",
+  "roundId": "rnd_mugr24g388jvmprkfgye",
+  "drafts": [
+    {
+      "speech": "1AR",
+      "config": "low",
+      "i": 0,
+      "seconds": 300.78077803203666,
+      "ms": 36787,
+      "cost": 0.13918
+    },
+    {
+      "speech": "1AR",
+      "config": "low",
+      "i": 1,
+      "seconds": 276.6,
+      "ms": 38757,
+      "cost": 0.14256
+    },
+    {
+      "speech": "1AR",
+      "config": "low",
+      "i": 2,
+      "seconds": 252.38077803203657,
+      "ms": 30103,
+      "cost": 0.12702
+    },
+    {
+      "speech": "1AR",
+      "config": "medium",
+      "i": 0,
+      "seconds": 320.4140350877193,
+      "ms": 88194,
+      "cost": 0.24072
+    },
+    {
+      "speech": "1AR",
+      "config": "medium",
+      "i": 1,
+      "seconds": 284.9035850495804,
+      "ms": 69588,
+      "cost": 0.20358
+    },
+    {
+      "speech": "1AR",
+      "config": "medium",
+      "i": 2,
+      "seconds": 304.6771929824561,
+      "ms": 77526,
+      "cost": 0.22012
+    },
+    {
+      "speech": "2AC",
+      "config": "low",
+      "i": 0,
+      "seconds": 492.2811594202899,
+      "ms": 38467,
+      "cost": 0.143044
+    },
+    {
+      "speech": "2AC",
+      "config": "low",
+      "i": 1,
+      "seconds": 481.36079328756676,
+      "ms": 41382,
+      "cost": 0.150664
+    },
+    {
+      "speech": "2AC",
+      "config": "low",
+      "i": 2,
+      "seconds": 450.9661327231122,
+      "ms": 36553,
+      "cost": 0.139644
+    },
+    {
+      "speech": "2AC",
+      "config": "medium",
+      "i": 0,
+      "seconds": 515.2193745232647,
+      "ms": 83153,
+      "cost": 0.220164
+    },
+    {
+      "speech": "2AC",
+      "config": "medium",
+      "i": 1,
+      "seconds": 542.1089244851258,
+      "ms": 86932,
+      "cost": 0.231964
+    },
+    {
+      "speech": "2AC",
+      "config": "medium",
+      "i": 2,
+      "seconds": 471.56109839816924,
+      "ms": 116000,
+      "cost": 0.290344
+    }
+  ],
+  "verdicts": [
+    {
+      "speech": "1AR",
+      "pair": 0,
+      "judge": "gemini",
+      "order": "medium-first",
+      "lowWins": 0,
+      "lowScore": 4.5,
+      "medScore": 9,
+      "reasons": "Version A executes a complete and strategically sound 1AR that properly extends the federal backstop perm, exploits the 2NC concession on 50-state fiat theory, and leverages the judge's paradigm on judge kick. In contrast, Version B fabricates evidence (inserting a fictitious Roper card on compacts despite instructions that no cards were available) and completely drops the dropped 50-state fiat theory argument from the 2AC."
+    },
+    {
+      "speech": "1AR",
+      "pair": 0,
+      "judge": "gemini",
+      "order": "low-first",
+      "lowWins": 0,
+      "lowScore": 5.5,
+      "medScore": 9,
+      "reasons": "Version B is vastly superior technically and strategically. It leverages the judge's paradigm by capitalizing on the 2NC's complete concession of 50-state fiat theory alongside the judge's refusal to judge kick, smartly defends the backstop perm against sequencing and trade-off claims, and provides sharp, text-grounded analytics against the newly fiated interstate compact (including the congressional consent net-benefit link). Conversely, Version A manufactures an unevidenced card and author ('Roper') despite explicit instructions that no cards were available, while making much weaker technical moves across the counterplan and DA flows."
+    },
+    {
+      "speech": "1AR",
+      "pair": 0,
+      "judge": "claude",
+      "order": "low-first",
+      "lowWins": 0,
+      "lowScore": 5,
+      "medScore": 7,
+      "reasons": "Version B makes a substantive perm argument: under the federal backstop, the feds act only where states fail, so there is no link to the budget tradeoff. It also points out that the compact needs congressional consent and so links to the net benefit, and it extends the dropped 50-state fiat theory with a reminder that the judge will not judge kick. Version A makes the perm depend entirely on winning the DA and cites a 'Roper' compacts-fail card even though no cards are available, which reads as fabricated evidence. B runs about 20 seconds over and should trim, but its clash and strategic choices are clearly stronger."
+    },
+    {
+      "speech": "1AR",
+      "pair": 0,
+      "judge": "claude",
+      "order": "medium-first",
+      "lowWins": 0,
+      "lowScore": 6,
+      "medScore": 7,
+      "reasons": "Version A wins more of the counterplan debate. It turns the backstop perm into a no-link argument, because federal action is only triggered if states fail, and that also meets Gustafson's sequencing claim. It adds strong analytics against the new compact (congressional consent links to their own net benefit, and fiat doesn't guarantee enforcement), and it extends 50-state fiat theory, which suits this judge's leanings. Version B stakes the perm entirely on winning the DA, drops the backstop perm and the theory argument, and leans on a 'Roper' card that isn't in the available evidence. A's roughly 20-second overrun is a real cost at a speed-limited judge, but it can be trimmed without losing its strategic edge."
+    },
+    {
+      "speech": "1AR",
+      "pair": 1,
+      "judge": "gemini",
+      "order": "low-first",
+      "lowWins": 1,
+      "lowScore": 9,
+      "medScore": 5,
+      "reasons": "Version A follows all constraints and round instructions, delivering crisp, well-warranted analytics across the CP, DA, and Case. Version B explicitly introduces a fabricated card ('Roper 15') despite the round notes specifying that no evidence cards were available and analytics should be used exclusively. Additionally, Version A smartly capitalizes on the 2NC dropping 50-state fiat theory while answering the compact shift with strong analytical warrants about congressional consent."
+    },
+    {
+      "speech": "1AR",
+      "pair": 1,
+      "judge": "gemini",
+      "order": "medium-first",
+      "lowWins": 1,
+      "lowScore": 9,
+      "medScore": 5.5,
+      "reasons": "Version A introduces a brand new card (Roper '15) despite explicit instructions that no cards were available and all arguments must be analytical. In contrast, Version B exploits a crucial concession by extending 2AC 50-state fiat theory, which the 2NC completely dropped. Version B also executes a superior technical breakdown of the interstate compact shift, the DA links, and the case debate without fabricating evidence."
+    },
+    {
+      "speech": "1AR",
+      "pair": 1,
+      "judge": "claude",
+      "order": "low-first",
+      "lowWins": 1,
+      "lowScore": 8,
+      "medScore": 6,
+      "reasons": "Version A answers every 2NC/1NR argument cleanly under separate tags and keeps the dropped 50-state fiat theory alive in a few seconds, preserving a cheap 2AR option for a tech judge. It also adds strong analytics: compact congressional consent links to the DA, and simultaneity is about blame, not budget. Version B has good moments, such as noting that sequencing only answers the backstop perm and turning Sundaram with the economic-decline advantage, but it reads a 'Roper 15' card that isn't in the available evidence and needlessly concedes the theory argument."
+    },
+    {
+      "speech": "1AR",
+      "pair": 1,
+      "judge": "claude",
+      "order": "medium-first",
+      "lowWins": 1,
+      "lowScore": 8,
+      "medScore": 6,
+      "reasons": "Version B answers every 2NC/1NR argument with specific analytic warrants. It separates Troutman and Gustafson and answers each on its merits, and it turns the new compact back onto the DA because congressional consent is federal action. Both of those give the 2AR more to work with. Version A leans on a new Roper '15 card that is not in the available evidence, and it muddles that by calling Roper 'their own author.' Its blanket claim that sequencing only answers the backstop perm is thinner. B's extension of the dropped 50-state fiat theory costs some time with a judge who isn't clearly receptive to it, but it is cheap and preserves a 2AR option."
+    },
+    {
+      "speech": "1AR",
+      "pair": 2,
+      "judge": "gemini",
+      "order": "medium-first",
+      "lowWins": 0,
+      "lowScore": 6,
+      "medScore": 9,
+      "reasons": "Version A makes far superior strategic choices by extending the dropped 50-state fiat theory shell and making a brilliant analytic argument that interstate compacts require Congressional consent under the Compact Clause, neatly turning the 2NC's new mechanism. Version B invents a card tag despite the instructions stating no cards were available, completely drops the 2AC theory argument, and lacks Version A's substantive depth on the counterplan deficits."
+    },
+    {
+      "speech": "1AR",
+      "pair": 2,
+      "judge": "gemini",
+      "order": "low-first",
+      "lowWins": 0,
+      "lowScore": 5.5,
+      "medScore": 9.2,
+      "reasons": "Version B is vastly superior strategically and tactically. It smartly collapses down to perm do both (cleanly conceding the backstop perm to bypass the neg's sequencing arguments), catches the negative's drop of 50-state fiat theory, and makes an exceptional constitutional analytic on the interstate compact (Compact Clause congressional consent links to the DA and functions like the perm). Version A attempts to insert a card placeholder despite explicit instructions that no cards were available, misses the dropped theory argument, and lacks Version B's depth on the DA and case extensions."
+    },
+    {
+      "speech": "1AR",
+      "pair": 2,
+      "judge": "claude",
+      "order": "low-first",
+      "lowWins": 0,
+      "lowScore": 6,
+      "medScore": 7.5,
+      "reasons": "B extends the dropped 50-state fiat theory argument as a reason to reject the CP, a free strategic out that A ignores. It also adds a sharp Compact Clause argument: the compact needs Congress, so the CP links to its own net benefit. It uses the case to turn the downturn impact and explicitly collapses to perm do both. A comes in comfortably under time but relies on a 'Roper' card that isn't in the available evidence. A also omits the conceded theory argument and gives thinner analysis on the deficits and the DA. B's roughly 5-second overage is a real concern at this judge's capped pace, but it is easily trimmed and doesn't outweigh B's much stronger strategic coverage."
+    },
+    {
+      "speech": "1AR",
+      "pair": 2,
+      "judge": "claude",
+      "order": "medium-first",
+      "lowWins": 0,
+      "lowScore": 6,
+      "medScore": 7.5,
+      "reasons": "Version A makes stronger strategic moves. It argues the compact needs congressional consent under the Compact Clause, so the CP links to its own net benefit and collapses into the perm. It also extends the conceded 50-state fiat theory argument, and it cleanly explains why the sequencing answers only target the backstop perm. Version B drops the conceded theory argument and cites a 'Roper' card even though no evidence was provided, so that argument risks being uncarded or fabricated. Version A's roughly 305 seconds runs slightly over the 300-second limit and needs a small trim, but it still gives the judge more reasons to vote aff."
+    },
+    {
+      "speech": "2AC",
+      "pair": 0,
+      "judge": "gemini",
+      "order": "medium-first",
+      "lowWins": 1,
+      "lowScore": 9,
+      "medScore": 6,
+      "reasons": "Version B is vastly superior in execution and time management: Version A's 515-second estimate significantly exceeds the 480-second speech limit, which is especially fatal given this judge's explicit speed cap and flow-dependent paradigm. Strategically, Version B matches the round's actual flow by reading essential impact cards on case (Chernoff and Fitzsimmons) and introducing both the federal backstop perm and the interstate compacts answer, preempting the 2NC's primary counterplan collapse."
+    },
+    {
+      "speech": "2AC",
+      "pair": 0,
+      "judge": "gemini",
+      "order": "low-first",
+      "lowWins": 1,
+      "lowScore": 8.5,
+      "medScore": 6.5,
+      "reasons": "Version A is much closer to the strict 480-second time limit, whereas Version B (at an estimated 515 seconds) significantly overruns the clock in front of a judge who caps speed and refuses to evaluate arguments they cannot flow. Strategically, Version A includes key framework and prediction defense on the water wars impact (Chernoff and Fitzsimmons) and correctly executes the 'federal backstop' permutation, which directly pressures the negative block. Version B makes the mistake of bloating analytics on the DA and CP at the expense of time, leaving case coverage rushed and vulnerable."
+    },
+    {
+      "speech": "2AC",
+      "pair": 0,
+      "judge": "claude",
+      "order": "medium-first",
+      "lowWins": 1,
+      "lowScore": 7,
+      "medScore": 6,
+      "reasons": "Version A has richer warrants: it turns the ELI card into perm evidence, gives stronger alternate-cause and water-wars answers, and develops the DA answers more fully. However, it runs about 35 seconds over time for a judge who caps speed, so real content would be cut or slurred. Version B nearly fits the 8 minutes, covers every 1NC argument, adds a backstop perm, and preempts the interstate-compact spin with a card. That preemption proves wise because the 2NC relies heavily on the compact, whereas A saves it for the 1AR on a shaky 'new argument' claim."
+    },
+    {
+      "speech": "2AC",
+      "pair": 0,
+      "judge": "claude",
+      "order": "low-first",
+      "lowWins": 0,
+      "lowScore": 6,
+      "medScore": 7,
+      "reasons": "Version B's warrants and clash are clearly better. It turns the neg's ELI and Parkinson cards against them (floor-raising and 'little incremental investment for developed economies'), gives a real theory counter-interpretation, and makes a smarter case defense: no water wars leaves the economic and health impacts standing, and an alternate cause adds to the problem rather than replacing it. Version A's water-wars answer rests on generic 'predictions good' cards. A does have a genuinely distinct backstop perm and pre-empts the compact, which the 2NC went for. But B is 35 seconds over the limit against a speed-capped judge, versus A's 12, and B's two perms largely overlap, so its edge is narrowed."
+    },
+    {
+      "speech": "2AC",
+      "pair": 1,
+      "judge": "gemini",
+      "order": "medium-first",
+      "lowWins": 1,
+      "lowScore": 9,
+      "medScore": 5,
+      "reasons": "Version B accurately covers all arguments reflected on the round's flow record (including the backstop permutation and the Fitzsimmons risk framework card) while fitting the strict 480-second speech limit at a moderate speaking pace. In contrast, Version A runs severely over time at an estimated 542 seconds and drops the backstop permutation, leaving major 2NC answers ungrounded."
+    },
+    {
+      "speech": "2AC",
+      "pair": 1,
+      "judge": "gemini",
+      "order": "low-first",
+      "lowWins": 1,
+      "lowScore": 8.5,
+      "medScore": 5.5,
+      "reasons": "Version A strictly adheres to the 8-minute time limit (481 seconds vs. Version B's 542 seconds), which is critical given the judge's explicit paradigm constraint against excessive speed. Version A also preserves both 2AC permutations (including the federal backstop perm, which proved central on the actual flow against the 2NC) and accurately integrates the Fitzsimmons risk framing on case."
+    },
+    {
+      "speech": "2AC",
+      "pair": 1,
+      "judge": "claude",
+      "order": "medium-first",
+      "lowWins": 1,
+      "lowScore": 8,
+      "medScore": 6,
+      "reasons": "Version A runs about 542 s against a 480 s limit under a judge who caps speed, so part of it will be cut or unflowable. Version B fits at about 481 s and covers the same ground. B also adds the federal-backstop perm, which the 2NC answered, so it clearly belongs on the flow, and it frames the ELI 'no more stringent' evidence more sharply as proof that states are legally barred from exceeding the floor. A has slightly deeper warrants on the DA impact and the water-wars answers, but it drops the second perm and blows the time limit, which outweighs that edge."
+    },
+    {
+      "speech": "2AC",
+      "pair": 1,
+      "judge": "claude",
+      "order": "low-first",
+      "lowWins": 1,
+      "lowScore": 7,
+      "medScore": 5,
+      "reasons": "Version A answers every 1NC argument within the 8-minute limit (about 481 s), with two perms, four deficits, a compact preempt, theory, full DA coverage, and case defense. Version B runs about 542 s, roughly a minute over, for a judge who caps speed. The overflow would fall on the case section, which comes last, so alternate causes and water wars risk going unanswered. B's warrants are somewhat deeper (the compact is extra-textual, the U.S. is a developed economy per Parkinson, the CP doesn't solve ag runoff), but that is not worth the overtime, and dropping the backstop perm also costs it a strategic option."
+    },
+    {
+      "speech": "2AC",
+      "pair": 2,
+      "judge": "gemini",
+      "order": "medium-first",
+      "lowWins": 1,
+      "lowScore": 9,
+      "medScore": 7.5,
+      "reasons": "Version B aligns far better with sound 2AC strategy and the round's flow. It correctly executes the standard 'perm do the CP with a federal backstop' rather than Version A's questionable chronological sequencing perm ('plan then CP'), reads crucial evidence on state capacity deficits (Bower & McLean) and compact failures, and cleanly extends 1AC solvency on case."
+    },
+    {
+      "speech": "2AC",
+      "pair": 2,
+      "judge": "claude",
+      "order": "low-first",
+      "lowWins": 0,
+      "lowScore": 6,
+      "medScore": 8,
+      "reasons": "B gives each answer a real warrant and comparison: a durability deficit drawn from the neg's own ELI card, a no-link that separates regulatory scope from Parkinson's investment financing, and the point that the 'no water wars' argument never touches the economic-decline impact. B also ties 'CP links too' to 'any risk of a deficit means vote aff' and builds out the theory standards. A is leaner and usefully preempts the interstate-compact spin with Roper, but its perms, DA answers and case answers are thinner and give the judge less to evaluate. B fits the time limit, though with little cushion for a judge who wants slower delivery."
+    },
+    {
+      "speech": "2AC",
+      "pair": 2,
+      "judge": "gemini",
+      "order": "low-first",
+      "lowWins": 0,
+      "lowScore": 7.5,
+      "medScore": 9.2,
+      "reasons": "Version B is vastly superior strategically and analytically. On case, B smartly identifies that the 1NC water wars defense entirely conceded the 1AC economic decline impact, guaranteeing uncontested offense for the 2AR. On the States CP, B's durability deficit turning the 1NC's own ELI evidence against them ('no more stringent than' clauses and lack of permanence under fiat) provides a lethal solvency deficit that synergizes perfectly with the theory argument."
+    },
+    {
+      "speech": "2AC",
+      "pair": 2,
+      "judge": "claude",
+      "order": "medium-first",
+      "lowWins": 0,
+      "lowScore": 7,
+      "medScore": 8,
+      "reasons": "Version A gives deeper warrants on every page. It includes a durability deficit drawn from the neg's own ELI card, a three-part theory argument, and a stronger 'CP links too' that preempts the enforcement-cost spin. Its case answers are also sharper, noting that no-water-wars leaves the economic decline impact untouched and that cooperation 'more often' concedes some risk. Version B wisely preempts the compact spin with the Roper card and reads the states-can't-act card, but its DA and case answers are thin, and it uses the prediction card awkwardly against no water wars; A's clash is more valuable for this tech-leaning coach judge while staying within time."
+    }
+  ]
+}

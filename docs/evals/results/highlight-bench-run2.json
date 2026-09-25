@@ -1,0 +1,1422 @@
+{
+  "at": "2026-09-25T14:31:26.401Z",
+  "cards": 16,
+  "rows": [
+    {
+      "source": "Human (original file)",
+      "n": 16,
+      "errors": 0,
+      "overallClaude": 5.4375,
+      "overallGemini": 6.275,
+      "comprehension": 6.796875,
+      "fluency": 5.421875,
+      "fidelity": 7.25,
+      "efficiency": 5.734375,
+      "f1VsHuman": 1,
+      "wordsVsTarget": 1,
+      "fragmentsPer100": 24.296469392915103,
+      "oneWordShare": 0.19324138247679667,
+      "danglingShare": 0.2101652962556267,
+      "seconds": 0,
+      "cost": 0,
+      "repairedShare": 0
+    },
+    {
+      "source": "Opus 5.5 · low",
+      "n": 16,
+      "errors": 0,
+      "overallClaude": 7,
+      "overallGemini": 7.86875,
+      "comprehension": 8.125,
+      "fluency": 7.625,
+      "fidelity": 8.1875,
+      "efficiency": 7,
+      "f1VsHuman": 0.4501265018212604,
+      "wordsVsTarget": 0.9860769631888722,
+      "fragmentsPer100": 6.789544926454782,
+      "oneWordShare": 0.03958333333333333,
+      "danglingShare": 0.02038690476190476,
+      "seconds": 7.646374999999999,
+      "cost": 0.0257655,
+      "repairedShare": 0
+    }
+  ],
+  "versions": [
+    {
+      "card": 0,
+      "source": "Human (original file)",
+      "readWords": 78,
+      "targetWords": 78,
+      "metrics": {
+        "totalWords": 260,
+        "readWords": 78,
+        "ratio": 0.3,
+        "fragments": 13,
+        "meanFragmentWords": 6,
+        "oneWordFragmentShare": 0.23076923076923078,
+        "danglingShare": 0,
+        "danglingEnds": 0,
+        "partialWordFragments": 1,
+        "fragmentsPer100": 16.666666666666664,
+        "sentencesWithVerbShare": 0.5
+      },
+      "f1": 1,
+      "ms": 0,
+      "cost": 0,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 6,
+          "fluency": 5,
+          "fidelity": 7,
+          "efficiency": 5,
+          "overall": 5,
+          "note": "The opening establishes the climate budget and water infrastructure well, but the later fragments (\"choice to join a union,\" the superpower quote, the dangling \"1.2 billion\") are choppy, stray off-tag, and drop the $3.6 billion water figure that would best prove the water claim."
+        },
+        "gemini": {
+          "comprehension": 6,
+          "fluency": 5,
+          "fidelity": 8,
+          "efficiency": 4,
+          "overall": 5,
+          "note": "Wastes words on union and clean energy rhetoric while skipping the card's specific $3.6 billion water infrastructure stat needed for the tag."
+        }
+      }
+    },
+    {
+      "card": 1,
+      "source": "Human (original file)",
+      "readWords": 107,
+      "targetWords": 107,
+      "metrics": {
+        "totalWords": 546,
+        "readWords": 107,
+        "ratio": 0.19597069597069597,
+        "fragments": 17,
+        "meanFragmentWords": 6.294117647058823,
+        "oneWordFragmentShare": 0.11764705882352941,
+        "danglingShare": 0.17647058823529413,
+        "danglingEnds": 0,
+        "partialWordFragments": 3,
+        "fragmentsPer100": 15.887850467289718,
+        "sentencesWithVerbShare": 0.6666666666666666
+      },
+      "f1": 1,
+      "ms": 0,
+      "cost": 0,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 7,
+          "fluency": 6,
+          "fidelity": 6,
+          "efficiency": 7,
+          "overall": 6,
+          "note": "The model-inaccuracy warrant comes through clearly, but dropping \"perhaps\" before \"culminating in nuclear war\" and before \"the end of human global civilization\" overstates the author's hedged claims, and choppy fragments like \"the risks of climate change … poses a\" hurt flow."
+        },
+        "gemini": {
+          "comprehension": 9,
+          "fluency": 8,
+          "fidelity": 9,
+          "efficiency": 7,
+          "overall": 8,
+          "note": "Constructs a coherent, complete story from the methodological model indict all the way to the nuclear war impact, marred only by a minor subject-verb agreement hiccup in the first line."
+        }
+      }
+    },
+    {
+      "card": 2,
+      "source": "Human (original file)",
+      "readWords": 101,
+      "targetWords": 101,
+      "metrics": {
+        "totalWords": 485,
+        "readWords": 101,
+        "ratio": 0.20824742268041238,
+        "fragments": 35,
+        "meanFragmentWords": 2.8857142857142857,
+        "oneWordFragmentShare": 0.3142857142857143,
+        "danglingShare": 0.2,
+        "danglingEnds": 1,
+        "partialWordFragments": 1,
+        "fragmentsPer100": 34.65346534653465,
+        "sentencesWithVerbShare": 0.75
+      },
+      "f1": 1,
+      "ms": 0,
+      "cost": 0,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 6,
+          "fluency": 4,
+          "fidelity": 6,
+          "efficiency": 6,
+          "overall": 5,
+          "note": "The ending on democracy remedying crises that authoritarian regimes cause lands cleanly, but the opening is choppy word salad ('Korea … nuclear blackmail and … aggressive … Russia'). Dropping 'nearly' and 'proven' overstates the author's claim to 'every crisis'."
+        },
+        "gemini": {
+          "comprehension": 6,
+          "fluency": 5,
+          "fidelity": 8,
+          "efficiency": 5,
+          "overall": 5.5,
+          "note": "The highlighting captures the core authoritarian threat and democracy impact, but it cuts out crucial subjects ('United States', 'bipartisan') and produces a choppy, list-heavy read."
+        }
+      }
+    },
+    {
+      "card": 3,
+      "source": "Human (original file)",
+      "readWords": 58,
+      "targetWords": 58,
+      "metrics": {
+        "totalWords": 337,
+        "readWords": 58,
+        "ratio": 0.17210682492581603,
+        "fragments": 17,
+        "meanFragmentWords": 3.411764705882353,
+        "oneWordFragmentShare": 0.11764705882352941,
+        "danglingShare": 0.35294117647058826,
+        "danglingEnds": 0,
+        "partialWordFragments": 1,
+        "fragmentsPer100": 29.310344827586203,
+        "sentencesWithVerbShare": 1
+      },
+      "f1": 1,
+      "ms": 0,
+      "cost": 0,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 7,
+          "fluency": 5,
+          "fidelity": 6,
+          "efficiency": 7,
+          "overall": 6,
+          "note": "The card covers claim, relabeling warrant, and outcome data, but choppy fragments like 'they are … aspirational … governments … just labelling what they … anyhow' garble the Gluckman quote, and 'often failing' is flattened to 'failing.'"
+        },
+        "gemini": {
+          "comprehension": 8,
+          "fluency": 5,
+          "fidelity": 8,
+          "efficiency": 6,
+          "overall": 6,
+          "note": "The warrant and data match the tag well, but cutting out the verb 'doing' creates awkward, broken syntax mid-card."
+        }
+      }
+    },
+    {
+      "card": 4,
+      "source": "Human (original file)",
+      "readWords": 100,
+      "targetWords": 100,
+      "metrics": {
+        "totalWords": 243,
+        "readWords": 100,
+        "ratio": 0.411522633744856,
+        "fragments": 15,
+        "meanFragmentWords": 6.666666666666667,
+        "oneWordFragmentShare": 0.06666666666666667,
+        "danglingShare": 0.26666666666666666,
+        "danglingEnds": 0,
+        "partialWordFragments": 0,
+        "fragmentsPer100": 15,
+        "sentencesWithVerbShare": 1
+      },
+      "f1": 1,
+      "ms": 0,
+      "cost": 0,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 8,
+          "fluency": 7,
+          "fidelity": 8,
+          "efficiency": 7,
+          "overall": 7,
+          "note": "Captures the core argument that ideological framing avoids outcomes, but trailing off at 'exude fidelity' without 'to colorblindness' leaves an incomplete phrase, and some repetition of the outcomes point could be trimmed."
+        },
+        "gemini": {
+          "comprehension": 8,
+          "fluency": 8.5,
+          "fidelity": 9,
+          "efficiency": 5.5,
+          "overall": 7.2,
+          "note": "The highlighting flows cleanly and captures the warrant well, but it repeats the same outcome-versus-principle point several times instead of cutting to the thesis."
+        }
+      }
+    },
+    {
+      "card": 5,
+      "source": "Human (original file)",
+      "readWords": 189,
+      "targetWords": 189,
+      "metrics": {
+        "totalWords": 1246,
+        "readWords": 189,
+        "ratio": 0.15168539325842698,
+        "fragments": 25,
+        "meanFragmentWords": 7.56,
+        "oneWordFragmentShare": 0.28,
+        "danglingShare": 0.16,
+        "danglingEnds": 0,
+        "partialWordFragments": 1,
+        "fragmentsPer100": 13.227513227513226,
+        "sentencesWithVerbShare": 1
+      },
+      "f1": 1,
+      "ms": 0,
+      "cost": 0,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 6,
+          "fluency": 4,
+          "fidelity": 7,
+          "efficiency": 5,
+          "overall": 5,
+          "note": "The ending is strong and clear, but the middle is choppy fragments (\"whichever … policy … the … supporting.12\") and spends words on Laughland case details that don't advance the claim."
+        },
+        "gemini": {
+          "comprehension": 7,
+          "fluency": 5,
+          "fidelity": 8,
+          "efficiency": 4,
+          "overall": 5,
+          "note": "The card keeps far too much specific historical narrative about Laughland and The Guardian when the general theoretical conclusion at the bottom does all the necessary work."
+        }
+      }
+    },
+    {
+      "card": 6,
+      "source": "Human (original file)",
+      "readWords": 70,
+      "targetWords": 70,
+      "metrics": {
+        "totalWords": 134,
+        "readWords": 70,
+        "ratio": 0.5223880597014925,
+        "fragments": 20,
+        "meanFragmentWords": 3.5,
+        "oneWordFragmentShare": 0.25,
+        "danglingShare": 0.25,
+        "danglingEnds": 0,
+        "partialWordFragments": 0,
+        "fragmentsPer100": 28.57142857142857,
+        "sentencesWithVerbShare": 0.8
+      },
+      "f1": 1,
+      "ms": 0,
+      "cost": 0,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 7,
+          "fluency": 5,
+          "fidelity": 7,
+          "efficiency": 6,
+          "overall": 6,
+          "note": "The read version captures the contrast between inverting critical frames and blending into credible ones to reach wider audiences, but choppy fragments like 'the organising frame … has some resonance' and the dropped 'If the text remains within' conditional hurt flow and clarity."
+        },
+        "gemini": {
+          "comprehension": 8,
+          "fluency": 7,
+          "fidelity": 9,
+          "efficiency": 6,
+          "overall": 7,
+          "note": "The card explains the mechanism and comparative advantage very clearly, though it could be cut slightly leaner to improve speed and efficiency."
+        }
+      }
+    },
+    {
+      "card": 7,
+      "source": "Human (original file)",
+      "readWords": 125,
+      "targetWords": 125,
+      "metrics": {
+        "totalWords": 1270,
+        "readWords": 125,
+        "ratio": 0.0984251968503937,
+        "fragments": 28,
+        "meanFragmentWords": 4.464285714285714,
+        "oneWordFragmentShare": 0.21428571428571427,
+        "danglingShare": 0.07142857142857142,
+        "danglingEnds": 0,
+        "partialWordFragments": 0,
+        "fragmentsPer100": 22.400000000000002,
+        "sentencesWithVerbShare": 0.8
+      },
+      "f1": 1,
+      "ms": 0,
+      "cost": 0,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 7,
+          "fluency": 5,
+          "fidelity": 7,
+          "efficiency": 6,
+          "overall": 6,
+          "note": "It hits the tag's expertise and algorithm warrants, but the read is choppy and overlong, spending words on setup like the tournaments line and a list of improvements instead of the key 'cut error rate by more than half' warrant."
+        },
+        "gemini": {
+          "comprehension": 8,
+          "fluency": 7,
+          "fidelity": 9,
+          "efficiency": 7,
+          "overall": 8,
+          "note": "Covers both the human and algorithmic mechanisms clearly with strong fidelity, suffering only from slight grammatical friction in the verb cuts."
+        }
+      }
+    },
+    {
+      "card": 8,
+      "source": "Human (original file)",
+      "readWords": 135,
+      "targetWords": 135,
+      "metrics": {
+        "totalWords": 1084,
+        "readWords": 135,
+        "ratio": 0.12453874538745388,
+        "fragments": 38,
+        "meanFragmentWords": 3.5526315789473686,
+        "oneWordFragmentShare": 0.34210526315789475,
+        "danglingShare": 0.07894736842105263,
+        "danglingEnds": 0,
+        "partialWordFragments": 1,
+        "fragmentsPer100": 28.14814814814815,
+        "sentencesWithVerbShare": 1
+      },
+      "f1": 1,
+      "ms": 0,
+      "cost": 0,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 5,
+          "fluency": 3,
+          "fidelity": 4,
+          "efficiency": 5,
+          "overall": 4,
+          "note": "The opening fragment 'there is too great … of complexity … to allow … prediction' reads as the author endorsing the skeptic view, and it drops the 'determined prediction sceptic may continue to hold' framing. Choppy word-picking and the truncated 'so obviously' further undermine a card whose warrants are otherwise present."
+        },
+        "gemini": {
+          "comprehension": 6,
+          "fluency": 6,
+          "fidelity": 6,
+          "efficiency": 5,
+          "overall": 5.8,
+          "note": "Accidentally begins by reading the sceptic's claim as an assertion, cuts off mid-sentence on 'obviously [true]', and wastes time highlighting a specific Sino-UK scenario rather than the core methodological defense."
+        }
+      }
+    },
+    {
+      "card": 9,
+      "source": "Human (original file)",
+      "readWords": 107,
+      "targetWords": 107,
+      "metrics": {
+        "totalWords": 539,
+        "readWords": 107,
+        "ratio": 0.19851576994434136,
+        "fragments": 34,
+        "meanFragmentWords": 3.1470588235294117,
+        "oneWordFragmentShare": 0.23529411764705882,
+        "danglingShare": 0.3235294117647059,
+        "danglingEnds": 1,
+        "partialWordFragments": 5,
+        "fragmentsPer100": 31.775700934579437,
+        "sentencesWithVerbShare": 0.8
+      },
+      "f1": 1,
+      "ms": 0,
+      "cost": 0,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 6,
+          "fluency": 4,
+          "fidelity": 6,
+          "efficiency": 5,
+          "overall": 5,
+          "note": "The Morgenthau and case-by-case lines deliver the warrant, but the opening geopolitics context is choppy filler. It truncates 'diplomacy alliances and' without 'war', and the cut 'ethics judges action by its consequences' drops 'political' and blurs the contrast with abstract ethics."
+        },
+        "gemini": {
+          "comprehension": 6,
+          "fluency": 5,
+          "fidelity": 5,
+          "efficiency": 5,
+          "overall": 5,
+          "note": "Spends too many words on geopolitical scene-setting while leaving awkward grammatical clippings, including cutting off a list at 'and' and mangling Morgenthau's quote."
+        }
+      }
+    },
+    {
+      "card": 10,
+      "source": "Human (original file)",
+      "readWords": 103,
+      "targetWords": 103,
+      "metrics": {
+        "totalWords": 745,
+        "readWords": 103,
+        "ratio": 0.138255033557047,
+        "fragments": 29,
+        "meanFragmentWords": 3.5517241379310347,
+        "oneWordFragmentShare": 0.20689655172413793,
+        "danglingShare": 0.27586206896551724,
+        "danglingEnds": 0,
+        "partialWordFragments": 2,
+        "fragmentsPer100": 28.155339805825243,
+        "sentencesWithVerbShare": 0.75
+      },
+      "f1": 1,
+      "ms": 0,
+      "cost": 0,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 6,
+          "fluency": 4,
+          "fidelity": 6,
+          "efficiency": 6,
+          "overall": 5,
+          "note": "The core claim comes through (abstract norms fail and prudent case-by-case realism is needed), but the read text is choppy and stitched from fragments, and the question 'how would it differ from … aspirations' dangles without an answer."
+        },
+        "gemini": {
+          "comprehension": 6,
+          "fluency": 4,
+          "fidelity": 8,
+          "efficiency": 5,
+          "overall": 5,
+          "note": "The card captures the core argument but suffers from jarring grammatical fragments, an accidental rhetorical question, and unremoved citation numbers."
+        }
+      }
+    },
+    {
+      "card": 11,
+      "source": "Human (original file)",
+      "readWords": 101,
+      "targetWords": 101,
+      "metrics": {
+        "totalWords": 747,
+        "readWords": 101,
+        "ratio": 0.13520749665327977,
+        "fragments": 27,
+        "meanFragmentWords": 3.740740740740741,
+        "oneWordFragmentShare": 0.07407407407407407,
+        "danglingShare": 0.4074074074074074,
+        "danglingEnds": 0,
+        "partialWordFragments": 0,
+        "fragmentsPer100": 26.732673267326735,
+        "sentencesWithVerbShare": 0.8571428571428571
+      },
+      "f1": 1,
+      "ms": 0,
+      "cost": 0,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 7,
+          "fluency": 5,
+          "fidelity": 7,
+          "efficiency": 7,
+          "overall": 6,
+          "note": "Hits the tag's warrants (idealizes meaning, ignores material structure, erases agency, flattens reality), but the choppy word-plucking ('discourse as … determinate … of rules') is hard to follow at speed. It also drops 'Foucauldian', which broadens the author's claim beyond Foucauldian discourse analysis."
+        },
+        "gemini": {
+          "comprehension": 9,
+          "fluency": 8,
+          "fidelity": 9,
+          "efficiency": 8,
+          "overall": 8.5,
+          "note": "Excellent narrative flow that clearly and persuasively explains why discursive determinism erases agency and material structures."
+        }
+      }
+    },
+    {
+      "card": 12,
+      "source": "Human (original file)",
+      "readWords": 107,
+      "targetWords": 107,
+      "metrics": {
+        "totalWords": 539,
+        "readWords": 107,
+        "ratio": 0.19851576994434136,
+        "fragments": 34,
+        "meanFragmentWords": 3.1470588235294117,
+        "oneWordFragmentShare": 0.23529411764705882,
+        "danglingShare": 0.3235294117647059,
+        "danglingEnds": 1,
+        "partialWordFragments": 5,
+        "fragmentsPer100": 31.775700934579437,
+        "sentencesWithVerbShare": 0.8
+      },
+      "f1": 1,
+      "ms": 0,
+      "cost": 0,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 6,
+          "fluency": 4,
+          "fidelity": 6,
+          "efficiency": 6,
+          "overall": 5,
+          "note": "The card hits the key claims (return of geopolitics, a need not for abstract norms, prudence over axiomatic norms), but choppy fragments hurt fluency: 'three verities prevail diplomacy alliances and' drops 'war', 'intimate the return' is incomplete, and cutting 'normative' from 'normative transformation' blurs the link to the tag."
+        },
+        "gemini": {
+          "comprehension": 8,
+          "fluency": 6,
+          "fidelity": 9,
+          "efficiency": 6,
+          "overall": 6,
+          "note": "The core argument lands effectively, but leaving a dangling 'and' (cutting 'war') and stringing together 'prudentially policy thinking' harms spoken fluency."
+        }
+      }
+    },
+    {
+      "card": 13,
+      "source": "Human (original file)",
+      "readWords": 103,
+      "targetWords": 103,
+      "metrics": {
+        "totalWords": 745,
+        "readWords": 103,
+        "ratio": 0.138255033557047,
+        "fragments": 29,
+        "meanFragmentWords": 3.5517241379310347,
+        "oneWordFragmentShare": 0.20689655172413793,
+        "danglingShare": 0.27586206896551724,
+        "danglingEnds": 0,
+        "partialWordFragments": 2,
+        "fragmentsPer100": 28.155339805825243,
+        "sentencesWithVerbShare": 0.75
+      },
+      "f1": 1,
+      "ms": 0,
+      "cost": 0,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 6,
+          "fluency": 4,
+          "fidelity": 6,
+          "efficiency": 5,
+          "overall": 5,
+          "note": "The read text covers the realist-over-abstract-norms argument, but choppy fragments like 'how would it differ from … aspirations' and the stray footnote numbers read aloud hurt flow, and the key warrant (policy confusion in Afghanistan/Iraq and weak responses to ISIS/Russia) goes unread."
+        },
+        "gemini": {
+          "comprehension": 7,
+          "fluency": 5,
+          "fidelity": 8,
+          "efficiency": 5,
+          "overall": 6,
+          "note": "While the core critique is preserved, the read text contains broken grammar ('realism part company', missing verb in the second sentence) and keeps an unhelpful rhetorical question."
+        }
+      }
+    },
+    {
+      "card": 14,
+      "source": "Human (original file)",
+      "readWords": 91,
+      "targetWords": 91,
+      "metrics": {
+        "totalWords": 463,
+        "readWords": 91,
+        "ratio": 0.19654427645788336,
+        "fragments": 25,
+        "meanFragmentWords": 3.64,
+        "oneWordFragmentShare": 0.2,
+        "danglingShare": 0.2,
+        "danglingEnds": 1,
+        "partialWordFragments": 0,
+        "fragmentsPer100": 27.472527472527474,
+        "sentencesWithVerbShare": 0.7
+      },
+      "f1": 1,
+      "ms": 0,
+      "cost": 0,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 6,
+          "fluency": 4,
+          "fidelity": 6,
+          "efficiency": 5,
+          "overall": 5,
+          "note": "The core claims about regulation, implementation, and funding come through, but choppy fragments and the low-value toolkit-description ending waste words and hurt flow; the tail also undercuts the claim by calling the examples merely a starting place."
+        },
+        "gemini": {
+          "comprehension": 7,
+          "fluency": 7,
+          "fidelity": 9,
+          "efficiency": 5,
+          "overall": 6,
+          "note": "The core arguments flow reasonably well, but reading the final meta-text about the toolkit's methodology wastes valuable speaking time."
+        }
+      }
+    },
+    {
+      "card": 15,
+      "source": "Human (original file)",
+      "readWords": 74,
+      "targetWords": 74,
+      "metrics": {
+        "totalWords": 714,
+        "readWords": 74,
+        "ratio": 0.10364145658263306,
+        "fragments": 8,
+        "meanFragmentWords": 9.25,
+        "oneWordFragmentShare": 0,
+        "danglingShare": 0,
+        "danglingEnds": 0,
+        "partialWordFragments": 0,
+        "fragmentsPer100": 10.81081081081081,
+        "sentencesWithVerbShare": 1
+      },
+      "f1": 1,
+      "ms": 0,
+      "cost": 0,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 6,
+          "fluency": 6,
+          "fidelity": 6,
+          "efficiency": 6,
+          "overall": 6,
+          "note": "The card reads the comprehensiveness and binding-precedence lines, but it skips the congressional-approval text that would warrant the tag's \"force of federal law\" claim, and it spends words on the generic \"viable tool\" and \"efficient use\" lines."
+        },
+        "gemini": {
+          "comprehension": 6.5,
+          "fluency": 7,
+          "fidelity": 9,
+          "efficiency": 6,
+          "overall": 6.4,
+          "note": "The highlighting establishes the comprehensive scope of compacts effectively, but cuts the earlier warrants showing why congressional consent gives them the force of federal law."
+        }
+      }
+    },
+    {
+      "card": 0,
+      "source": "Opus 5.5 · low",
+      "readWords": 79,
+      "targetWords": 78,
+      "metrics": {
+        "totalWords": 260,
+        "readWords": 79,
+        "ratio": 0.3038461538461538,
+        "fragments": 5,
+        "meanFragmentWords": 15.8,
+        "oneWordFragmentShare": 0,
+        "danglingShare": 0,
+        "danglingEnds": 0,
+        "partialWordFragments": 0,
+        "fragmentsPer100": 6.329113924050633,
+        "sentencesWithVerbShare": 0.6
+      },
+      "f1": 0.573248407643312,
+      "ms": 7069,
+      "cost": 0.019904,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 8,
+          "fluency": 7,
+          "fidelity": 9,
+          "efficiency": 7,
+          "overall": 7,
+          "note": "Clearly proves both halves of the tag: the climate focus and the water infrastructure funding. The opening sentence reads long, and the drought/resilience ending is only loosely tied to water policy."
+        },
+        "gemini": {
+          "comprehension": 9,
+          "fluency": 8,
+          "fidelity": 9,
+          "efficiency": 5,
+          "overall": 6.8,
+          "note": "Very clear and completely faithful to the tag, but significantly under-highlighted with excess fluff and entire unpruned clauses."
+        }
+      }
+    },
+    {
+      "card": 1,
+      "source": "Opus 5.5 · low",
+      "readWords": 107,
+      "targetWords": 107,
+      "metrics": {
+        "totalWords": 546,
+        "readWords": 107,
+        "ratio": 0.19597069597069597,
+        "fragments": 8,
+        "meanFragmentWords": 13.375,
+        "oneWordFragmentShare": 0,
+        "danglingShare": 0,
+        "danglingEnds": 0,
+        "partialWordFragments": 0,
+        "fragmentsPer100": 7.476635514018691,
+        "sentencesWithVerbShare": 0.8571428571428571
+      },
+      "f1": 0.5327102803738317,
+      "ms": 8807,
+      "cost": 0.026328,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 8,
+          "fluency": 7,
+          "fidelity": 6,
+          "efficiency": 8,
+          "overall": 7,
+          "note": "Clearly lays out the models-underestimate warrant and the impact chain, but it drops the conditional 'if serious mitigation actions aren't taken' and the scenario framing, and it presents the think tank's claims as though they were established fact."
+        },
+        "gemini": {
+          "comprehension": 9,
+          "fluency": 9,
+          "fidelity": 9,
+          "efficiency": 8,
+          "overall": 8.7,
+          "note": "Excellent flow and clear warrants that explain both why climate models fail and the resulting extinction impact."
+        }
+      }
+    },
+    {
+      "card": 2,
+      "source": "Opus 5.5 · low",
+      "readWords": 115,
+      "targetWords": 101,
+      "metrics": {
+        "totalWords": 485,
+        "readWords": 115,
+        "ratio": 0.23711340206185566,
+        "fragments": 6,
+        "meanFragmentWords": 19.166666666666668,
+        "oneWordFragmentShare": 0,
+        "danglingShare": 0,
+        "danglingEnds": 0,
+        "partialWordFragments": 0,
+        "fragmentsPer100": 5.217391304347826,
+        "sentencesWithVerbShare": 1
+      },
+      "f1": 0.30555555555555564,
+      "ms": 8421,
+      "cost": 0.024084,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 7,
+          "fluency": 7,
+          "fidelity": 8,
+          "efficiency": 7,
+          "overall": 7,
+          "note": "Reads a coherent arc from authoritarian threat to US retreat to democracy as the remedy, but it drops why dictators are only tactical and leaves out the domestic-unity norm-setting warrant the tag emphasizes, so 'this' has an unclear referent."
+        },
+        "gemini": {
+          "comprehension": 8,
+          "fluency": 9,
+          "fidelity": 9,
+          "efficiency": 7,
+          "overall": 8,
+          "note": "Flows exceptionally well in full grammatical thoughts, cleanly establishing the strategic link between US leadership, democracy promotion, and conflict prevention."
+        }
+      }
+    },
+    {
+      "card": 3,
+      "source": "Opus 5.5 · low",
+      "readWords": 59,
+      "targetWords": 58,
+      "metrics": {
+        "totalWords": 337,
+        "readWords": 59,
+        "ratio": 0.17507418397626112,
+        "fragments": 5,
+        "meanFragmentWords": 11.8,
+        "oneWordFragmentShare": 0,
+        "danglingShare": 0,
+        "danglingEnds": 0,
+        "partialWordFragments": 0,
+        "fragmentsPer100": 8.47457627118644,
+        "sentencesWithVerbShare": 0.75
+      },
+      "f1": 0.6324786324786326,
+      "ms": 4930,
+      "cost": 0.017148,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 8,
+          "fluency": 7,
+          "fidelity": 7,
+          "efficiency": 8,
+          "overall": 7,
+          "note": "Strong claim-warrant-impact arc with the relabeling quote and 'lots of talk, little action' capping the tag, though skipping du Toit's 'critically important and fully committed' caveat slightly overstates the author's view."
+        },
+        "gemini": {
+          "comprehension": 9,
+          "fluency": 7,
+          "fidelity": 9,
+          "efficiency": 7,
+          "overall": 8,
+          "note": "Presents a complete, compelling argument with warrants and evidence, though reading both 'Goals' and 'SDGs' at the start creates a slight spoken stumble."
+        }
+      }
+    },
+    {
+      "card": 4,
+      "source": "Opus 5.5 · low",
+      "readWords": 91,
+      "targetWords": 100,
+      "metrics": {
+        "totalWords": 243,
+        "readWords": 91,
+        "ratio": 0.37448559670781895,
+        "fragments": 5,
+        "meanFragmentWords": 18.2,
+        "oneWordFragmentShare": 0,
+        "danglingShare": 0,
+        "danglingEnds": 0,
+        "partialWordFragments": 0,
+        "fragmentsPer100": 5.4945054945054945,
+        "sentencesWithVerbShare": 1
+      },
+      "f1": 0.6282722513089005,
+      "ms": 7702,
+      "cost": 0.021556,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 8,
+          "fluency": 8,
+          "fidelity": 8,
+          "efficiency": 7,
+          "overall": 8,
+          "note": "Clean, coherent read that builds the ideology-versus-outcomes warrant with the colorblindness example, though it's slightly long and never explicitly reads that colorblindness entrenches disparities, which is the key impact for challenging racism."
+        },
+        "gemini": {
+          "comprehension": 9,
+          "fluency": 9,
+          "fidelity": 9,
+          "efficiency": 7,
+          "overall": 8.5,
+          "note": "Extremely clear and grammatically complete warrants, though slightly repetitive across sentences regarding the neglect of outcomes."
+        }
+      }
+    },
+    {
+      "card": 5,
+      "source": "Opus 5.5 · low",
+      "readWords": 170,
+      "targetWords": 189,
+      "metrics": {
+        "totalWords": 1246,
+        "readWords": 170,
+        "ratio": 0.13643659711075443,
+        "fragments": 5,
+        "meanFragmentWords": 34,
+        "oneWordFragmentShare": 0,
+        "danglingShare": 0,
+        "danglingEnds": 0,
+        "partialWordFragments": 0,
+        "fragmentsPer100": 2.941176470588235,
+        "sentencesWithVerbShare": 0.875
+      },
+      "f1": 0.6740947075208914,
+      "ms": 10571,
+      "cost": 0.03766,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 8,
+          "fluency": 8,
+          "fidelity": 7,
+          "efficiency": 7,
+          "overall": 7,
+          "note": "Reads a clear warrant chain (pure inversion gets ignored, blending with dominant frames gets printed and disseminated), but the Laughland middle section is context-dependent filler for a judge and the 'success' is only about publication, not persuasion."
+        },
+        "gemini": {
+          "comprehension": 9,
+          "fluency": 9,
+          "fidelity": 9,
+          "efficiency": 6,
+          "overall": 8,
+          "note": "Reads in complete, highly fluent sentences that precisely establish the theoretical warrant, though retaining the specific Laughland case study makes it longer than necessary."
+        }
+      }
+    },
+    {
+      "card": 6,
+      "source": "Opus 5.5 · low",
+      "readWords": 78,
+      "targetWords": 70,
+      "metrics": {
+        "totalWords": 134,
+        "readWords": 78,
+        "ratio": 0.582089552238806,
+        "fragments": 6,
+        "meanFragmentWords": 13,
+        "oneWordFragmentShare": 0,
+        "danglingShare": 0,
+        "danglingEnds": 0,
+        "partialWordFragments": 0,
+        "fragmentsPer100": 7.6923076923076925,
+        "sentencesWithVerbShare": 1
+      },
+      "f1": 0.7567567567567569,
+      "ms": 5781,
+      "cost": 0.016076,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 2,
+      "judge": {
+        "claude": {
+          "comprehension": 7,
+          "fluency": 6,
+          "fidelity": 7,
+          "efficiency": 7,
+          "overall": 6,
+          "note": "The chain from blending to adopting a credible frame to reaching a wider readership comes through clearly, but the stray fragment 'is not' after the skip reads as garbled and awkwardly flips the meaning."
+        },
+        "gemini": {
+          "comprehension": 8,
+          "fluency": 6,
+          "fidelity": 8,
+          "efficiency": 4,
+          "overall": 6,
+          "note": "The card preserves complete arguments but is over-highlighted, and accidentally picking up 'is not' creates an awkward stutter mid-sentence."
+        }
+      }
+    },
+    {
+      "card": 7,
+      "source": "Opus 5.5 · low",
+      "readWords": 122,
+      "targetWords": 125,
+      "metrics": {
+        "totalWords": 1270,
+        "readWords": 122,
+        "ratio": 0.09606299212598425,
+        "fragments": 12,
+        "meanFragmentWords": 10.166666666666666,
+        "oneWordFragmentShare": 0,
+        "danglingShare": 0.08333333333333333,
+        "danglingEnds": 0,
+        "partialWordFragments": 0,
+        "fragmentsPer100": 9.836065573770492,
+        "sentencesWithVerbShare": 0.8181818181818182
+      },
+      "f1": 0.45344129554655876,
+      "ms": 7125,
+      "cost": 0.031956,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 7,
+          "fluency": 6,
+          "fidelity": 7,
+          "efficiency": 7,
+          "overall": 7,
+          "note": "It covers the core warrants (beats chance, error cut in half, expertise, algorithms), but it opens with a dangling \"That's changing\" and reads \"genuine domain expertise does seem to\" without its antecedent, so a few fragments land unclearly."
+        },
+        "gemini": {
+          "comprehension": 9,
+          "fluency": 8,
+          "fidelity": 9,
+          "efficiency": 7,
+          "overall": 8,
+          "note": "A strong, complete cut with clear warrants, marred only slightly by an incomplete clause ('genuine domain expertise does seem to') and listing more sub-findings than strictly necessary."
+        }
+      }
+    },
+    {
+      "card": 8,
+      "source": "Opus 5.5 · low",
+      "readWords": 144,
+      "targetWords": 135,
+      "metrics": {
+        "totalWords": 1084,
+        "readWords": 144,
+        "ratio": 0.13284132841328414,
+        "fragments": 11,
+        "meanFragmentWords": 13.090909090909092,
+        "oneWordFragmentShare": 0,
+        "danglingShare": 0,
+        "danglingEnds": 0,
+        "partialWordFragments": 1,
+        "fragmentsPer100": 7.638888888888889,
+        "sentencesWithVerbShare": 0.875
+      },
+      "f1": 0.3225806451612903,
+      "ms": 9399,
+      "cost": 0.032984,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 8,
+          "fluency": 7,
+          "fidelity": 8,
+          "efficiency": 7,
+          "overall": 7,
+          "note": "Captures the knowledge-plus-causal-principles warrant and the China example well, but the seismology sentence is read without its payoff (such imprecise predictions still guide policy), and the stray footnote '15' gets read aloud."
+        },
+        "gemini": {
+          "comprehension": 8,
+          "fluency": 8,
+          "fidelity": 9,
+          "efficiency": 6,
+          "overall": 7,
+          "note": "The card reads very cleanly and supports the tag well, but spends too many words dwelling on the UK-China hypothetical at the expense of efficiency."
+        }
+      }
+    },
+    {
+      "card": 9,
+      "source": "Opus 5.5 · low",
+      "readWords": 92,
+      "targetWords": 107,
+      "metrics": {
+        "totalWords": 539,
+        "readWords": 92,
+        "ratio": 0.17068645640074212,
+        "fragments": 5,
+        "meanFragmentWords": 18.4,
+        "oneWordFragmentShare": 0,
+        "danglingShare": 0,
+        "danglingEnds": 0,
+        "partialWordFragments": 2,
+        "fragmentsPer100": 5.434782608695652,
+        "sentencesWithVerbShare": 0.8
+      },
+      "f1": 0.3417085427135678,
+      "ms": 7029,
+      "cost": 0.026052,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 8,
+          "fluency": 7,
+          "fidelity": 8,
+          "efficiency": 7,
+          "overall": 7,
+          "note": "The case-by-case and Morgenthau prudence lines prove the tag well, but the read includes a stray '.23' citation and spends words on the Ukraine false-hope setup while skipping the 'ethics in the abstract' contrast that would sharpen the abstract-moralizing half of the tag."
+        },
+        "gemini": {
+          "comprehension": 9,
+          "fluency": 9,
+          "fidelity": 9,
+          "efficiency": 7,
+          "overall": 8.4,
+          "note": "A highly coherent cut that clearly delivers the tag's claim and warrants, though the first half's specific European examples could be trimmed for better efficiency."
+        }
+      }
+    },
+    {
+      "card": 10,
+      "source": "Opus 5.5 · low",
+      "readWords": 112,
+      "targetWords": 103,
+      "metrics": {
+        "totalWords": 745,
+        "readWords": 112,
+        "ratio": 0.15033557046979865,
+        "fragments": 7,
+        "meanFragmentWords": 16,
+        "oneWordFragmentShare": 0,
+        "danglingShare": 0.14285714285714285,
+        "danglingEnds": 0,
+        "partialWordFragments": 1,
+        "fragmentsPer100": 6.25,
+        "sentencesWithVerbShare": 0.8333333333333334
+      },
+      "f1": 0.29767441860465116,
+      "ms": 7924,
+      "cost": 0.029312,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 7,
+          "fluency": 7,
+          "fidelity": 7,
+          "efficiency": 7,
+          "overall": 7,
+          "note": "The highlighting builds a clear arc from the cosmopolitan blind spot to the realist, case-by-case alternative to the policy-confusion impact. But it leaves in the footnote marker '30', and it cuts off the concrete impacts (Afghanistan, Iraq, ISIS) that would ground the 'fail' claim."
+        },
+        "gemini": {
+          "comprehension": 9,
+          "fluency": 9,
+          "fidelity": 9,
+          "efficiency": 8,
+          "overall": 8.8,
+          "note": "A remarkably clean cut with complete grammatical thoughts that clearly warrant both why abstract norms fail and why pragmatic, case-by-case realism is required."
+        }
+      }
+    },
+    {
+      "card": 11,
+      "source": "Opus 5.5 · low",
+      "readWords": 91,
+      "targetWords": 101,
+      "metrics": {
+        "totalWords": 747,
+        "readWords": 91,
+        "ratio": 0.12182061579651941,
+        "fragments": 6,
+        "meanFragmentWords": 15.166666666666666,
+        "oneWordFragmentShare": 0,
+        "danglingShare": 0,
+        "danglingEnds": 0,
+        "partialWordFragments": 0,
+        "fragmentsPer100": 6.593406593406594,
+        "sentencesWithVerbShare": 0.6666666666666666
+      },
+      "f1": 0.2708333333333333,
+      "ms": 7749,
+      "cost": 0.02718,
+      "repaired": false,
+      "unmatched": 2,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 8,
+          "fluency": 7,
+          "fidelity": 8,
+          "efficiency": 7,
+          "overall": 7,
+          "note": "It captures the determinism argument and ends on the tag's 'flattens' line, but the 'they disappear' antecedent is dangling after the skip, and the tag's 'rhetorical analysis of institutions' is a stretch from Foucauldian organizational analysis."
+        },
+        "gemini": {
+          "comprehension": 8,
+          "fluency": 6,
+          "fidelity": 9,
+          "efficiency": 7,
+          "overall": 7,
+          "note": "The core argument clearly supports the tag, but cutting 'what' before 'Smith 1991' creates a jarring grammatical stumble and muddies the antecedent for 'they'."
+        }
+      }
+    },
+    {
+      "card": 12,
+      "source": "Opus 5.5 · low",
+      "readWords": 102,
+      "targetWords": 107,
+      "metrics": {
+        "totalWords": 539,
+        "readWords": 102,
+        "ratio": 0.18923933209647495,
+        "fragments": 9,
+        "meanFragmentWords": 11.333333333333334,
+        "oneWordFragmentShare": 0.3333333333333333,
+        "danglingShare": 0,
+        "danglingEnds": 0,
+        "partialWordFragments": 0,
+        "fragmentsPer100": 8.823529411764707,
+        "sentencesWithVerbShare": 1
+      },
+      "f1": 0.45933014354066987,
+      "ms": 9060,
+      "cost": 0.02774,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 8,
+          "fluency": 7,
+          "fidelity": 8,
+          "efficiency": 7,
+          "overall": 7,
+          "note": "The highlighting builds a clear arc from the failure of normative transformation to the case for prudential realism, but the Morgenthau fragment is loosely attached and 'history … has reawakened' reads choppy."
+        },
+        "gemini": {
+          "comprehension": 9,
+          "fluency": 9,
+          "fidelity": 9,
+          "efficiency": 7,
+          "overall": 8,
+          "note": "Exceptional fluency and argumentative clarity, though it leaves in slightly more illustrative narrative than strictly necessary."
+        }
+      }
+    },
+    {
+      "card": 13,
+      "source": "Opus 5.5 · low",
+      "readWords": 106,
+      "targetWords": 103,
+      "metrics": {
+        "totalWords": 745,
+        "readWords": 106,
+        "ratio": 0.14228187919463087,
+        "fragments": 10,
+        "meanFragmentWords": 10.6,
+        "oneWordFragmentShare": 0.1,
+        "danglingShare": 0.1,
+        "danglingEnds": 0,
+        "partialWordFragments": 1,
+        "fragmentsPer100": 9.433962264150944,
+        "sentencesWithVerbShare": 0.8333333333333334
+      },
+      "f1": 0.30622009569377984,
+      "ms": 7432,
+      "cost": 0.028572,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 7,
+          "fluency": 6,
+          "fidelity": 7,
+          "efficiency": 7,
+          "overall": 7,
+          "note": "It captures the claim and the impact well (abstract norms cause policy confusion in Iraq and Afghanistan and weak responses to ISIS), but the choppy opening fragments ('cosmopolitan approaches … do not do war … scholarly enquiry') and the stray footnote number hurt fluency."
+        },
+        "gemini": {
+          "comprehension": 9,
+          "fluency": 8,
+          "fidelity": 9,
+          "efficiency": 8,
+          "overall": 8.5,
+          "note": "A very clean, well-flowing cut that clearly defends the tag with strong internal links and terminal impact examples."
+        }
+      }
+    },
+    {
+      "card": 14,
+      "source": "Opus 5.5 · low",
+      "readWords": 80,
+      "targetWords": 91,
+      "metrics": {
+        "totalWords": 463,
+        "readWords": 80,
+        "ratio": 0.17278617710583152,
+        "fragments": 3,
+        "meanFragmentWords": 26.666666666666668,
+        "oneWordFragmentShare": 0,
+        "danglingShare": 0,
+        "danglingEnds": 0,
+        "partialWordFragments": 0,
+        "fragmentsPer100": 3.75,
+        "sentencesWithVerbShare": 1
+      },
+      "f1": 0.40935672514619886,
+      "ms": 6889,
+      "cost": 0.022564,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 7,
+          "fluency": 8,
+          "fidelity": 7,
+          "efficiency": 7,
+          "overall": 7,
+          "note": "The card cleanly reads the regulate, implement, and fund warrants in fluent sentences, but it never establishes the comparative 'solve better' claim, and 'One Water' goes unexplained."
+        },
+        "gemini": {
+          "comprehension": 9,
+          "fluency": 9,
+          "fidelity": 9,
+          "efficiency": 7,
+          "overall": 8,
+          "note": "Reads with exceptional fluency and clearly proves the tag, though it retains some unnecessary phrasing that could be trimmed for speed."
+        }
+      }
+    },
+    {
+      "card": 15,
+      "source": "Opus 5.5 · low",
+      "readWords": 69,
+      "targetWords": 74,
+      "metrics": {
+        "totalWords": 714,
+        "readWords": 69,
+        "ratio": 0.09663865546218488,
+        "fragments": 5,
+        "meanFragmentWords": 13.8,
+        "oneWordFragmentShare": 0.2,
+        "danglingShare": 0,
+        "danglingEnds": 0,
+        "partialWordFragments": 0,
+        "fragmentsPer100": 7.246376811594203,
+        "sentencesWithVerbShare": 0.6
+      },
+      "f1": 0.23776223776223776,
+      "ms": 6454,
+      "cost": 0.023132,
+      "repaired": false,
+      "unmatched": 0,
+      "protectedWords": 0,
+      "judge": {
+        "claude": {
+          "comprehension": 7,
+          "fluency": 7,
+          "fidelity": 7,
+          "efficiency": 8,
+          "overall": 7,
+          "note": "Hits precedence, binding, and comprehensive scope in clean sentences, but nothing read establishes 'force of federal law' — congressional approval is shown only as a requirement, and the precedence line is from the contract rationale rather than federal status."
+        },
+        "gemini": {
+          "comprehension": 8,
+          "fluency": 9,
+          "fidelity": 9,
+          "efficiency": 8,
+          "overall": 8.2,
+          "note": "Reads smoothly in complete, coherent thoughts and directly substantiates both the comprehensiveness and binding legal nature asserted in the tag."
+        }
+      }
+    }
+  ]
+}

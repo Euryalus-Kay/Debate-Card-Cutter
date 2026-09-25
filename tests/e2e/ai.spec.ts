@@ -17,20 +17,23 @@ test("AI drafts the 2AC from the flow; it applies as editable sections and fits 
   const addToDraft = A.page.getByRole("button", { name: "Add to draft" });
   await expect(addToDraft).toBeVisible({ timeout: 180_000 });
   await expect(editor(A.page).locator("section")).toHaveCount(0);
+  const adjusted = A.page.getByText(/^(Trimmed|Filled out) from \d+:\d+ to \d+:\d+/);
+  if (await adjusted.count()) console.log(`length fix: ${await adjusted.first().innerText()}`);
   await addToDraft.click();
   await expect(editor(A.page).locator("section").first()).toBeVisible();
   const sections = await editor(A.page).locator("section").count();
   expect(sections).toBeGreaterThan(2);
 
   // Every generated section answers something on the flow, and the estimate is shown against the limit.
+  // Drafts are trimmed or filled to time before they are shown, so the applied draft fits.
   const footer = await A.page.getByText(/^~\d+:\d+ of 8:00$/).first().innerText();
   const [m, s] = footer.match(/~(\d+):(\d+)/)!.slice(1).map(Number);
   const seconds = m * 60 + s;
   console.log(`2AC estimate: ${footer}`);
-  expect(seconds).toBeLessThanOrEqual(8 * 60 + 30);
+  expect(seconds).toBeLessThanOrEqual(8 * 60 + 5);
 
-  // A short draft offers "Fill to time": the plan expands sections, and after applying it the
-  // speech uses most of the 8 minutes without running over.
+  // If a draft still came in short (the automatic fill is best effort), "Fill to time" is offered:
+  // the plan expands sections, and after applying it the speech uses most of the 8 minutes.
   if (seconds < 8 * 60 * 0.9) {
     await A.page.getByRole("button", { name: "Fill to time" }).click();
     const apply = A.page.getByRole("button", { name: "Apply all" });
