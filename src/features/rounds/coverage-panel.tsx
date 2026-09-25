@@ -200,7 +200,7 @@ export function CoveragePanel({ round, doc, graph, recorded, slots, aiEnabled }:
               : `Add the ${answerFrom.join(" and ")} document(s) in the Docs tab, or type what they said. The flow fills in from there; missing speeches are never treated as concessions.`}
           </EmptyState>
         ) : (
-          [...groups.entries()].map(([posId, items]) => <PositionGroup key={posId} items={items} />)
+          [...groups.entries()].map(([posId, items]) => <PositionGroup key={posId} items={items} ourSide={round.ourSide} />)
         )}
         {liveOffense.length ? (
           <div className="border-t border-line p-3">
@@ -265,7 +265,7 @@ export function CoveragePanel({ round, doc, graph, recorded, slots, aiEnabled }:
   );
 }
 
-function PositionGroup({ items }: { items: CoverageItem[] }) {
+function PositionGroup({ items, ourSide }: { items: CoverageItem[]; ourSide: "aff" | "neg" }) {
   const ws = useWorkspace();
   const [open, setOpen] = useState(true);
   const pos = items[0].position;
@@ -304,6 +304,17 @@ function PositionGroup({ items }: { items: CoverageItem[] }) {
             );
           })}
         </ul>
+      ) : null}
+      {open && pos ? (
+        // A file of answers to this position, for next time (built in the library; opens in a new tab).
+        <a
+          href={`/library/build?kind=answers&side=${ourSide}&argument=${encodeURIComponent(`${pos.name}: ${items.slice(0, 6).map((i) => i.arg.text).join("; ")}`.slice(0, 1400))}&target=${encodeURIComponent(pos.name)}`}
+          target="_blank"
+          rel="noreferrer"
+          className="block px-3 pb-2 text-[11.5px] text-accent hover:underline"
+        >
+          Build a file of answers to this →
+        </a>
       ) : null}
     </div>
   );

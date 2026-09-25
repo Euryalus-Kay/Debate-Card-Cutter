@@ -32,6 +32,8 @@ export const GET = handle(async (req: Request) => {
       fileName: uploads.fileName,
       createdAt: uploads.createdAt,
       cards: sql<number>`(select count(*)::int from ${uploadBlocks} b where b.upload_id = ${uploads.id} and b.kind = 'card')`,
+      built: sql<boolean>`(${uploads.attribution}->>'built') is not null`,
+      downloadable: sql<boolean>`${uploads.blobPath} is not null`,
     })
     .from(uploads)
     .where(and(eq(uploads.teamId, teamId), eq(uploads.purpose, "library_file")))

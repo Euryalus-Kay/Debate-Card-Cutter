@@ -508,7 +508,7 @@ export const jobs = pgTable(
       .references(() => teams.id, { onDelete: "cascade" }),
     roundId: text("round_id").references(() => rounds.id, { onDelete: "set null" }),
     kind: text("kind").notNull(),
-    status: text("status", { enum: ["queued", "running", "succeeded", "partial", "failed", "cancelled"] }).notNull().default("queued"),
+    status: text("status", { enum: ["queued", "running", "awaiting_approval", "succeeded", "partial", "failed", "cancelled"] }).notNull().default("queued"),
     input: jsonb("input").notNull(),
     /** stage-by-stage progress: [{stage, status, detail}] */
     progress: jsonb("progress").notNull().default(sql`'[]'::jsonb`),

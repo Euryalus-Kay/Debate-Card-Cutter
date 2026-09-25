@@ -1,0 +1,29 @@
+{
+  "at": "2026-09-25T21:45:06.526Z",
+  "note": "Counts only.",
+  "kind": "da",
+  "planMs": 54067,
+  "stats": {
+    "sections": 9,
+    "blocks": 18,
+    "cardItems": 13,
+    "analytics": 27,
+    "textItems": 0,
+    "speeches": [
+      "1NC",
+      "block",
+      "rebuttal"
+    ]
+  },
+  "kept": 5,
+  "status": "succeeded",
+  "result": {
+    "cards": 5,
+    "missing": [],
+    "fileName": "DA — Capital Flight.docx",
+    "uploadId": "upl_muhhol7rhv75wqsyshis",
+    "researched": 4,
+    "fromLibrary": 1
+  },
+  "aiCalls": 11
+}
