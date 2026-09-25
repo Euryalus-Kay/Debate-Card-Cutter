@@ -2,6 +2,7 @@
  * Draft lifecycle: delivered snapshots → flow, version restore, export.
  */
 
+import { recordDelivery } from "./delivered";
 import * as Y from "yjs";
 import { and, desc, eq } from "drizzle-orm";
 import { prosemirrorJSONToYXmlFragment, yXmlFragmentToProsemirrorJSON } from "@tiptap/y-tiptap";
@@ -124,6 +125,8 @@ export async function deliverDraft(docId: string, userId: string): Promise<{ ver
     { userId, origin: `deliver:${docId}` },
   );
   await db().update(documents).set({ status: "delivered", deliveredAt: new Date(), updatedAt: new Date() }).where(eq(documents.id, docId));
+  // Where library cards were read, and the team's answers for the analytics bank (never fails a delivery).
+  await recordDelivery({ teamId: round.teamId, roundId: round.id, draftId: docId, speech, draft, flowArgs: argsNow, positions: positionsNow }).catch(() => undefined);
   return { versionId, args: units.length };
 }
 

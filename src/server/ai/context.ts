@@ -12,6 +12,7 @@ import { rounds, uploads } from "@/server/db/schema";
 import { loadDoc } from "@/server/docs/store";
 import { getCards, type CardRow } from "@/server/cards";
 import { findEvidence, type EvidenceNeed, type FoundEvidence } from "@/server/library/find";
+import { pastAnswers } from "@/server/delivered";
 import { computeCoverage, possiblyKickedPositions, liveOffenseOnKickedPositions, POSITION_KIND_LABEL, type ArgUnit, type CoverageReport, type RoundGraph } from "@/domain/flow";
 import { DEFAULT_CX, getFormat, SPEECH_IDS, SPEECHES, speechSeconds, speechesToAnswer, type NewArgumentPolicy, type SpeechId } from "@/domain/format";
 import { cardLoad, readAloud } from "@/domain/card";
@@ -182,6 +183,8 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
     const rows = await getCards(round.teamId, libraryCheck.cardIds);
     library = libraryCheck.cardIds.map((id) => rows.find((c) => c.id === id)).filter((c): c is CardRow => !!c);
   }
+  // The team's own past answers to arguments like these (analytics bank), from other rounds.
+  const past = opts.evidenceMode !== "selected_only" && coverage ? await pastAnswers(round.teamId, round.id, coverage.items.filter((i) => i.status === "unanswered" || i.status === "uncertain").slice(0, 30).map((i) => ({ id: i.arg.id, text: i.arg.text }))).catch(() => []) : [];
   // Cards already in the draft are always available to keep.
   const inDraft = inDraftIds.filter((id) => !selected.some((c) => c.id === id));
   const draftCards = inDraft.length ? await getCards(round.teamId, inDraft) : [];
@@ -264,6 +267,11 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
       for (const f of libraryCheck?.byCard.get(c.id) ?? []) lines.push(`   FITS [${f.needId}] (${f.fit >= 3 ? "proves it" : "helps"}): ${f.use}`);
     }
   } else if (libraryCheck && !libraryCheck.skipped) lines.push(`(No library card fits what this speech must answer: answer with analytics, and describe any card you need in needsEvidence.)`);
+  if (past.length) {
+    lines.push("");
+    lines.push(`YOUR TEAM'S PAST ANSWERS TO SIMILAR ARGUMENTS (from earlier rounds: adapt them to what this opponent actually said; cards they mention are not available unless listed above)`);
+    for (const p of past) lines.push(`- For [${p.needId}]: in ${p.where ? `${p.where}, ` : ""}the ${p.speech} answered "${p.answered.slice(0, 200)}"${p.position ? ` (${p.position})` : ""} with: ${p.title ? `${p.title} — ` : ""}${p.analytic.slice(0, 500)}`);
+  }
   if (draft && !opts.omitDraftText) {
     lines.push("");
     lines.push(`CURRENT DRAFT OF THE ${opts.speech}`);

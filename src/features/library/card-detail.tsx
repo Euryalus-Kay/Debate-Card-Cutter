@@ -38,7 +38,7 @@ export function CardDetail({ cardId }: { cardId: string }) {
   const qc = useQueryClient();
   const rates = useRateProfile();
   const router = useRouter();
-  const q = useQuery({ queryKey: ["card", cardId], queryFn: () => api<{ card: CardData; revisions: { id: string; version: number; reason: string; createdAt: string }[]; source: { id: string; url: string | null; title: string; access: string } | null }>(`/api/cards/${cardId}`) });
+  const q = useQuery({ queryKey: ["card", cardId], queryFn: () => api<{ card: CardData; revisions: { id: string; version: number; reason: string; createdAt: string }[]; source: { id: string; url: string | null; title: string; access: string } | null; uses?: { roundId: string | null; speech: string; deliveredAt: string; tournament: string | null; roundLabel: string | null }[] }>(`/api/cards/${cardId}`) });
   const card = q.data?.card;
   const [tag, setTag] = useState("");
   const [cite, setCite] = useState<Citation | null>(null);
@@ -122,6 +122,23 @@ export function CardDetail({ cardId }: { cardId: string }) {
           ) : null}
           <span className="ml-auto text-xs text-faint">v{card.version}</span>
         </div>
+        {q.data?.uses?.length ? (
+          <div className="mb-3 text-xs text-muted">
+            Read in:{" "}
+            {q.data.uses.map((u, i) => (
+              <span key={i}>
+                {i ? ", " : ""}
+                {u.roundId ? (
+                  <Link href={`/rounds/${u.roundId}?speech=${u.speech}`} className="text-accent hover:underline">
+                    {[u.tournament, u.roundLabel].filter(Boolean).join(" ") || "a round"} {u.speech}
+                  </Link>
+                ) : (
+                  u.speech
+                )}
+              </span>
+            ))}
+          </div>
+        ) : null}
         {card.verification.issues.some((i) => i.code === "source_differs") && card.verificationStatus !== "mismatch" ? (
           <div className="mb-3 rounded-md bg-warn-soft px-2 py-1.5 text-xs text-warn">{card.verification.issues.find((i) => i.code === "source_differs")!.message}</div>
         ) : null}

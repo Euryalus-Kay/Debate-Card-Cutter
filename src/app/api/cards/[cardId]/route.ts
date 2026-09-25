@@ -2,7 +2,7 @@ import { z } from "zod";
 import { handle, HttpError, requireAccess, requireUser } from "@/server/authz";
 import { getCards, updateCard } from "@/server/cards";
 import { db } from "@/server/db/client";
-import { cardRevisions, cards, sources } from "@/server/db/schema";
+import { cardRevisions, cards, sources, cardUses, rounds } from "@/server/db/schema";
 import { and, desc, eq } from "drizzle-orm";
 import type { BodyBlock } from "@/domain/card";
 import type { Citation } from "@/domain/citation";
@@ -19,7 +19,15 @@ export const GET = handle(async (_req: Request, ctx: Ctx) => {
   const source = card.sourceId
     ? (await db().select({ id: sources.id, url: sources.url, title: sources.title, retrieval: sources.retrieval, access: sources.access, textLength: sources.textLength }).from(sources).where(eq(sources.id, card.sourceId)))[0] ?? null
     : null;
-  return Response.json({ card, revisions, source });
+  // Where it was read ("used in"): delivered speeches, newest first.
+  const uses = await db()
+    .select({ roundId: cardUses.roundId, speech: cardUses.speech, deliveredAt: cardUses.deliveredAt, tournament: rounds.tournament, roundLabel: rounds.roundLabel })
+    .from(cardUses)
+    .leftJoin(rounds, eq(rounds.id, cardUses.roundId))
+    .where(eq(cardUses.cardId, cardId))
+    .orderBy(desc(cardUses.deliveredAt))
+    .limit(20);
+  return Response.json({ card, revisions, source, uses });
 });
 
 const Patch = z.object({

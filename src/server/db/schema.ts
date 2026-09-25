@@ -544,6 +544,53 @@ export const jobEvents = pgTable(
   (t) => [index("job_events_job_idx").on(t.jobId, t.id)],
 );
 
+/** Where a library card was read: one row per delivered speech that read it ("used in", B3). */
+export const cardUses = pgTable(
+  "card_uses",
+  {
+    teamId: text("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    cardId: text("card_id")
+      .notNull()
+      .references(() => cards.id, { onDelete: "cascade" }),
+    draftId: text("draft_id").notNull(),
+    roundId: text("round_id").references(() => rounds.id, { onDelete: "cascade" }),
+    speech: text("speech").notNull(),
+    deliveredAt: ts("delivered_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.cardId, t.draftId] }), index("card_uses_team_idx").on(t.teamId, t.deliveredAt)],
+);
+
+/**
+ * The team's delivered answers (analytics bank): each answer section of a delivered speech, with the
+ * arguments it answered, so later drafts can adapt how the team answered similar arguments before.
+ */
+export const analyticsBank = pgTable(
+  "analytics_bank",
+  {
+    id: text("id").primaryKey(),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    roundId: text("round_id").references(() => rounds.id, { onDelete: "cascade" }),
+    draftId: text("draft_id").notNull(),
+    sectionId: text("section_id").notNull(),
+    speech: text("speech").notNull(),
+    position: text("position").notNull().default(""),
+    /** the texts of the arguments it answered */
+    answers: text("answers").notNull().default(""),
+    title: text("title").notNull().default(""),
+    analytic: text("analytic").notNull(),
+    cites: jsonb("cites").notNull().default([]),
+    createdAt: createdAt(),
+    search: tsvector("search").generatedAlwaysAs(
+      sql`setweight(to_tsvector('english', coalesce(answers, '')), 'A') || setweight(to_tsvector('english', coalesce(title, '')), 'A') || setweight(to_tsvector('english', coalesce(position, '')), 'B') || setweight(to_tsvector('english', coalesce(analytic, '')), 'C')`,
+    ),
+  },
+  (t) => [uniqueIndex("analytics_bank_section_idx").on(t.draftId, t.sectionId), index("analytics_bank_team_idx").on(t.teamId), index("analytics_bank_search_idx").using("gin", t.search)],
+);
+
 /**
  * Which library cards fit a need (B2), cached per team and need: valid while the library is unchanged
  * (`libraryStamp`), so drafts and updates reuse checks made after each flow update.
