@@ -1,26 +1,353 @@
 @import "tailwindcss";
 
+/* ------------------------------------------------------------------------
+   Design tokens. Light by default; dark follows the OS or data-theme.
+   ------------------------------------------------------------------------ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --bg: #f7f7f5;
+  --bg-elev: #ffffff;
+  --bg-sunken: #efefec;
+  --bg-hover: #ececea;
+  --line: #e2e2de;
+  --line-strong: #cfcfca;
+  --text: #1c1c1a;
+  --text-muted: #62625d;
+  --text-faint: #8e8e88;
+  --accent: #3b5bdb;
+  --accent-soft: #e8edff;
+  --accent-text: #2f4ac0;
+  --aff: #2563eb;
+  --aff-soft: #e6efff;
+  --neg: #c2410c;
+  --neg-soft: #fdeee6;
+  --ok: #15803d;
+  --ok-soft: #e5f5ea;
+  --warn: #b45309;
+  --warn-soft: #fdf3e2;
+  --bad: #b91c1c;
+  --bad-soft: #fde8e8;
+  --info: #6d28d9;
+  --info-soft: #f1ebfe;
+  --hl-yellow: #fff34f;
+  --hl-cyan: #5ce1ff;
+  --hl-green: #7ef08c;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.05), 0 4px 16px rgb(0 0 0 / 0.06);
+  --radius: 8px;
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --bg: #141413;
+    --bg-elev: #1c1c1b;
+    --bg-sunken: #10100f;
+    --bg-hover: #262624;
+    --line: #2d2d2b;
+    --line-strong: #3b3b38;
+    --text: #ececea;
+    --text-muted: #a3a39d;
+    --text-faint: #75756f;
+    --accent: #7b93ff;
+    --accent-soft: #232a4a;
+    --accent-text: #a9b8ff;
+    --aff: #6ea0ff;
+    --aff-soft: #1c2a47;
+    --neg: #fb8a5b;
+    --neg-soft: #3d2317;
+    --ok: #4ade80;
+    --ok-soft: #173024;
+    --warn: #fbbf24;
+    --warn-soft: #3a2c12;
+    --bad: #f87171;
+    --bad-soft: #3d1a1a;
+    --info: #b197fc;
+    --info-soft: #2a2140;
+    --hl-yellow: #7a6f00;
+    --hl-cyan: #0d6d80;
+    --hl-green: #1f7a2e;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 16px rgb(0 0 0 / 0.35);
+    color-scheme: dark;
   }
 }
 
+:root[data-theme="dark"] {
+  --bg: #141413;
+  --bg-elev: #1c1c1b;
+  --bg-sunken: #10100f;
+  --bg-hover: #262624;
+  --line: #2d2d2b;
+  --line-strong: #3b3b38;
+  --text: #ececea;
+  --text-muted: #a3a39d;
+  --text-faint: #75756f;
+  --accent: #7b93ff;
+  --accent-soft: #232a4a;
+  --accent-text: #a9b8ff;
+  --aff: #6ea0ff;
+  --aff-soft: #1c2a47;
+  --neg: #fb8a5b;
+  --neg-soft: #3d2317;
+  --ok: #4ade80;
+  --ok-soft: #173024;
+  --warn: #fbbf24;
+  --warn-soft: #3a2c12;
+  --bad: #f87171;
+  --bad-soft: #3d1a1a;
+  --info: #b197fc;
+  --info-soft: #2a2140;
+  --hl-yellow: #7a6f00;
+  --hl-cyan: #0d6d80;
+  --hl-green: #1f7a2e;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-elev: var(--bg-elev);
+  --color-sunken: var(--bg-sunken);
+  --color-hover: var(--bg-hover);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--text);
+  --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-text: var(--accent-text);
+  --color-aff: var(--aff);
+  --color-aff-soft: var(--aff-soft);
+  --color-neg: var(--neg);
+  --color-neg-soft: var(--neg-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+/* Thin, unobtrusive scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------------
+   Speech editor
+   ------------------------------------------------------------------------ */
+.speech-editor .ProseMirror {
+  outline: none;
+  padding: 16px 28px 240px;
+  min-height: 100%;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.speech-editor .ProseMirror h1,
+.speech-editor .ProseMirror h2,
+.speech-editor .ProseMirror h3 {
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 0.6em 0 0.25em;
+}
+.speech-editor .ProseMirror h1 {
+  font-size: 22px;
+}
+.speech-editor .ProseMirror h2 {
+  font-size: 19px;
+}
+.speech-editor .ProseMirror h3 {
+  font-size: 16.5px;
+}
+.speech-editor .ProseMirror h4 {
+  font-size: 15.5px;
+  font-weight: 700;
+  margin: 0.5em 0 0.1em;
+}
+.speech-editor .ProseMirror p {
+  margin: 0.2em 0;
+}
+
+/* Sections: a quiet frame with a left rule showing coverage status. */
+.speech-editor section[data-section] {
+  position: relative;
+  border-left: 3px solid var(--line);
+  padding: 4px 0 6px 14px;
+  margin: 10px 0 14px;
+  transition: border-color 0.15s ease;
+}
+.speech-editor section[data-section] section[data-section] {
+  margin: 8px 0 8px;
+}
+.speech-editor section[data-section][data-locked="true"] {
+  border-left-color: var(--text-faint);
+  background: color-mix(in srgb, var(--bg-sunken) 55%, transparent);
+}
+.speech-editor section[data-section][data-relation="answers"] {
+  border-left-color: color-mix(in srgb, var(--ok) 55%, var(--line));
+}
+.speech-editor section[data-section][data-relation="group"] {
+  border-left-color: color-mix(in srgb, #0d9488 60%, var(--line));
+}
+.speech-editor section[data-section][data-relation="cross_apply"] {
+  border-left-color: color-mix(in srgb, var(--info) 60%, var(--line));
+}
+.speech-editor section[data-section][data-relation="extend"] {
+  border-left-color: color-mix(in srgb, var(--accent) 60%, var(--line));
+}
+.speech-editor section[data-section].is-active {
+  border-left-color: var(--accent);
+}
+
+/* Cards */
+.speech-editor .node-card {
+  margin: 8px 0 12px;
+  padding: 2px 0 2px 0;
+}
+.speech-editor .card-tag {
+  font-size: 15.5px;
+  font-weight: 700;
+  margin: 0 0 2px;
+}
+.speech-editor .card-cite {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin: 0 0 4px;
+  user-select: none;
+}
+.speech-editor .card-cite .cite-short {
+  color: var(--text);
+  font-size: 14px;
+}
+.speech-editor .card-body p {
+  margin: 0 0 0.35em;
+  font-size: 14.5px;
+}
+.speech-editor .card-body u,
+.card-view u {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+.speech-editor .card-body .mark-emphasis,
+.card-view .mark-emphasis {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  outline: 1px solid color-mix(in srgb, var(--text) 55%, transparent);
+  outline-offset: -1px;
+}
+.speech-editor mark,
+.card-view mark {
+  color: inherit;
+  padding: 0 1px;
+  border-radius: 2px;
+}
+.shrink-unread .card-body p {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.shrink-unread .card-body u,
+.shrink-unread .card-body mark,
+.shrink-unread .card-body .mark-emphasis {
+  font-size: 14.5px;
+  color: var(--text);
+}
+.speech-editor .node-omission,
+.card-view .node-omission {
+  color: var(--text-faint);
+  font-style: normal;
+  padding: 0 3px;
+}
+.speech-editor .node-insertion,
+.card-view .node-insertion {
+  color: var(--info);
+  font-style: italic;
+}
+.speech-editor .node-note {
+  color: var(--warn);
+  font-size: 13px;
+  font-style: italic;
+  background: var(--warn-soft);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+.speech-editor .node-note::before {
+  content: "Note · not read: ";
+  font-style: normal;
+  font-weight: 600;
+}
+.speech-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--text-faint);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Collaboration carets (partner cursors) */
+.collaboration-carets__caret {
+  border-left: 1px solid;
+  border-right: 1px solid;
+  margin-left: -1px;
+  margin-right: -1px;
+  pointer-events: none;
+  position: relative;
+  word-break: normal;
+}
+.collaboration-carets__label {
+  border-radius: 3px 3px 3px 0;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  left: -1px;
+  line-height: normal;
+  padding: 1px 4px;
+  position: absolute;
+  top: -1.3em;
+  user-select: none;
+  white-space: nowrap;
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+.animate-pulse-soft {
+  animation: pulse-soft 1.6s ease-in-out infinite;
 }

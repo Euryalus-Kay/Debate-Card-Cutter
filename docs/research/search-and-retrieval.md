@@ -262,7 +262,7 @@ Nothing in this document requires a secret, and none is included. The repo is pu
 
 | Source | Discovery | Full text | Keys and limits | Observed 2026-09-25 |
 |---|---|---|---|---|
-| **Congress.gov API: CRS reports** | `/v3/crsreport` (list, newest first); `/v3/crsreport/{id}` has `authors`, `publishDate`, `formats` (PDF and HTML URLs), related bills and laws | The PDF URL works for bots. The HTML URL returns 403 | api.data.gov key via `https://api.congress.gov/sign-up/`; **5,000 requests/hour** [V R71] | `DEMO_KEY` works (`x-ratelimit-limit: 10`); 14,143 reports; PDF R48859 was 22 pages and text-based. Its cover lists author titles such as "Specialist in Latin American Affairs" [O] |
+| **Congress.gov API: CRS reports** | `/v3/crsreport` (list, newest first); `/v3/crsreport/{id}` has `authors`, `publishDate`, `formats` (PDF and HTML URLs), related bills and laws | The PDF URL works for bots. The HTML URL returns 403 | api.data.gov key via `https://api.congress.gov/sign-up/`; **5,000 requests/hour** [V R71] | `DEMO_KEY` works (`x-ratelimit-limit: 10`); 14,143 reports; PDF R48859 was 22 pages and text-based. Its summary page lists each author's CRS job title (e.g., a regional-affairs specialist), which is ready-made qualification evidence [O] |
 | **GovInfo API** | Collections include CHRG (hearings), CRPT (committee reports), CPRT (committee prints), CMR (congressionally mandated reports), BUDGET, ERP, FR, CFR, USCOURTS, GAOREPORTS | `pdfLink`, `txtLink`, `xmlLink`, `modsLink` per package [V R72] | api.data.gov key; **36,000/hour, 1,200/min, 40/s** [V R72] | `DEMO_KEY` works. GAOREPORTS has 16,569 packages; sampled items were dated 1994–2000, so treat it as **historical** [O] |
 | **Federal Register API** | `/api/v1/documents.json` with search terms and field selection | `raw_text_url` returns the full text with FR page markers | **No key** | 987 hits for "critical minerals supply chain"; raw text included `[Pages 29459-29460]` [O] |
 | **GAO** | RSS `https://www.gao.gov/rss/reports.xml` (25 items) | `www.gao.gov/products/*` and `/assets/*.pdf` returned 403 (Akamai). **`files.gao.gov/reports/GAO-26-108446/index.html` returned 200 (157 KB HTML)** [O] | No official API found [U] | The files.gao.gov pattern is undocumented and must be re-checked [U] |
@@ -275,7 +275,7 @@ Card citations need "qualifications." v1 let the model write them freely. v2 sho
 
 Sources, in order of preference:
 
-1. **The document itself.** Examples: a CRS cover page [O], a think-tank author box or "About the authors," a journal's author note.
+1. **The document itself.** Examples: the CRS summary page's author titles [O], a think-tank author box or "About the authors" section, a journal's author note.
 2. **Bibliographic metadata.** OpenAlex authorships and institutions [O], Crossref affiliations and ORCID, the ORCID employment API [O].
 3. **The publisher's author page.** Fetch it the same way as any other source.
 4. **The user.**
@@ -495,7 +495,7 @@ Queries 5–12 use the 2026–27 national-health-insurance resolution [V R75]. Q
   - Brave web (+ LLM Context).
   - You.com.
   - Linkup `standard`.
-  - Anthropic `web_search` (Haiku 4.5 and Sonnet 5, `max_uses: 3`, basic version, read the result URLs).
+  - Anthropic `web_search` (Haiku 4.5 and Sonnet 5, `max_uses: 3`, basic version, read the result URLs). Confirm per-model support for the basic web tools first [U].
   - Perplexity Search API (only if funded).
   - OpenAlex (academic queries).
   - Congress.gov, GovInfo and FR (government queries).
@@ -565,10 +565,10 @@ Rough estimate for one full run: **$10–25 in paid usage**.
   - OpenAlex (keyless $0.10/day), Crossref, arXiv, Federal Register, Congress.gov and GovInfo (`DEMO_KEY`).
   - NCBI E-utilities, CORE (metadata), ORCID, and GAO/CBO RSS.
   - Keyless Semantic Scholar also exists but is unreliable (429).
-- **Free signup, no card:**
-  - Per the docs [V]: Exa, Tavily, You.com, Linkup (professional email), Firecrawl, Diffbot, OpenAlex, CORE, Semantic Scholar (form), api.data.gov, Browserbase and Browserless.
-  - Unverified whether a card is required [U]: Brave ($5 monthly credit), Parallel, and Jina.
-  - NCBI key: [U].
+- **Free signup:**
+  - Docs say no card is needed [V]: Exa, Tavily, You.com, Firecrawl and OpenAlex (key).
+  - Free registrations with no payment step: CORE, Semantic Scholar (request form, manual approval), api.data.gov (Congress.gov and GovInfo) [V]. NCBI key: [U].
+  - Free tier exists, but whether a card is required is unverified [U]: Linkup ($20, professional email), Brave ($5/month), Parallel, Jina (10M tokens), Diffbot, Browserbase and Browserless.
 - **Needs payment or funded balance:** Anthropic (existing key in v1 `.env`, small spend, needs the user's approval), Perplexity (key out of quota and leaked; see EXT-02; Sonar retiring), OpenAI, and Kagi. SerpApi and Serper have free quotas but are excluded.
 
 ---
@@ -584,7 +584,7 @@ Env var names follow vendor docs where noted. The others are proposed. The api.d
 | Tavily | discovery, extract | https://app.tavily.com [V R17] | 1,000 credits/month; keyless mode [V R17, R19] | Pay-as-you-go $0.008/credit, or Project $30/mo [V R17] | `TAVILY_API_KEY` (vendor docs) [V] | [V] |
 | Parallel | discovery, extract | https://platform.parallel.ai [V R38] | 5,000 requests/month; up to $80 signup credit + $5/month [V R34] | pay-as-you-go | `PARALLEL_API_KEY` (vendor docs) [V] | [V] |
 | Brave | discovery | https://api-dashboard.search.brave.com [U] | $5/month credit [V R24] | usage at $5/1k [V R24] | `BRAVE_SEARCH_API_KEY` (header `X-Subscription-Token`) [V R26 header] | [V]/[U] |
-| You.com | discovery, contents | https://you.com/platform [V R41] | $100 credit [V R39] | pay-as-you-go [V R39] | `YDC_API_KEY` (vendor docs) [V] | [V] |
+| You.com | discovery, contents | https://you.com/platform [V R40] | $100 credit [V R39] | pay-as-you-go [V R39] | `YDC_API_KEY` (vendor docs) [V] | [V] |
 | Linkup | discovery, fetch | https://app.linkup.so [V R42] | $20/month (professional email) [V R42] | prepaid balance [V R42] | `LINKUP_API_KEY` (vendor docs) [V] | [V] |
 | Perplexity | Search API (optional) | https://console.perplexity.ai [U] | none found [U] | credit purchase; Tier 1 at $50 cumulative [V R29] | `PERPLEXITY_API_KEY` (exists, no quota; revoke) | [V] |
 | Kagi | discovery (optional) | https://help.kagi.com/kagi/api/overview.html [V R45] | none found [U] | pay-per-use, invoiced at $100 [V R45] | `KAGI_API_KEY` (header `Authorization: Bot`) [V R45] | [V] |
@@ -656,7 +656,7 @@ Env var names follow vendor docs where noted. The others are proposed. The api.d
 - R20 Search reference: https://docs.tavily.com/documentation/api-reference/endpoint/search
 - R21 Extract reference: https://docs.tavily.com/documentation/api-reference/endpoint/extract
 - R22 Terms (last updated 2026-05-04): https://www.tavily.com/terms
-- R23 FAQ: https://docs.tavily.com/faq/faq
+- R23 FAQ and full docs (crawl best practices): https://docs.tavily.com/faq/faq and https://docs.tavily.com/llms-full.txt
 
 **Brave**
 - R24 Brave Search API: https://brave.com/search/api/

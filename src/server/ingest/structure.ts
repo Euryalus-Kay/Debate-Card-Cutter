@@ -94,7 +94,7 @@ export function paragraphToBody(p: DocParagraph): BodyText {
     newParagraph: true,
     underline: normalizeSpans(underline.map(shift), len),
     emphasis: normalizeSpans(emphasis.map(shift), len),
-    highlight: normalizeHighlights(highlight.map(shift), len),
+    highlight: normalizeHighlights(highlight.map((h) => ({ ...shift(h), color: h.color })), len),
   };
 }
 

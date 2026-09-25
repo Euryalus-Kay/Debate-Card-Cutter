@@ -20,3 +20,6 @@ coverage/
 /tmp/
 # os
 .DS_Store
+
+# third-party sample files (unclear license, contain personal metadata) — keep out of git
+docs/research/samples/

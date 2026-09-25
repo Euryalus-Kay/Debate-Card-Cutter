@@ -16,8 +16,7 @@ beforeEach(async () => {
   await db().insert(teams).values({ id: "t1", name: "T" });
   await db().insert(documents).values({ id: "d1", teamId: "t1", kind: "speech_draft" });
   // Isolate IndexedDB between tests.
-  // @ts-expect-error test-only global reset
-  globalThis.indexedDB = new (await import("fake-indexeddb")).IDBFactory();
+  (globalThis as { indexedDB: unknown }).indexedDB = new (await import("fake-indexeddb")).IDBFactory();
   resetDbForTests();
   dbCounter++;
 });

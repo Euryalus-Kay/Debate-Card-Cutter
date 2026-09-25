@@ -22,21 +22,10 @@ export const RD = {
   strategy: "strategy",
 } as const;
 
-export interface SlotDocRef {
-  uploadId: string;
-  fileName: string;
-  /** who the document belongs to */
-  owner: "opponent" | "us";
-  addedBy: string;
-  addedAt: number;
-}
-
 export interface SlotRecord {
   speech: SpeechId;
   status: SpeechStatus;
-  documents: SlotDocRef[];
-  /** drafts (speech_draft document ids) for this speech; first is primary */
-  draftIds: string[];
+  /** the draft marked as delivered (drafts and uploads themselves are listed from the database) */
   deliveredDraftId: string | null;
   deliveredAt: number | null;
   /** free-form notes about what was actually said */
@@ -100,7 +89,7 @@ export function readArgs(doc: Y.Doc): ArgUnit[] {
   return [...entityMap(doc, RD.args).values()]
     .map((m) => toPlain<ArgUnit & { deleted?: boolean }>(m))
     .filter((a) => !a.deleted)
-    .map((a) => ({ cardIds: [], ...a }));
+    .map((a) => ({ ...a, cardIds: a.cardIds ?? [] }));
 }
 
 export function readRelations(doc: Y.Doc): Relation[] {
@@ -127,7 +116,7 @@ export function readGraph(doc: Y.Doc, ourSide: Side): RoundGraph {
 }
 
 export function emptySlot(speech: SpeechId): SlotRecord {
-  return { speech, status: "not_started", documents: [], draftIds: [], deliveredDraftId: null, deliveredAt: null, notes: "", readConfirmed: false };
+  return { speech, status: "not_started", deliveredDraftId: null, deliveredAt: null, notes: "", readConfirmed: false };
 }
 
 /**
@@ -136,7 +125,7 @@ export function emptySlot(speech: SpeechId): SlotRecord {
  * fields in that case, so these use flat keys: "<speech>.<field>".
  */
 function flatRead<T extends object>(m: Y.Map<unknown>, prefix: string, base: T): T {
-  const out: Record<string, unknown> = { ...base };
+  const out: Record<string, unknown> = { ...(base as Record<string, unknown>) };
   for (const k of Object.keys(base)) {
     const v = m.get(`${prefix}.${k}`);
     if (v !== undefined) out[k] = v;
