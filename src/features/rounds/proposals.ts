@@ -66,6 +66,8 @@ export type Proposal =
     };
 
 export interface FitResult {
+  /** "fill" expands a short speech; "cut" trims a long one */
+  mode?: "fill" | "cut";
   output: FitPlanOutput;
   baseHashes: Record<string, string>;
   titles: Record<string, string>;

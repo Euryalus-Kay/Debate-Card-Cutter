@@ -18,7 +18,8 @@ import { allSections, itemLoad, sectionContentHash, type DraftItem, type DraftSe
 import { buildRoundContext, renderDraft, type RoundContext } from "./context";
 import { GLOBAL_RULES, SPEECH_RULES } from "./speech-rules";
 import { runStructured, type RunResult } from "./run";
-import { AlternativesSchema, FitPlanSchema, FlowInterpretSchema, SectionRevisionSchema, SpeechDraftSchema, type AlternativesOutput, type FitPlanOutput, type FlowInterpretOutput, type SectionRevisionOutput, type SpeechDraftOutput } from "./schemas";
+import { MODELS } from "./models";
+import { AlternativesSchema, FitPlanSchema, TopUpSchema, FlowInterpretSchema, SectionRevisionSchema, SpeechDraftSchema, type AlternativesOutput, type FitPlanOutput, type FlowInterpretOutput, type SectionRevisionOutput, type SpeechDraftOutput } from "./schemas";
 import { newId } from "@/server/ids";
 
 export const SYSTEM_BASE = `You are an expert high school policy debate coach and strategist helping two debaters prepare speeches during and before rounds. You reason about the specific round in front of you: the actual arguments on the flow, the actual evidence provided, and the actual speech being prepared.
@@ -132,7 +133,8 @@ export async function draftSpeech(input: DraftSpeechInput) {
   const lockedNote = ctx.draft && allSections(ctx.draft).some((s) => s.locked) ? "Some sections of the current draft are LOCKED: keep them exactly as they are and plan around them (do not output replacements for them)." : "";
   const prompt = `Prepare the ${input.speech} for the ${round.ourSide.toUpperCase()}.
 
-Time limit: ${Math.round(ctx.limitSeconds)} seconds. Plan to use about ${Math.round(ctx.limitSeconds * 0.95)} seconds, with section budgets that add up to that.
+Time limit: ${Math.round(ctx.limitSeconds)} seconds. Plan to use about ${Math.round(ctx.limitSeconds * 0.95)} seconds, with section budgets that add up to that. A speech that runs short wastes time the team needs; fill it with developed answers (warrant, comparison, implication), not filler.
+Length: this speaker reads analytics at about ${Math.round(rates.rates.analyticWpm)} words per minute (${(rates.rates.analyticWpm / 6).toFixed(0)} words per 10 seconds). Each card's read time is listed in the evidence (TIME TO READ). For a section with a budget of B seconds whose cards take C seconds, write about (B − C) × ${(rates.rates.analyticWpm / 60).toFixed(1)} words of analytic text. Across the speech, that is roughly ${Math.round((ctx.limitSeconds * 0.95 * rates.rates.analyticWpm) / 60)} words if it were all analytics, less the time of the cards you read.
 ${input.evidenceMode === "selected_only" ? "Use ONLY the cards the team selected. Do not use library cards." : "Prefer the cards the team selected; use library cards only when they are clearly on point."}
 ${input.instructions.trim() ? `Team instructions: ${input.instructions.trim()}` : "No extra instructions."}
 ${lockedNote}
@@ -281,8 +283,72 @@ function renderForFit(items: DraftItem[], rates: RateProfile, graph: RoundContex
   return lines;
 }
 
+/** Rewrite expanded sections that came back shorter than their time target, to an explicit word count. */
+async function topUpExpanded(plan: FitPlanOutput["plan"], sections: DraftSection[], ctx: RoundContext, rates: RateProfile, input: FitInput): Promise<void> {
+  const poolById = new Map(ctx.cards.map((c) => [c.id, c]));
+  const ownById = new Map<string, Extract<DraftItem, { type: "card" }>>();
+  for (const s of sections) for (const i of s.items) if (i.type === "card" && i.cardId) ownById.set(i.cardId, i);
+  const cardSeconds = (id: string) => {
+    const own = ownById.get(id);
+    if (own) return estimateSeconds(itemLoad(own), rates.rates);
+    const c = poolById.get(id);
+    return c ? estimateSeconds(cardLoad({ tag: c.tag, citation: c.citation, body: c.body }), rates.rates) : 0;
+  };
+  const wps = rates.rates.analyticWpm / 60;
+  const short: { e: FitPlanOutput["plan"][number]; have: number; need: number }[] = [];
+  for (const e of plan) {
+    if (e.action !== "expand") continue;
+    const fixed = e.cardIds.reduce((a, id) => a + cardSeconds(id), 0) + estimateSeconds({ cardWords: 0, tagWords: countWords(e.title), analyticWords: 0, cards: 0, transitions: 1 }, rates.rates);
+    const need = Math.round(Math.max(0, e.targetSeconds - fixed) * wps);
+    const have = countWords(e.analytic);
+    if (need >= 30 && have < need * 0.85) short.push({ e, have, need });
+  }
+  if (!short.length) return;
+  const tagOf = (id: string) => ownById.get(id)?.tag ?? poolById.get(id)?.tag ?? id;
+  const prompt = `Rewrite each section's analytic text to the stated number of words (within about 10%). Keep the same argument, order, and signposting; add depth — the specific warrant against their argument, comparison of evidence, impact calculus, "even if" framing — never filler or repetition. Refer only to the cards listed for that section.
+
+${short
+  .map(
+    ({ e, have, need }) => `<section id="${e.sectionId}" target_words="${need}">
+# ${e.title}
+Current text (${have} words):
+${e.analytic}
+Cards read in this section: ${e.cardIds.map(tagOf).join("; ") || "none"}
+</section>`,
+  )
+  .join("\n\n")}
+
+Return every section above with its full rewritten text.`;
+  try {
+    const res = await runStructured({
+      task: "section_revise",
+      system: `${SYSTEM_BASE}\n\nSPEECH BEING PREPARED\n${SPEECH_RULES[input.speech]}`,
+      context: ctx.text,
+      prompt,
+      schema: TopUpSchema,
+      abortSignal: input.abortSignal,
+      teamId: input.teamId,
+      models: [
+        { model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 12000, firstChunkMs: 20000 },
+        { model: MODELS.opus55, effort: "low", maxOutputTokens: 12000 },
+      ],
+    });
+    for (const r of res.output.sections) {
+      const hit = short.find((x) => x.e.sectionId === r.sectionId);
+      if (hit && countWords(r.analytic) > hit.have) hit.e.analytic = r.analytic;
+    }
+  } catch {
+    // Best effort: keep the planner's text if the top-up fails.
+  }
+}
+
 export async function fitSpeech(input: FitInput) {
-  const ctx = await buildRoundContext(input.roundId, { speech: input.speech, draftId: input.draftId, evidenceMode: "selected_only", instructions: input.instructions, rates: input.rates ?? presetProfile("fast") });
+  const probe = await buildRoundContext(input.roundId, { speech: input.speech, draftId: input.draftId, evidenceMode: "selected_only", instructions: input.instructions, rates: input.rates ?? presetProfile("fast") });
+  if (!probe.draft || !probe.draftJson) throw new Error("Open a draft with content to fit.");
+  const probeCurrent = estimateSeconds(addLoads(...probe.draft.items.map(itemLoad)), probe.rates.rates);
+  // Short speeches are filled (expanding with the team's evidence); long ones are cut.
+  const fill = probeCurrent < probe.limitSeconds * 0.9;
+  const ctx = fill ? await buildRoundContext(input.roundId, { speech: input.speech, draftId: input.draftId, evidenceMode: "selected_plus_library", instructions: input.instructions, rates: input.rates ?? presetProfile("fast") }) : probe;
   const rates = ctx.rates;
   if (!ctx.draft || !ctx.draftJson) throw new Error("Open a draft with content to fit.");
   const sections = allSections(ctx.draft);
@@ -290,18 +356,25 @@ export async function fitSpeech(input: FitInput) {
   const topLoose = ctx.draft.items.filter((i) => i.type !== "section");
   const current = estimateSeconds(addLoads(...ctx.draft.items.map(itemLoad)), rates.rates);
   const limit = ctx.limitSeconds;
-  const target = Math.round(Math.min(input.targetSeconds ?? limit * 0.97, limit));
+  const target = Math.round(Math.min(input.targetSeconds ?? limit * (fill ? 0.95 : 0.97), limit));
   const system = `${SYSTEM_BASE}
 
 SPEECH BEING PREPARED
 ${SPEECH_RULES[input.speech]}
 
-TASK: FIT THE SPEECH TO TIME. The debaters wrote or accepted this draft and it runs long. Decide, section by section, what to keep as is, what to condense (rewrite shorter), and what to cut, so the whole speech fits the target. Priorities: keep the arguments that decide the round and every answer to an argument the other team is likely to extend; cut repetition, redundant cards (keep the best one), and low-value defense first; condense overviews and long explanations; group similar answers. A section marked LOCKED must be kept exactly. Never invent evidence: condensed sections may only keep cards they already have. Say honestly what is being given up.`;
+${
+    fill
+      ? `TASK: FILL THE SPEECH TO TIME. The draft runs short, leaving speaking time unused. Decide, section by section, what to keep as is and what to expand. Expand where it wins the round: deeper warrants against their specific arguments, evidence comparison, impact calculus, "even if" framing, and extensions the next speech needs; add cards from the provided evidence where they directly support the section (use only the listed card ids). Do not pad with repetition or filler. A section marked LOCKED must be kept exactly.`
+      : `TASK: FIT THE SPEECH TO TIME. The debaters wrote or accepted this draft and it runs long. Decide, section by section, what to keep as is, what to condense (rewrite shorter), and what to cut, so the whole speech fits the target. Priorities: keep the arguments that decide the round and every answer to an argument the other team is likely to extend; cut repetition, redundant cards (keep the best one), and low-value defense first; condense overviews and long explanations; group similar answers. A section marked LOCKED must be kept exactly. Never invent evidence: condensed sections may only keep cards they already have. Say honestly what is being given up.`
+  }`;
   const notes = [input.instructions ? `Team instruction: ${input.instructions}` : "", topLoose.length ? "(Text outside sections is kept as is.)" : ""].filter(Boolean).join("\n");
-  const need = Math.max(0, Math.round(current - target));
+  const need = Math.abs(Math.round(current - target));
   const wps = rates.rates.analyticWpm / 60;
-  const prompt = `The draft runs ~${Math.round(current)} s. The ${input.speech} limit is ${limit} s. Bring it to about ${target} s: remove about ${need} s in total, and no more than ${need + 20} s. Every second of a rebuttal is valuable, so do not cut deeper than needed; prefer cutting a whole weak section or a redundant card over rewriting everything.
-This speaker reads analytics at about ${Math.round(rates.rates.analyticWpm)} words per minute, so a condensed section of N seconds should have about ${wps.toFixed(1)} × N words of analytic text (cards add their own time, shown below). Give each entry a targetSeconds and write condensed text to that length.
+  const goal = fill
+    ? `The draft runs ~${Math.round(current)} s. The ${input.speech} limit is ${limit} s. Bring it to about ${target} s: add about ${need} s in total, and do not go over ${limit} s. Use "expand" for sections that should grow and "keep" for the rest; don't cut anything.`
+    : `The draft runs ~${Math.round(current)} s. The ${input.speech} limit is ${limit} s. Bring it to about ${target} s: remove about ${need} s in total, and no more than ${need + 20} s. Every second of a rebuttal is valuable, so do not cut deeper than needed; prefer cutting a whole weak section or a redundant card over rewriting everything.`;
+  const prompt = `${goal}
+This speaker reads analytics at about ${Math.round(rates.rates.analyticWpm)} words per minute, so a section of N seconds should have about ${wps.toFixed(1)} × N words of analytic text (cards add their own time, shown below${fill ? " and in the evidence list" : ""}). Give each entry a targetSeconds and write the new text to that length.
 ${notes}
 DRAFT (seconds are estimates at this speaker's measured rate):
 ${renderForFit(ctx.draft.items, rates, ctx.graph).join("\n")}
@@ -326,9 +399,24 @@ Return one plan entry for every section id above.`;
       continue;
     }
     const own = new Set(s.items.filter((i) => i.type === "card").map((i) => (i as { cardId: string | null }).cardId).filter((x): x is string => !!x));
-    plan.push(e.action === "condense" ? { ...e, cardIds: e.cardIds.filter((c) => own.has(c)) } : e);
+    const pool = new Set(ctx.cards.map((c) => c.id));
+    if (fill && (e.action === "cut" || e.action === "condense")) {
+      plan.push({ ...e, action: "keep", title: "", analytic: "", cardIds: [], reason: e.reason });
+      continue;
+    }
+    if (!fill && e.action === "expand") {
+      plan.push({ ...e, action: "keep", title: "", analytic: "", cardIds: [] });
+      continue;
+    }
+    // Condensed sections keep only their own cards; expanded ones may add provided (library) cards.
+    plan.push(e.action === "condense" ? { ...e, cardIds: e.cardIds.filter((c) => own.has(c)) } : e.action === "expand" ? { ...e, cardIds: [...new Set(e.cardIds.filter((c) => own.has(c) || pool.has(c)))] } : e);
   }
   for (const s of sections) if (!seen.has(s.id)) plan.push({ sectionId: s.id, action: "keep", targetSeconds: Math.round(ownSeconds(s, rates)), title: "", analytic: "", cardIds: [], reason: "Not covered by the plan; kept as is." });
+
+  // Models write fewer words than a fast speaker needs for a given number of seconds. For expanded
+  // sections, compute the exact analytic word count from the measured rate and have short ones
+  // rewritten to that length in one batched call.
+  if (fill) await topUpExpanded(plan, sections, ctx, rates, input);
 
   // Sections inside a cut section are cut with it.
   const cut = new Set(plan.filter((e) => e.action === "cut").map((e) => e.sectionId));
@@ -344,8 +432,15 @@ Return one plan entry for every section id above.`;
     const before = ownSeconds(s, rates);
     let a = before;
     if (cut.has(s.id)) a = 0;
-    else if (e.action === "condense") {
-      a = estimateSeconds(addLoads({ cardWords: 0, tagWords: countWords(e.title), analyticWords: countWords(e.analytic), cards: 0, transitions: 1 }, ...e.cardIds.map((id) => (cardById.get(id) ? itemLoad(cardById.get(id)!) : { cardWords: 0, tagWords: 0, analyticWords: 0, cards: 0, transitions: 0 }))), rates.rates);
+    else if (e.action === "condense" || e.action === "expand") {
+      const poolById = new Map(ctx.cards.map((c) => [c.id, c]));
+      const loadOf = (id: string) => {
+        const own = cardById.get(id);
+        if (own) return itemLoad(own);
+        const c = poolById.get(id);
+        return c ? cardLoad({ tag: c.tag, citation: c.citation, body: c.body }) : { cardWords: 0, tagWords: 0, analyticWords: 0, cards: 0, transitions: 0 };
+      };
+      a = estimateSeconds(addLoads({ cardWords: 0, tagWords: countWords(e.title), analyticWords: countWords(e.analytic), cards: 0, transitions: 1 }, ...e.cardIds.map(loadOf)), rates.rates);
     }
     perSection[s.id] = { before: Math.round(before), after: Math.round(a) };
     after -= before - a;
@@ -362,6 +457,7 @@ Return one plan entry for every section id above.`;
   const titles: Record<string, string> = Object.fromEntries(sections.map((s) => [s.id, s.title]));
   return {
     kind: "fit" as const,
+    mode: fill ? ("fill" as const) : ("cut" as const),
     output: { ...res.output, plan },
     baseHashes,
     titles,

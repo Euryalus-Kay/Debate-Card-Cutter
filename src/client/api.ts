@@ -34,3 +34,14 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
   }
   return (await res.json()) as T;
 }
+
+/** Download a file from our API in place (no blank tab); the server sets Content-Disposition. */
+export function downloadFrom(url: string): void {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "";
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}

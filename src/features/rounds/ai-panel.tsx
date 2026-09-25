@@ -97,7 +97,13 @@ function ProposalCard({ p }: { p: Proposal }) {
   }
 
   const title =
-    p.kind === "draft" ? `${p.speech} draft` : p.kind === "fit" ? `Fit the ${p.speech} to time` : p.kind === "alternatives" ? "Three approaches" : `Revise section: ${"action" in p ? p.action : ""}`;
+    p.kind === "draft"
+      ? `${p.speech} draft`
+      : p.kind === "fit"
+        ? `${p.result?.mode === "fill" ? "Fill" : "Fit"} the ${p.speech} to time`
+        : p.kind === "alternatives"
+          ? "Three approaches"
+          : `Revise section: ${"action" in p ? p.action : ""}`;
 
   return (
     <div className={cn("mb-3 rounded-xl border bg-elev p-3", p.status === "failed" ? "border-bad/40" : "border-line")}>
@@ -170,6 +176,7 @@ function DraftProposal({ p, busy, setBusy, teamId, markOp, upd }: { p: Extract<P
         <div className="mt-2 space-y-1">
           <div className={cn("text-xs", v.estimatedSeconds > v.limitSeconds ? "text-bad" : "text-muted")}>
             Estimated {formatClock(v.estimatedSeconds)} of {formatClock(v.limitSeconds)}
+            {v.estimatedSeconds < v.limitSeconds * 0.85 ? ` — leaves ~${formatClock(v.limitSeconds - v.estimatedSeconds)} unused; after adding it, "Fill to time" below the draft can expand it.` : ""}
           </div>
           {v.unaddressed.length ? <Warn>Not addressed and not explained: {v.unaddressed.map((u) => u.text).join("; ")}</Warn> : null}
           {out?.omitted?.length ? <div className="text-xs text-muted">Deliberately not answered: {out.omitted.map((o) => o.reason).join("; ")}</div> : null}
@@ -349,8 +356,8 @@ function FitProposal({ p, busy, setBusy, teamId, markOp, upd }: { p: Extract<Pro
     if (!editor || !r) return toast("Open this draft to apply the plan.", "warn");
     setBusy(true);
     try {
-      const cards = await fetchCards(teamId, changes.flatMap((e) => (e.action === "condense" ? e.cardIds : [])));
-      if (!Object.keys(outcomes).length) await saveVersionBeforeAi(p.draftId, `fit the ${p.speech} to time`);
+      const cards = await fetchCards(teamId, changes.flatMap((e) => (e.action === "condense" || e.action === "expand" ? e.cardIds : [])));
+      if (!Object.keys(outcomes).length) await saveVersionBeforeAi(p.draftId, `${r.mode === "fill" ? "fill" : "fit"} the ${p.speech} to time`);
       const out: Record<string, ApplyResult> = { ...outcomes };
       for (const e of changes) {
         if (out[e.sectionId] === "applied") continue;
@@ -381,7 +388,7 @@ function FitProposal({ p, busy, setBusy, teamId, markOp, upd }: { p: Extract<Pro
       ) : null}
       {r.output.sacrificed.length ? (
         <div className="text-muted">
-          <span className="font-medium text-fg">Gives up:</span> {r.output.sacrificed.join(" · ")}
+          <span className="font-medium text-fg">{r.mode === "fill" ? "Tradeoffs:" : "Gives up:"}</span> {r.output.sacrificed.join(" · ")}
         </div>
       ) : null}
       <ul className="divide-y divide-line rounded-lg border border-line">
@@ -391,7 +398,7 @@ function FitProposal({ p, busy, setBusy, teamId, markOp, upd }: { p: Extract<Pro
           return (
             <li key={e.sectionId} className="px-2.5 py-1.5">
               <div className="flex items-center gap-1.5">
-                <Badge tone={e.action === "cut" ? "bad" : "accent"}>{e.action}</Badge>
+                <Badge tone={e.action === "cut" ? "bad" : e.action === "expand" ? "ok" : "accent"}>{e.action}</Badge>
                 <span className="min-w-0 flex-1 truncate font-medium">{r.titles[e.sectionId] || "Untitled section"}</span>
                 {t ? (
                   <span className="shrink-0 font-mono tabular text-[11px] text-faint">

@@ -13,9 +13,9 @@ import { loadDoc } from "@/server/docs/store";
 import { getCards, searchCards, type CardRow } from "@/server/cards";
 import { computeCoverage, possiblyKickedPositions, liveOffenseOnKickedPositions, POSITION_KIND_LABEL, type ArgUnit, type CoverageReport, type RoundGraph } from "@/domain/flow";
 import { getFormat, SPEECH_IDS, SPEECHES, speechSeconds, speechesToAnswer, type SpeechId } from "@/domain/format";
-import { readAloud } from "@/domain/card";
+import { cardLoad, readAloud } from "@/domain/card";
 import { fullCite, shortCite } from "@/domain/citation";
-import { capRatesForJudge, presetProfile, wordsForSeconds, type JudgeSpeed, type RatePresetId, type RateProfile } from "@/domain/timing";
+import { capRatesForJudge, estimateSeconds, presetProfile, wordsForSeconds, type JudgeSpeed, type RatePresetId, type RateProfile } from "@/domain/timing";
 import { renderJudgeProfile } from "./paradigm";
 import type { StoredJudge } from "@/server/judges";
 import { readGraph, readSlots, readStrategy } from "@/shared/round-doc";
@@ -72,11 +72,12 @@ export function renderFlow(graph: RoundGraph): string {
   return out.join("\n") || "(the flow is empty)";
 }
 
-function renderCard(c: CardRow, full: boolean): string {
+function renderCard(c: CardRow, full: boolean, rates: RateProfile): string {
   const read = readAloud(c.body);
   const words = read.text.split(/\s+/);
   const text = full ? read.text : words.slice(0, 90).join(" ") + (words.length > 90 ? " …" : "");
-  return `[${c.id}] TAG: ${c.tag}\n   CITE: ${shortCite(c.citation)} — ${fullCite(c.citation).slice(0, 220)}\n   ${read.basis === "highlight" ? "READ TEXT (highlighted)" : read.basis === "underline" ? "READ TEXT (underlined)" : "TEXT"}: ${text}\n   STATUS: ${c.verificationStatus}`;
+  const secs = Math.round(estimateSeconds(cardLoad({ tag: c.tag, citation: c.citation, body: c.body }), rates.rates));
+  return `[${c.id}] TAG: ${c.tag}\n   CITE: ${shortCite(c.citation)} — ${fullCite(c.citation).slice(0, 220)}\n   ${read.basis === "highlight" ? "READ TEXT (highlighted)" : read.basis === "underline" ? "READ TEXT (underlined)" : "TEXT"}: ${text}\n   TIME TO READ: ~${secs} s (tag, cite, and read text)\n   STATUS: ${c.verificationStatus}`;
 }
 
 export function renderDraft(draft: Draft): string {
@@ -228,15 +229,15 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
   if (!selected.length && !library.length && !draftCards.length) lines.push("(no cards available — use analytics only and list needed evidence in needsEvidence)");
   if (selected.length) {
     lines.push(`Cards the team selected for this speech:`);
-    for (const c of selected) lines.push(renderCard(c, true));
+    for (const c of selected) lines.push(renderCard(c, true, rates));
   }
   if (draftCards.length) {
     lines.push(`Cards already in the draft:`);
-    for (const c of draftCards) lines.push(renderCard(c, true));
+    for (const c of draftCards) lines.push(renderCard(c, true, rates));
   }
   if (library.length) {
     lines.push(`Possibly relevant cards from the team library (excerpts):`);
-    for (const c of library) lines.push(renderCard(c, false));
+    for (const c of library) lines.push(renderCard(c, false, rates));
   }
   if (draft) {
     lines.push("");

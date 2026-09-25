@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type * as Y from "yjs";
 import { Download, FilePlus2, Plus, Sparkles, CheckCircle2, Copy, Scissors, History } from "lucide-react";
-import { api } from "@/client/api";
-import { useDocSync, useYDocValue } from "@/client/sync/hooks";
+import { api, downloadFrom } from "@/client/api";
+import { flushDoc, useDocSync, useYDocValue } from "@/client/sync/hooks";
 import { Badge, Button, cn, EmptyState, Menu, MenuContent, MenuItem, MenuTrigger, Textarea, Tooltip, toast } from "@/components/ui";
 import { useApp } from "@/components/shell/app-shell";
 import { getFormat, speechSeconds, SPEECHES, type SpeechId } from "@/domain/format";
@@ -107,6 +107,7 @@ function OurSpeechView({ round, bundle, doc, graph, speech, aiEnabled, userId }:
     if (!doc || !ws.draftId) return;
     doc.transact(() => updateSlot(doc, speech, { status: "delivered", deliveredDraftId: ws.draftId, deliveredAt: Date.now() }));
     try {
+      await flushDoc(ws.draftId); // the delivered snapshot must include the last edits
       await api(`/api/docs/${ws.draftId}/deliver`, { method: "POST", json: {} });
       toast(`Saved a delivered snapshot of the ${speech}. Later edits won't change it.`, "ok");
       await qc.invalidateQueries({ queryKey: ["round", round.id] });
@@ -221,7 +222,15 @@ function OurSpeechView({ round, bundle, doc, graph, speech, aiEnabled, userId }:
             <Button size="sm" onClick={() => setHistoryOpen(true)} aria-label="Draft history">
               <History className="size-3.5" /> History
             </Button>
-            <Button size="sm" onClick={() => window.open(`/api/docs/${ws.draftId}/export`, "_blank")}>
+            <Button
+              size="sm"
+              aria-label="Download as .docx"
+              onClick={async () => {
+                // The file is built on the server: send the latest keystrokes first.
+                await flushDoc(ws.draftId!);
+                downloadFrom(`/api/docs/${ws.draftId}/export`);
+              }}
+            >
               <Download className="size-3.5" /> .docx
             </Button>
             <Tooltip content="Save a frozen copy as what was actually delivered. The flow will treat it as delivered.">
@@ -244,10 +253,12 @@ function OurSpeechView({ round, bundle, doc, graph, speech, aiEnabled, userId }:
               {judgeCap ? ` · at the judge's ${judgeCap} pace` : ""}
             </span>
             {over > 0 ? <Badge tone="bad">over by ~{formatClock(over)}</Badge> : total > 0 ? <Badge tone="ok">{formatClock(limit - total)} to spare</Badge> : null}
-            {over > 0 && aiEnabled && ws.draftId ? (
-              <Button size="xs" className="ml-auto" onClick={() => void startFitOp({ round, speech, draftId: ws.draftId! })}>
-                <Scissors className="size-3.5" /> Fit to time
-              </Button>
+            {aiEnabled && ws.draftId && (over > 0 || (total > 0 && total < limit * 0.9)) ? (
+              <Tooltip content={over > 0 ? "Plan cuts and condensing so the speech fits, keeping what decides the round." : "The speech leaves time unused: plan where to add warrants, comparison, and evidence."}>
+                <Button size="xs" className="ml-auto" onClick={() => void startFitOp({ round, speech, draftId: ws.draftId! })}>
+                  <Scissors className="size-3.5" /> {over > 0 ? "Fit to time" : "Fill to time"}
+                </Button>
+              </Tooltip>
             ) : null}
           </div>
           <div className="mt-1.5 flex h-2 overflow-hidden rounded-full bg-sunken" aria-hidden>

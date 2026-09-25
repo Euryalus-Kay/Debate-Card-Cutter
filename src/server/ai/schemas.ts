@@ -75,17 +75,21 @@ export const FitPlanSchema = z.object({
   plan: z.array(
     z.object({
       sectionId: z.string(),
-      action: z.enum(["keep", "condense", "cut"]),
+      action: z.enum(["keep", "condense", "cut", "expand"]),
       targetSeconds: z.number().describe("condense: the intended length of this section's own content in seconds; keep: its current seconds; cut: 0"),
-      title: z.string().describe("condense only: the section heading (may be shorter); otherwise empty"),
-      analytic: z.string().describe("condense only: the new, shorter analytic text to say; otherwise empty"),
-      cardIds: z.array(z.string()).describe("condense only: which of this section's card ids to keep reading"),
+      title: z.string().describe("condense/expand: the section heading; otherwise empty"),
+      analytic: z.string().describe("condense/expand: the new analytic text to say (shorter for condense, fuller for expand); otherwise empty"),
+      cardIds: z.array(z.string()).describe("condense: which of this section's card ids to keep; expand: this section's cards plus any provided evidence cards to add"),
       reason: z.string().describe("one short phrase: why this section is kept, condensed, or cut"),
     }),
   ),
   sacrificed: z.array(z.string()).describe("what the speech gives up, in plain words (answers dropped, weaker coverage, less impact comparison)"),
 });
 export type FitPlanOutput = z.infer<typeof FitPlanSchema>;
+
+export const TopUpSchema = z.object({
+  sections: z.array(z.object({ sectionId: z.string(), analytic: z.string().describe("the full new analytic text for this section, at the requested length") })),
+});
 
 export const AlternativesSchema = z.object({
   options: z.array(

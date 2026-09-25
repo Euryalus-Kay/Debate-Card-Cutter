@@ -5,6 +5,7 @@ import type { Editor } from "@tiptap/react";
 import type * as Y from "yjs";
 import { Sparkles, Zap, Brain } from "lucide-react";
 import { runOp } from "@/client/ai";
+import { flushDoc } from "@/client/sync/hooks";
 import { Button, cn, Dialog, Field, Textarea, toast } from "@/components/ui";
 import { useApp } from "@/components/shell/app-shell";
 import type { RoundGraph } from "@/domain/flow";
@@ -26,6 +27,7 @@ export async function startDraftOp(args: { round: RoundRecord; speech: SpeechId;
   const pid = makeId("prop");
   store.add({ id: pid, opId: null, kind: "draft", draftId: args.draftId, speech: args.speech, status: "running", partial: null, result: null, error: null, startedAt: Date.now(), baseDraftHash: draftHash(args.editor) });
   useWorkspace.getState().set({ right: "ai" });
+  await flushDoc(args.draftId);
   try {
     const result = await runOp(
       { kind: "draft_speech", roundId: args.round.id, speech: args.speech, draftId: args.draftId, mode: args.mode, cardIds: args.cardIds, evidenceMode: args.evidenceMode, instructions: args.instructions },
@@ -48,7 +50,7 @@ export async function startFitOp(args: { round: RoundRecord; speech: SpeechId; d
   store.add({ id: pid, opId: null, kind: "fit", draftId: args.draftId, speech: args.speech, status: "running", partial: null, result: null, error: null, startedAt: Date.now() });
   useWorkspace.getState().set({ right: "ai" });
   // Make sure the server sees the latest text.
-  await new Promise((r) => setTimeout(r, 400));
+  await flushDoc(args.draftId);
   try {
     const result = await runOp({ kind: "fit_speech", roundId: args.round.id, speech: args.speech, draftId: args.draftId, instructions: args.instructions ?? "", mode: "fast" }, (e) => {
       if (e.t === "op") store.update(pid, { opId: e.id });
@@ -71,7 +73,7 @@ export async function runSectionAi(args: { round: RoundRecord; speech: SpeechId;
   store.add({ id: pid, opId: null, kind, draftId: args.draftId, speech: args.speech, sectionId: args.sectionId, action: args.action, status: "running", partial: null, result: null, error: null, startedAt: Date.now() } as Proposal);
   useWorkspace.getState().set({ right: "ai" });
   // Make sure the server sees the latest text before it reads the section.
-  await new Promise((r) => setTimeout(r, 400));
+  await flushDoc(args.draftId);
   try {
     const result = await runOp(
       { kind: "revise_section", roundId: args.round.id, speech: args.speech, draftId: args.draftId, sectionId: args.sectionId, action: args.action, instructions: args.instructions ?? "", cardIds: useWorkspace.getState().basket },
