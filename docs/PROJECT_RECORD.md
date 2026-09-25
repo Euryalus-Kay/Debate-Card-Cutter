@@ -121,6 +121,7 @@ exposed through a Cloudflare tunnel (`zaincardcutter.xyz`).
 | D-16 | Speaker assignment per round and per speech (FMT-2); each speech is timed at its speaker's calibrated pace in the UI and in AI requests | Partners speak at different speeds; rebuttals are sometimes swapped |
 | D-17 | Cross-ex notes are separate shared texts (one per CX), never flow arguments, labeled as CX in AI context (SEQ-4) | CX answers matter only when a speech uses them |
 | D-18 | Prep overage is shown as time over; the round can apply the tournament rule "deduct from the next speech" | KSHSAA / NDT rules differ by tournament |
+| D-19 | Backfiles stay browsable as files: the round's Evidence tab lists each file's pockets/hats/blocks and inserts a whole block (cards linked to their library copies) after the current section | Debaters use prepared blocks, not single cards, in rounds |
 
 ### Measured AI cost and latency (telemetry, standard API prices; `scripts/ai-costs.ts`)
 | Operation | Model | Avg time | Avg cost |
@@ -173,4 +174,5 @@ Each entry is marked **verified**, **partially verified**, or **unverified**.
 | 09-25 | **E2E suite** (`npx playwright test`, installed Chrome): sign-in gate; round creation; partners co-editing; section lock blocks partner; offline edit syncs after reconnect; outsider 404; missing speech never a concession; Verbatim import; Word export with just-typed text; speaker reassignment changes 1AR timing; CX notes shared live | 9/9 on dev server and 9/9 twice on the local production build (service worker active) | verified |
 | 09-25 | AI E2E (`E2E_AI=1`): AI 2AC → apply → Fill to time (6:49 → 7:36 of 8:00) | pass | verified |
 | 09-25 | Word export rendered by macOS Quick Look: Verbatim headings, bold 13 pt cites, underline/emphasis, unread text shrunk | pass; highlights are present in the file (`w:highlight`, same markup as Verbatim) but Quick Look/TextEdit don't display Word highlights | partially verified: confirm highlight display once in Word or Google Docs |
-| 09-25 | Production (after each deploy): smoke test 14/14; QA data removed; 0 users | pass | verified |
+| 09-25 | Insert a block from an imported backfile into a speech (E2E) | pass | verified |
+| 09-25 | Production (after each deploy): smoke test 14/14; QA data removed; 0 users | pass (last: 07:05) | verified |
