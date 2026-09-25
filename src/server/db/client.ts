@@ -21,7 +21,8 @@ let neonDb: NeonHttpDatabase<Schema> | null = null;
 export function db(): DB {
   if (override) return override;
   if (!neonDb) {
-    const url = process.env.DATABASE_URL;
+    // Production has its own database (APP_DATABASE_URL); previews and local development use DATABASE_URL.
+    const url = process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL;
     if (!url) throw new Error("DATABASE_URL is not configured.");
     neonDb = drizzleNeon({ client: neon(url), schema });
   }

@@ -20,9 +20,11 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     e.preventDefault();
     setBusy(true);
     setError(null);
+    // Signing up from a team invite link carries the invite, which production requires.
+    const invite = /^\/join\/([^/?#]+)/.exec(next)?.[1];
     const res =
       mode === "signup"
-        ? await authClient.signUp.email({ name: name.trim(), email: email.trim(), password })
+        ? await authClient.signUp.email({ name: name.trim(), email: email.trim(), password, fetchOptions: invite ? { headers: { "x-invite-token": decodeURIComponent(invite) } } : undefined })
         : await authClient.signIn.email({ email: email.trim(), password });
     setBusy(false);
     if (res.error) {

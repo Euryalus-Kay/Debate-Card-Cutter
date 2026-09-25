@@ -1,0 +1,14 @@
+# Never upload secrets or local artifacts to Vercel builds.
+.env
+.env.*
+!.env.example
+.vercel
+.next
+node_modules
+coverage
+test-results
+playwright-report
+*.tsbuildinfo
+docs/research/samples
+.DS_Store
+.claude
