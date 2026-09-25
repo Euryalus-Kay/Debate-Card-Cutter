@@ -1,7 +1,7 @@
-/** Live check of judge-profile extraction on a SYNTHETIC paradigm, across models. */
-import { runStructured } from "@/server/ai/run";
-import { enforceQuotes, JudgeProfileSchema, renderJudgeProfile } from "@/server/ai/paradigm";
-import { MODELS, type ModelSpec } from "@/server/ai/models";
+/**
+ * Live check of judge-profile extraction on a SYNTHETIC paradigm (3 runs, for stability).
+ * The model comparison that chose the registry entry is recorded in models.ts.
+ */
 
 // SYNTHETIC FIXTURE (not a real judge)
 const PARADIGM = `Jordan Rivera (synthetic example). I debated four years of high school policy and now coach at a small school.
