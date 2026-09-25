@@ -37,6 +37,8 @@ export interface RoundContext {
   /** speaking rates used for every estimate (the speaker's, capped when the judge limits speed) */
   rates: RateProfile;
   judgeRateCap: RatePresetId | null;
+  /** the judge's paradigm says lay or parent judge */
+  judgeLay: boolean;
   refs: { stateHeadSeq: number; draftHeadSeq: number | null; cardIds: string[] };
 }
 
@@ -267,6 +269,7 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
     limitSeconds,
     rates,
     judgeRateCap,
+    judgeLay: judgeRecord?.profile?.experience?.value === "lay" || judgeRecord?.profile?.experience?.value === "parent",
     refs: { stateHeadSeq, draftHeadSeq, cardIds: [...selected, ...draftCards, ...library].map((c) => c.id) },
   };
 }

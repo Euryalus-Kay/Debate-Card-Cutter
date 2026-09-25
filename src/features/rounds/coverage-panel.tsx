@@ -5,9 +5,12 @@ import type * as Y from "yjs";
 import { AlertTriangle, ChevronDown, ChevronRight, CircleDashed, Info, Sparkles } from "lucide-react";
 import { Badge, Button, cn, EmptyState, Tooltip } from "@/components/ui";
 import { detectConflicts, liveOffenseOnKickedPositions, possiblyKickedPositions, POSITION_KIND_LABEL, type ArgUnit, type CoverageItem, type CoverageStatus, type RoundGraph } from "@/domain/flow";
-import { SPEECHES, speechesToAnswer, validatePrepContext, type SpeechId, SPEECH_IDS } from "@/domain/format";
-import type { SlotRecord } from "@/shared/round-doc";
-import { useDocSync } from "@/client/sync/hooks";
+import { getFormat, SPEECHES, speechesToAnswer, validatePrepContext, type SpeechId, SPEECH_IDS } from "@/domain/format";
+import { prepUsedMs, readTimers, type SlotRecord } from "@/shared/round-doc";
+import { useDocSync, useYDocValue } from "@/client/sync/hooks";
+import { prepGuide } from "@/domain/analytic-checks";
+import { formatClock } from "@/domain/timing";
+import { useNow } from "./ai-progress";
 import type { RoundRecord } from "./types";
 import { useWorkspace } from "./store";
 import { useDraft } from "./draft-hooks";
@@ -39,7 +42,7 @@ export function ArgLine({ arg, compact }: { arg: ArgUnit; compact?: boolean }) {
   );
 }
 
-export function CoveragePanel({ round, graph, recorded, slots, aiEnabled }: { round: RoundRecord; doc: Y.Doc | null; graph: RoundGraph | null; recorded: Set<SpeechId>; slots: Record<SpeechId, SlotRecord> | null; aiEnabled: boolean }) {
+export function CoveragePanel({ round, doc, graph, recorded, slots, aiEnabled }: { round: RoundRecord; doc: Y.Doc | null; graph: RoundGraph | null; recorded: Set<SpeechId>; slots: Record<SpeechId, SlotRecord> | null; aiEnabled: boolean }) {
   const ws = useWorkspace();
   const speech = ws.speech;
   const { sync: draftSync } = useDocSync(ws.draftId);
@@ -48,13 +51,19 @@ export function CoveragePanel({ round, graph, recorded, slots, aiEnabled }: { ro
 
   const checked = useMemo(() => {
     if (!graph || !speech || !ours) return null;
-    return checkSpeech({ graph, speech, sections: checkSections(draft), recorded });
-  }, [graph, speech, ours, draft, recorded]);
+    const exp = round.judges?.[0]?.profile?.experience?.value;
+    return checkSpeech({ graph, speech, sections: checkSections(draft), recorded, judgeLay: exp === "lay" || exp === "parent" });
+  }, [graph, speech, ours, draft, recorded, round.judges]);
   const report = checked?.coverage ?? null;
   const [showAllChecks, setShowAllChecks] = useState(false);
   // What an update of the open draft would answer (final rebuttals: only the flows the draft goes for).
   const toAnswer = useMemo(() => (graph && speech && ours && draft ? changeSet({ graph, speech, draft, recorded }).unanswered.length : 0), [graph, speech, ours, draft, recorded]);
   const updating = useProposals((s) => s.proposals.some((p) => p.kind === "patch" && p.draftId === ws.draftId && p.status === "running" && !p.auto));
+  // How much prep to spend on this speech (Snider's caps), from the round's prep clock.
+  const timers = useYDocValue(doc, readTimers);
+  const now = useNow(!!timers?.running);
+  const prepTotal = getFormat(round.formatId, round.formatOverrides as never).prepSecondsPerTeam;
+  const prep = speech && ours && timers && slots?.[speech]?.status !== "delivered" ? prepGuide(speech, prepTotal, prepUsedMs(timers, round.ourSide, now) / 1000) : null;
 
   const issues = useMemo(() => {
     if (!speech || !slots) return [];
@@ -117,6 +126,13 @@ export function CoveragePanel({ round, graph, recorded, slots, aiEnabled }: { ro
                 </Badge>
               ))}
           </div>
+        ) : null}
+        {prep ? (
+          <Tooltip content={prep.note}>
+            <div className="mt-1.5 text-[11.5px] text-muted">
+              Prep for the {speech}: {prep.maxNowSec > 0 ? `up to ${formatClock(prep.maxNowSec)} more` : speech === "1NR" ? "none needed" : "past the usual share; save the rest"}
+            </div>
+          </Tooltip>
         ) : null}
         {aiEnabled && ws.draftId && toAnswer > 0 ? (
           <Tooltip content="Adds answers to just these arguments (or links the sections that already answer them). Nothing else in your draft changes; you review before it goes in.">

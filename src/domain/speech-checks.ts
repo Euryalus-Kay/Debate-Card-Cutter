@@ -11,6 +11,7 @@ import { blockExclusions, computeCoverage, droppedByThem, isLive, type ArgUnit, 
 import { isRebuttal, SPEECHES, speechesToAnswer, type SpeechId } from "./format";
 import type { Draft, DraftSection } from "@/shared/draft-model";
 import { allSections } from "@/shared/draft-model";
+import { analyticChecks } from "./analytic-checks";
 
 export interface CheckSection {
   id: string;
@@ -83,7 +84,7 @@ export function draftTargetsOf(sections: CheckSection[]): DraftTarget[] {
     .map((s) => ({ sectionId: s.id, title: s.title, relation: (s.relation === "none" ? "answers" : s.relation) as DraftTarget["relation"], targets: s.targets, turn: s.role === "link_turn" || s.role === "impact_turn" }));
 }
 
-export function checkSpeech(input: { graph: RoundGraph; speech: SpeechId; sections: CheckSection[]; recorded: Set<SpeechId> }): SpeechCheckReport {
+export function checkSpeech(input: { graph: RoundGraph; speech: SpeechId; sections: CheckSection[]; recorded: Set<SpeechId>; judgeLay?: boolean }): SpeechCheckReport {
   const { graph, speech, sections, recorded } = input;
   const checks: SpeechCheck[] = [];
   const side = SPEECHES[speech].side;
@@ -180,6 +181,8 @@ export function checkSpeech(input: { graph: RoundGraph; speech: SpeechId; sectio
   if (speech === "2AR") {
     for (const s of sections.filter((x) => x.relation === "extend")) for (const a of targetsOf(s)) if (a.side === side && a.speech !== "1AR") checks.push({ code: "2ar_no_1ar_ancestor", severity: "warning", message: `"${s.title}" extends our ${a.speech} argument; the 2AR can only go for what the 1AR extended.`, sectionIds: [s.id] });
   }
+  // Expert norms for each analytic and block (docs/research/analytics-and-blocks.md §7).
+  checks.push(...analyticChecks({ graph, speech, sections, judgeLay: input.judgeLay }));
   const order: SpeechCheck["severity"][] = ["critical", "warning", "info"];
   checks.sort((a, b) => order.indexOf(a.severity) - order.indexOf(b.severity));
   return { coverage, checks, theirDrops };

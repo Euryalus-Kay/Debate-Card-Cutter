@@ -112,7 +112,7 @@ export function validateDraft(out: SpeechDraftOutput, ctx: RoundContext, speech:
   const existing = ctx.draft ? draftTargetsFromDraft(ctx.draft) : [];
   const cov = SPEECHES[speech].side === ourSide ? computeCoverage(ctx.graph, speech, [...existing, ...targets], ctx.recorded) : null;
   const proposalSections: CheckSection[] = sections.map((s) => ({ id: s.ref, title: s.title, relation: s.relation, targets: s.targets, role: s.role || null, crossApplyFrom: s.crossApplyFrom || null, analytic: s.analytic, cardCites: s.cardIds.map((c) => ctx.cards.find((x) => x.id === c)?.shortCite ?? ""), parentId: s.parentRef || null, kind: s.kind }));
-  const checks = SPEECHES[speech].side === ourSide ? checkSpeech({ graph: ctx.graph, speech, sections: [...checkSections(ctx.draft), ...proposalSections], recorded: ctx.recorded }).checks : [];
+  const checks = SPEECHES[speech].side === ourSide ? checkSpeech({ graph: ctx.graph, speech, sections: [...checkSections(ctx.draft), ...proposalSections], recorded: ctx.recorded, judgeLay: ctx.judgeLay }).checks : [];
   const omitted = new Set(out.omitted.flatMap((o) => o.targets));
   const unaddressed = (cov?.items ?? []).filter((i) => i.status === "unanswered" && !omitted.has(i.arg.id)).map((i) => ({ id: i.arg.id, text: i.arg.text }));
   const newInRebuttal = isRebuttal(speech) ? sections.filter((s) => s.relation === "new").map((s) => s.title) : [];
@@ -971,7 +971,7 @@ function validatePatch(out: PatchPlanOutput, ctx: RoundContext, cs: ChangeSet, j
   });
   const cite = (id: string) => ctx.cards.find((c) => c.id === id)?.shortCite ?? "";
   const added: CheckSection[] = adds.map((a) => ({ id: `new:${a.ref}`, title: a.title, relation: a.relation, targets: a.targets, role: a.role || null, crossApplyFrom: a.crossApplyFrom || null, analytic: a.analytic, cardCites: a.cardIds.map(cite), parentId: a.parentRef ? `new:${a.parentRef}` : a.anchor || null, kind: a.kind }));
-  const report = checkSpeech({ graph, speech, sections: [...merged, ...added], recorded: ctx.recorded });
+  const report = checkSpeech({ graph, speech, sections: [...merged, ...added], recorded: ctx.recorded, judgeLay: ctx.judgeLay });
   const covered = new Set(report.coverage.items.filter((i) => i.status !== "unanswered" && i.status !== "uncertain").map((i) => i.arg.id));
   const notAddressed = new Set(out.notAddressed.flatMap((x) => x.targets));
   const remaining = cs.unanswered.filter((a) => !covered.has(a.id) && !notAddressed.has(a.id)).map((a) => ({ id: a.id, text: a.text }));
