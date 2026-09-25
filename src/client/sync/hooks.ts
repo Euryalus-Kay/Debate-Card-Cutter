@@ -52,6 +52,12 @@ function release(docId: string) {
   }
 }
 
+/** Push any pending local edits for a document to the server now (best effort). */
+export async function flushDoc(docId: string): Promise<void> {
+  const hit = registry.get(docId);
+  if (hit) await hit.sync.flush().catch(() => {});
+}
+
 /** All registered syncs (for a global "saved/offline" indicator). */
 export function allSyncs(): DocSync[] {
   return [...registry.values()].map((r) => r.sync);

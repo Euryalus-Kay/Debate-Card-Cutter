@@ -16,7 +16,7 @@ export const POST = handle(async (req: Request, ctx: Ctx) => {
   const { docId } = await ctx.params;
   const u = await requireUser();
   await requireAccess(u.id, "document", docId);
-  const body = z.object({ label: z.string().max(120).default("Saved version") }).safeParse(await req.json().catch(() => ({})));
+  const body = z.object({ label: z.string().max(120).default("Saved version"), reason: z.enum(["manual", "ai_apply"]).default("manual") }).safeParse(await req.json().catch(() => ({})));
   if (!body.success) throw new HttpError(400, "Invalid version.");
-  return Response.json({ id: await saveVersion(docId, "manual", body.data.label, u.id) });
+  return Response.json({ id: await saveVersion(docId, body.data.reason, body.data.label, u.id) });
 });

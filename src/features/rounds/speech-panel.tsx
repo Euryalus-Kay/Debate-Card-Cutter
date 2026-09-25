@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type * as Y from "yjs";
-import { Download, FilePlus2, Plus, Sparkles, CheckCircle2, Copy, Scissors } from "lucide-react";
+import { Download, FilePlus2, Plus, Sparkles, CheckCircle2, Copy, Scissors, History } from "lucide-react";
 import { api } from "@/client/api";
 import { useDocSync, useYDocValue } from "@/client/sync/hooks";
 import { Badge, Button, cn, EmptyState, Menu, MenuContent, MenuItem, MenuTrigger, Textarea, Tooltip, toast } from "@/components/ui";
@@ -18,6 +18,7 @@ import type { RoundBundle, RoundRecord } from "./types";
 import { useWorkspace } from "./store";
 import { claimForSection, useRoundResearch } from "./round-research";
 import { findSectionNode } from "./proposals";
+import { HistoryDialog } from "./history-dialog";
 import { EditorRoundCtx } from "./editor/context";
 import { EditorToolbar, SpeechEditorView, useSpeechEditor } from "./editor/speech-editor";
 import { useDraft } from "./draft-hooks";
@@ -57,6 +58,7 @@ function OurSpeechView({ round, bundle, doc, graph, speech, aiEnabled, userId }:
   const drafts = bundle.drafts.filter((d) => d.speech === speech);
   const [creating, setCreating] = useState(false);
   const [genOpen, setGenOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   useEffect(() => {
     if (!drafts.length) {
@@ -213,6 +215,9 @@ function OurSpeechView({ round, bundle, doc, graph, speech, aiEnabled, userId }:
                 <Sparkles className="size-3.5" /> Build / revise
               </Button>
             ) : null}
+            <Button size="sm" onClick={() => setHistoryOpen(true)} aria-label="Draft history">
+              <History className="size-3.5" /> History
+            </Button>
             <Button size="sm" onClick={() => window.open(`/api/docs/${ws.draftId}/export`, "_blank")}>
               <Download className="size-3.5" /> .docx
             </Button>
@@ -254,6 +259,7 @@ function OurSpeechView({ round, bundle, doc, graph, speech, aiEnabled, userId }:
         </div>
       </div>
       <GenerateDialog open={genOpen} onOpenChange={setGenOpen} round={round} speech={speech} draftDoc={draftDoc} editor={editor} graph={graph} />
+      {ws.draftId ? <HistoryDialog draftId={ws.draftId} open={historyOpen} onOpenChange={setHistoryOpen} /> : null}
     </EditorRoundCtx.Provider>
   );
 }

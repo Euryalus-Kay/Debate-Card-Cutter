@@ -1,7 +1,7 @@
 "use client";
 
 import { NodeViewContent, NodeViewWrapper, type ReactNodeViewProps } from "@tiptap/react";
-import { Lock, LockOpen, MoreHorizontal, Sparkles, ShieldCheck, ShieldAlert, ShieldQuestion, FileWarning, Link2 } from "lucide-react";
+import { AlertTriangle, ExternalLink, Lock, LockOpen, MoreHorizontal, Sparkles, ShieldCheck, ShieldAlert, ShieldQuestion, FileWarning, Link2 } from "lucide-react";
 import { Badge, cn, Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger, Tooltip } from "@/components/ui";
 import { BYPASS_LOCKS } from "@/shared/editor/schema";
 import { pmCardBody, sectionLoad, draftFromPM, type PMNodeJSON, type DraftSection } from "@/shared/draft-model";
@@ -177,26 +177,32 @@ export function CardView(props: ReactNodeViewProps) {
             : { icon: <ShieldQuestion className="size-3.5" />, tone: "warn" as const, label: "Unverified", hint: "The original source could not be checked." };
 
   return (
-    <NodeViewWrapper className={cn("node-card group relative", inBasket && "rounded-md ring-1 ring-accent/40")} data-card="">
-      <div contentEditable={false} className="absolute -left-2 top-0 flex -translate-x-full select-none flex-col items-end gap-1 opacity-70 group-hover:opacity-100">
+    <NodeViewWrapper className={cn("node-card group relative", inBasket && "rounded-md ring-1 ring-accent/40")} data-card="" data-verification={edited ? "edited" : v}>
+      {/* Status strip: floats right so the tag wraps around it; always visible (evidence integrity). */}
+      <div contentEditable={false} className="card-status float-right ml-3 flex select-none items-center gap-1 pt-0.5">
         <Tooltip content={vMeta.hint}>
-          <span>
+          <span aria-label={`Evidence status: ${vMeta.label}`} role="img" className={cn(vMeta.tone === "ok" && "opacity-75 group-hover:opacity-100")}>
             <Badge tone={vMeta.tone}>
               {vMeta.icon}
-              <span className="hidden 2xl:inline">{vMeta.label}</span>
+              {vMeta.label}
             </Badge>
           </span>
         </Tooltip>
         {worst ? (
           <Tooltip content={issues.map((i) => `• ${i.message}`).join("\n")}>
-            <span>
-              <Badge tone={worst === "error" ? "bad" : worst === "warning" ? "warn" : "neutral"}>{issues.length}</Badge>
+            <span aria-label={`${issues.length} evidence ${issues.length === 1 ? "issue" : "issues"}`} role="img">
+              <Badge tone={worst === "error" ? "bad" : worst === "warning" ? "warn" : "neutral"}>
+                <AlertTriangle className="size-3" />
+                {issues.length}
+              </Badge>
             </span>
           </Tooltip>
         ) : null}
-        <button className="text-[11px] text-faint hover:text-fg" onClick={() => ctx.onCardOpen((attrs.cardId as string) ?? null, String(attrs.id))}>
-          open
-        </button>
+        <Tooltip content="Open the full card (source, highlighting, history)">
+          <button className="rounded p-0.5 text-faint hover:bg-hover hover:text-fg" aria-label="Open card" onClick={() => ctx.onCardOpen((attrs.cardId as string) ?? null, String(attrs.id))}>
+            <ExternalLink className="size-3.5" />
+          </button>
+        </Tooltip>
       </div>
       <NodeViewContent />
     </NodeViewWrapper>

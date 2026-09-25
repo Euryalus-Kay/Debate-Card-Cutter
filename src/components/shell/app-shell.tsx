@@ -92,6 +92,8 @@ export function AppShell({ user, team, teams, children }: { user: ShellUser; tea
                 <Link
                   key={n.href}
                   href={n.href}
+                  aria-label={collapsed ? n.label : undefined}
+                  aria-current={active ? "page" : undefined}
                   className={cn(
                     "flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] font-medium text-muted hover:bg-hover hover:text-fg",
                     active && "bg-hover text-fg",

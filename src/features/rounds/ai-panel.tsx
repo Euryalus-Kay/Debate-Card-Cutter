@@ -13,6 +13,7 @@ import { useWorkspace } from "./store";
 import { applyDraft, applyRevision, fetchCards, findSectionNode, removeSection, sectionNodes, useProposals, type ApplyResult, type Proposal } from "./proposals";
 import type { RoundRecord } from "./types";
 import { getActiveEditor } from "./editor/active-editor";
+import { saveVersionBeforeAi } from "./history-dialog";
 
 interface OpRow {
   id: string;
@@ -132,6 +133,7 @@ function DraftProposal({ p, busy, setBusy, teamId, markOp, upd }: { p: Extract<P
     try {
       const cards = await fetchCards(teamId, p.result.output.sections.flatMap((s) => s.cardIds));
       const only = new Set(top.map((s) => s.ref!).filter((r) => !skip.has(r)));
+      await saveVersionBeforeAi(p.draftId, `${p.speech} draft`);
       applyDraft(editor, sectionNodes(p.result.output, cards, p.opId, only));
       upd(p.id, { status: "applied" });
       await markOp("applied");
@@ -348,6 +350,7 @@ function FitProposal({ p, busy, setBusy, teamId, markOp, upd }: { p: Extract<Pro
     setBusy(true);
     try {
       const cards = await fetchCards(teamId, changes.flatMap((e) => (e.action === "condense" ? e.cardIds : [])));
+      if (!Object.keys(outcomes).length) await saveVersionBeforeAi(p.draftId, `fit the ${p.speech} to time`);
       const out: Record<string, ApplyResult> = { ...outcomes };
       for (const e of changes) {
         if (out[e.sectionId] === "applied") continue;
