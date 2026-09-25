@@ -14,6 +14,7 @@ import { newId } from "@/server/ids";
 import { draftSpeech, editSpan, extractFlow, fitSpeech, interpretFlow, patchSpeech, reviseSection, type SectionAction, type SpanAction } from "@/server/ai/ops";
 import { AiRunError } from "@/server/ai/run";
 import { aiAllowed } from "@/server/ai/policy";
+import { warmLibraryCheck } from "@/server/ai/context";
 import { ratesForSpeech } from "@/server/speakers";
 import { SPEECH_IDS, type SpeechId } from "@/domain/format";
 
@@ -120,6 +121,7 @@ export const POST = handle(async (req: Request) => {
       })
       .catch(() => {});
   }, 2500);
+  let flowed = false;
   const work = (async () => {
     try {
       let result: unknown;
@@ -205,6 +207,7 @@ export const POST = handle(async (req: Request) => {
         });
       } else if (input.kind === "extract_flow") {
         result = await extractFlow({ roundId: input.roundId, speech: input.speech as SpeechId, teamId, userId: u.id, onPartial, onStatus: (s) => sink.push?.({ t: "status", data: s }), onProgress, abortSignal: abort.signal });
+        flowed = true;
       } else {
         result = await interpretFlow({ roundId: input.roundId, speech: input.speech as SpeechId, teamId, userId: u.id, onPartial, abortSignal: abort.signal });
       }
@@ -229,8 +232,9 @@ export const POST = handle(async (req: Request) => {
       clearInterval(watchdog);
     }
   })();
-  // Keep the function alive until the work finishes, even if the client leaves.
-  after(() => work);
+  // Keep the function alive until the work finishes, even if the client leaves. Once their speech is on the
+  // flow, the library is checked for our next speech in the background, so its draft finds the checks ready.
+  after(() => work.then(() => (flowed ? warmLibraryCheck(input.roundId, input.speech as SpeechId) : undefined)));
 
   const stream = new ReadableStream({
     start(controller) {

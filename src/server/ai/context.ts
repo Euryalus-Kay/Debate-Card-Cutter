@@ -10,7 +10,8 @@ import { yXmlFragmentToProsemirrorJSON } from "@tiptap/y-tiptap";
 import { db } from "@/server/db/client";
 import { rounds, uploads } from "@/server/db/schema";
 import { loadDoc } from "@/server/docs/store";
-import { getCards, searchCards, type CardRow } from "@/server/cards";
+import { getCards, type CardRow } from "@/server/cards";
+import { findEvidence, type EvidenceNeed, type FoundEvidence } from "@/server/library/find";
 import { computeCoverage, possiblyKickedPositions, liveOffenseOnKickedPositions, POSITION_KIND_LABEL, type ArgUnit, type CoverageReport, type RoundGraph } from "@/domain/flow";
 import { DEFAULT_CX, getFormat, SPEECH_IDS, SPEECHES, speechSeconds, speechesToAnswer, type NewArgumentPolicy, type SpeechId } from "@/domain/format";
 import { cardLoad, readAloud } from "@/domain/card";
@@ -41,6 +42,12 @@ export interface RoundContext {
   judgeLay: boolean;
   newArgumentPolicy: NewArgumentPolicy;
   refs: { stateHeadSeq: number; draftHeadSeq: number | null; cardIds: string[] };
+  /** library cards offered by the check (the only cards a draft may re-tag) */
+  libraryCardIds: string[];
+  /** argument id → library cards that fit answering it, best first */
+  libraryFor: Record<string, string[]>;
+  /** the library check (B2): candidates found, pairs rated, cards offered */
+  libraryCheck: { candidates: number; rated: number; offered: number; cached: number; ms: number; skipped: string | null } | null;
 }
 
 function argLine(a: ArgUnit, indent = "   "): string {
@@ -117,6 +124,7 @@ export interface ContextOptions {
   rates?: RateProfile | null;
   /** leave the draft out of the context text (the caller renders it in its own form) */
   omitDraftText?: boolean;
+  abortSignal?: AbortSignal;
 }
 
 export async function buildRoundContext(roundId: string, opts: ContextOptions): Promise<RoundContext> {
@@ -158,23 +166,24 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
   const ours = SPEECHES[opts.speech].side === round.ourSide;
   const coverage = ours ? computeCoverage(graph, opts.speech, draftTargetsFromDraft(draft), recorded) : null;
 
-  // Evidence: selected cards (full read text) + relevant library cards (excerpts).
+  // Evidence: selected cards, cards already in the draft, and library cards checked for fit (B2): only
+  // cards a model rated as helping answer something this speech must still answer, each with what it proves.
   const selected = opts.cardIds?.length ? await getCards(round.teamId, opts.cardIds) : [];
+  const inDraftIds = draft ? allCardIds(draft) : [];
   let library: CardRow[] = [];
-  if (opts.evidenceMode !== "selected_only") {
-    const terms = new Set<string>();
-    for (const p of graph.positions) terms.add(p.name);
-    for (const it of coverage?.items.slice(0, 12) ?? []) terms.add(it.arg.text.split(/\s+/).slice(0, 8).join(" "));
-    const ids = new Set(selected.map((c) => c.id));
-    const found: string[] = [];
-    for (const t of [...terms].slice(0, 10)) {
-      const hits = await searchCards(round.teamId, t, { limit: 6 });
-      for (const h of hits) if (!ids.has(h.id) && !found.includes(h.id)) found.push(h.id);
-    }
-    library = await getCards(round.teamId, found.slice(0, 24));
+  let libraryCheck: FoundEvidence | null = null;
+  if (opts.evidenceMode !== "selected_only" && coverage) {
+    const open = coverage.items.filter((i) => i.status === "unanswered" || i.status === "uncertain").slice(0, 30);
+    const needs: EvidenceNeed[] = open.map((i) => ({ id: i.arg.id, text: i.arg.text, intent: "answer", position: i.position?.name }));
+    // Their own evidence (a copy in our library, e.g. from their disclosed files) is never our answer.
+    const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    const theirCards = new Set(graph.args.filter((a) => SPEECHES[a.speech].side !== round.ourSide && a.cites?.length).map((a) => norm(a.text)));
+    libraryCheck = await findEvidence(round.teamId, needs, { side: round.ourSide, exclude: new Set([...selected.map((c) => c.id), ...inDraftIds]), skip: (c) => theirCards.has(norm(c.tag)), abortSignal: opts.abortSignal });
+    const rows = await getCards(round.teamId, libraryCheck.cardIds);
+    library = libraryCheck.cardIds.map((id) => rows.find((c) => c.id === id)).filter((c): c is CardRow => !!c);
   }
   // Cards already in the draft are always available to keep.
-  const inDraft = draft ? allCardIds(draft).filter((id) => !selected.some((c) => c.id === id) && !library.some((c) => c.id === id)) : [];
+  const inDraft = inDraftIds.filter((id) => !selected.some((c) => c.id === id));
   const draftCards = inDraft.length ? await getCards(round.teamId, inDraft) : [];
 
   const judge = judgeRecord;
@@ -249,9 +258,12 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
     for (const c of draftCards) lines.push(renderCard(c, true, rates));
   }
   if (library.length) {
-    lines.push(`Possibly relevant cards from the team library (excerpts):`);
-    for (const c of library) lines.push(renderCard(c, false, rates));
-  }
+    lines.push(`Library cards checked against what this speech must answer (each says what it proves there). Read one only where it is the best support for that answer; a card never replaces the analytic that applies it:`);
+    for (const c of library) {
+      lines.push(renderCard(c, true, rates));
+      for (const f of libraryCheck?.byCard.get(c.id) ?? []) lines.push(`   FITS [${f.needId}] (${f.fit >= 3 ? "proves it" : "helps"}): ${f.use}`);
+    }
+  } else if (libraryCheck && !libraryCheck.skipped) lines.push(`(No library card fits what this speech must answer: answer with analytics, and describe any card you need in needsEvidence.)`);
   if (draft && !opts.omitDraftText) {
     lines.push("");
     lines.push(`CURRENT DRAFT OF THE ${opts.speech}`);
@@ -273,6 +285,14 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
     judgeLay: judgeRecord?.profile?.experience?.value === "lay" || judgeRecord?.profile?.experience?.value === "parent",
     newArgumentPolicy: fmt.newArgumentPolicy,
     refs: { stateHeadSeq, draftHeadSeq, cardIds: [...selected, ...draftCards, ...library].map((c) => c.id) },
+    libraryCardIds: library.map((c) => c.id),
+    libraryFor: Object.fromEntries(
+      [...new Set(library.flatMap((c) => (libraryCheck?.byCard.get(c.id) ?? []).map((f) => f.needId)))].map((argId) => [
+        argId,
+        library.filter((c) => libraryCheck?.byCard.get(c.id)?.some((f) => f.needId === argId)).sort((a, b) => (libraryCheck!.byCard.get(b.id)!.find((f) => f.needId === argId)!.fit - libraryCheck!.byCard.get(a.id)!.find((f) => f.needId === argId)!.fit)).map((c) => c.id),
+      ]),
+    ),
+    libraryCheck: libraryCheck ? { candidates: libraryCheck.candidates, rated: libraryCheck.rated, offered: library.length, cached: libraryCheck.cached ?? 0, ms: libraryCheck.ms, skipped: libraryCheck.skipped ?? null } : null,
   };
 }
 
@@ -289,3 +309,19 @@ function allCardIds(d: Draft): string[] {
 }
 
 export { allSections, sectionContentHash };
+
+/**
+ * After the flow changes (their speech typed, transcribed, or imported), check the library for our next
+ * speech in the background, so drafting it finds the checks cached (B2). Never throws.
+ */
+export async function warmLibraryCheck(roundId: string, afterSpeech: SpeechId): Promise<void> {
+  try {
+    const [round] = await db().select().from(rounds).where(eq(rounds.id, roundId));
+    if (!round) return;
+    const next = SPEECH_IDS.slice(SPEECH_IDS.indexOf(afterSpeech) + 1).find((s) => SPEECHES[s].side === round.ourSide);
+    if (next) await buildRoundContext(roundId, { speech: next, evidenceMode: "selected_plus_library" });
+  } catch {
+    /* a warm-up only saves time later */
+  }
+}
+

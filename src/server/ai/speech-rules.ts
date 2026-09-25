@@ -24,7 +24,8 @@ export const GLOBAL_RULES = `GLOBAL RULES (every speech)
 11. Don't pad. A short precise answer beats a long vague one. Group only arguments that genuinely share a warrant (never group T/theory standards, turns, or major positions).
 12. Adapt to the judge profile: for lay judges use plain language, fewer arguments, big-picture reasons, and slower pacing; for flow judges, line by line.
 13. You are helping high-school students. Keep everything appropriate for students and on the debate task; never attack opponents or judges personally.
-14. Ids are for the targets and cardIds fields only. In anything a debater reads or says (titles, analytics, notes, replies, questions), never write an id or bracketed code; name arguments by speech, number, author, and words ("their 2NC 11", "the Lee 26 card").`;
+14. Ids are for the targets and cardIds fields only. In anything a debater reads or says (titles, analytics, notes, replies, questions), never write an id or bracketed code; name arguments by speech, number, author, and words ("their 2NC 11", "the Lee 26 card").
+15. Library cards come checked: each says which argument it fits and what it proves there. Read one only where it is the best support for that answer, never to fill time or because it exists; the analytic still applies it to their warrant. If its own tag doesn't say what it proves here, give it a new tag in cardTags that says only what its read text says (no number, name, or date it lacks; keep its hedges). Cards the team selected keep their tags.`;
 
 export const SPEECH_RULES: Record<SpeechId, string> = {
   "1AC": `1AC (first affirmative constructive).

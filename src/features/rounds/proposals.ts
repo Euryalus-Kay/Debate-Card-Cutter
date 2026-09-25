@@ -27,6 +27,23 @@ export interface Validation {
   limitSeconds: number;
   sectionSeconds: Record<string, number>;
   lengthAdjust?: { mode: "trim" | "grow"; fromSeconds: number; toSeconds: number; sections: number };
+  retags?: RetagNote[];
+  retagsRefused?: RetagRefusedNote[];
+  library?: { offered: number; used: number };
+}
+
+export interface RetagNote {
+  cardId: string;
+  cite: string;
+  was: string;
+  tag: string;
+}
+
+export interface RetagRefusedNote {
+  cardId: string;
+  cite: string;
+  tag: string;
+  problems: string[];
 }
 
 export type Proposal =
@@ -123,6 +140,8 @@ export interface PatchResult {
   checks: SpeechCheck[];
   remaining: { id: string; text: string }[];
   dropped: { targets: number; cards: number; duplicates: string[]; linksInPlace?: number };
+  retags?: RetagNote[];
+  retagsRefused?: RetagRefusedNote[];
   run: RunMeta | null;
 }
 
@@ -196,11 +215,12 @@ export async function fetchCards(teamId: string, ids: string[]): Promise<Map<str
   return new Map(cards.map((c) => [c.id, c]));
 }
 
-export function cardNode(c: CardRowLite): PMNodeJSON {
+/** A library card as an editor node; `tag` is a checked new tag for this speech (B3), the card itself unchanged. */
+export function cardNode(c: CardRowLite, tag?: string): PMNodeJSON {
   return cardToPM({
     cardId: c.id,
     sourceId: c.sourceId,
-    tag: c.tag,
+    tag: tag?.trim() || c.tag,
     shortCite: shortCite(c.citation),
     fullCite: fullCite(c.citation),
     citeGaps: citationGaps(c.citation),
@@ -231,7 +251,7 @@ export function sectionNodes(out: SpeechDraftOutput, cards: Map<string, CardRowL
     content.push(...paragraphs(s.analytic));
     for (const id of s.cardIds) {
       const c = cards.get(id);
-      if (c) content.push(cardNode(c));
+      if (c) content.push(cardNode(c, out.cardTags?.find((t) => t.cardId === id)?.tag));
     }
     if (s.needsEvidence.trim()) content.push({ type: "note", content: [{ type: "text", text: `Needs evidence: ${s.needsEvidence.trim()}` }] });
     for (const child of byParent.get(s.ref) ?? []) content.push(build(child, depth + 1));
@@ -463,7 +483,7 @@ export function applyPatch(
     const content: PMNodeJSON[] = [{ type: "heading", attrs: { level: depth === 0 ? 3 : 4 }, content: a.title ? [{ type: "text", text: a.title }] : [] }, ...paragraphs(a.analytic)];
     for (const id of a.cardIds) {
       const c = opts.cards.get(id);
-      if (c) content.push(cardNode(c));
+      if (c) content.push(cardNode(c, r.output.cardTags?.find((t) => t.cardId === id)?.tag));
     }
     if (a.needsEvidence.trim()) content.push({ type: "note", content: [{ type: "text", text: `Needs evidence: ${a.needsEvidence.trim()}` }] });
     for (const child of adds) if (chosen.has(child.ref) && parentOf(child) === a.ref && out[`add:${child.ref}`] !== "applied") content.push(build(child, depth + 1, done));

@@ -30,6 +30,16 @@ export function useApp() {
   return v;
 }
 
+/**
+ * Inside something one team owns (a round), team-scoped calls (cards, library, research) use that team, not
+ * the one picked in the sidebar: someone on two teams never reads or saves into the wrong one.
+ */
+export function TeamScope({ teamId, children }: { teamId: string; children: React.ReactNode }) {
+  const app = useApp();
+  const team = app.teams.find((t) => t.id === teamId) ?? app.team;
+  return <Ctx.Provider value={{ ...app, team }}>{children}</Ctx.Provider>;
+}
+
 const NAV = [
   { href: "/rounds", label: "Rounds", icon: Swords },
   { href: "/library", label: "Library", icon: BookOpen },

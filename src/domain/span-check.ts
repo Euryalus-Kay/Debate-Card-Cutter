@@ -27,6 +27,29 @@ export function spanWarnings(input: { replacement: string; allowed: string }): s
   return warnings;
 }
 
+/** Words a tag may use without the card saying them (debate vocabulary, not claims about the world). */
+const TAG_VOCAB = new Set("aff affirmative neg negative plan counterplan cp da disad disadvantage perm permutation squo status quo usfg alt alternative kritik extend extension even turn turns link links impact impacts uniqueness unique non no yes not the and but or so because only also both".split(" "));
+
+/**
+ * Problems with a new tag the AI proposes for a library card (B3): it may say what the card proves here,
+ * but nothing the card's own words don't: no author, number or name the text lacks.
+ */
+export function retagProblems(tag: string, card: { tag: string; text: string }): string[] {
+  const allowed = `${card.tag}\n${card.text}`;
+  const out = spanWarnings({ replacement: tag, allowed }).map((w) => w.replace(" isn't a card in this speech or on the flow", " isn't in the card").replace(" isn't in this section, its cards, or the flow", " isn't in the card"));
+  const lower = allowed.toLowerCase();
+  const names = new Set<string>();
+  const words = tag.split(/\s+/);
+  words.forEach((w, i) => {
+    const bare = w.replace(/^[^A-Za-z]+|[^A-Za-z]+$/g, "");
+    const sentenceStart = i === 0 || /[.!?:—–-]$/.test(words[i - 1] ?? "");
+    if (bare.length < 3 || sentenceStart || !/^[A-Z]/.test(bare) || TAG_VOCAB.has(bare.toLowerCase())) return;
+    if (!lower.includes(bare.toLowerCase())) names.add(bare);
+  });
+  if (names.size) out.push(`Names ${[...names].join(", ")}, which the card doesn't mention.`);
+  return out;
+}
+
 /**
  * Remove internal ids (the bracketed codes models see in their context, like
  * "arg_mugr…" or "dl_ope0…_sec_7kv…") from text shown to debaters, with the

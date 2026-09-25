@@ -71,7 +71,14 @@ export async function labelCards(items: LabelInput[], opts: { teamId: string; ab
     schema: CardLabelSchema,
     teamId: opts.teamId,
     abortSignal: opts.abortSignal,
-    fake: () => ({ cards: items.map((c, i) => ({ n: i + 1, side: "either" as const, argType: "other" as const, position: c.path[c.path.length - 1]?.slice(0, 40) ?? "", role: "other" as const, claim: c.tag.slice(0, 120) })) }),
+    // Side from the file's headings, as a reader would (neg speeches or files → neg; aff ones → aff).
+    fake: () => ({
+      cards: items.map((c, i) => {
+        const where = `${c.fileName ?? ""} ${c.path.join(" ")}`;
+        const side = /\b(1NC|2NC|1NR|2NR|neg)\b/i.test(where) ? ("neg" as const) : /\b(1AC|2AC|1AR|2AR|aff)\b/i.test(where) ? ("aff" as const) : ("either" as const);
+        return { n: i + 1, side, argType: "other" as const, position: c.path[c.path.length - 1]?.slice(0, 40) ?? "", role: "other" as const, claim: c.tag.slice(0, 120) };
+      }),
+    }),
   });
   opts.onUsage?.(res.usage);
   const out: (CardMeta | null)[] = items.map(() => null);

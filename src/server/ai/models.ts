@@ -19,6 +19,7 @@ export type AiTask =
   | "span_edit" // rewrite exactly the selected words, or reply to an @AI comment on them
   | "file_segment" // which paragraphs of an unstyled file are tags, cites, card text, headings (never writes text)
   | "card_label" // library labels for a card: side, argument type, position, role, one-line claim
+  | "evidence_fit" // how well each library card fits what a speech needs (0–3), with what it proves there
   | "speech_fit" // whole-speech keep/condense/cut plan to fit the time limit
   | "speech_patch" // update an existing draft: add answers to new arguments, relink, minimal edits
   | "coverage_review" // what's still missing, strategic risks
@@ -113,6 +114,10 @@ export const REGISTRY: Record<AiTask, TaskConfig> = {
   card_label: {
     primary: { model: MODELS.haiku45, maxOutputTokens: 6000, firstChunkMs: 30000 },
     fallbacks: [{ model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 6000 }],
+  },
+  evidence_fit: {
+    primary: { model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 4000, firstChunkMs: 10000 },
+    fallbacks: [{ model: MODELS.haiku45, maxOutputTokens: 4000 }],
   },
   section_alternatives: {
     primary: { model: MODELS.opus55, effort: "low", maxOutputTokens: 8000, firstChunkMs: 30000 },

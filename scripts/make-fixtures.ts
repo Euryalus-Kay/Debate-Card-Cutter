@@ -2,7 +2,9 @@
  * Writes tests/fixtures/synthetic-1nc.docx: a Verbatim-style 1NC made up for
  * tests (invented text, fictional authors and sources), with the same shape the
  * E2E tests rely on: a CP with a text and two cards, a DA with three cards, and
- * two case analytics. Run: npx tsx scripts/make-fixtures.ts
+ * two case analytics. Also tests/fixtures/synthetic-2ac-blocks.docx: the aff's
+ * answers to that 1NC (and one unrelated card), for library reuse tests.
+ * Run: npx tsx scripts/make-fixtures.ts
  */
 import { writeFileSync } from "node:fs";
 import { buildDocx, type ExportNode } from "@/server/export/docx-writer";
@@ -57,3 +59,30 @@ const nodes: ExportNode[] = [
 
 writeFileSync("tests/fixtures/synthetic-1nc.docx", buildDocx(nodes, { title: "SYNTHETIC 1NC (test fixture)" }));
 console.log("wrote tests/fixtures/synthetic-1nc.docx");
+
+const blocks: ExportNode[] = [
+  { kind: "heading", level: 1, text: "Aff — 2AC blocks — SYNTHETIC TEST DOCUMENT" },
+  { kind: "heading", level: 2, text: "2AC — States CP" },
+  {
+    kind: "card",
+    tag: "States can't adopt matching protections — an interstate compact takes years to ratify",
+    ...cite("Castellanos", "25", "Compacts in Practice"),
+    body: body("In this invented study, ", "an interstate compact needs every member legislature to ratify it, which takes years, so matching state protections arrive late or not at all", ", the fictional author concludes."),
+  },
+  { kind: "heading", level: 2, text: "2AC — Climate Tradeoff DA" },
+  {
+    kind: "card",
+    tag: "Non-unique — climate is not the budget priority now; its spending was cut",
+    ...cite("Haldane", "25", "Spending Review"),
+    body: body("The made-up review finds that ", "climate spending was cut in this year's budget, and it is not the priority lawmakers claim", ", according to the synthetic data."),
+  },
+  { kind: "heading", level: 2, text: "Space Innovation Add-on" },
+  {
+    kind: "card",
+    tag: "Space exploration boosts innovation",
+    ...cite("Moreau", "24", "Orbits and Industry"),
+    body: body("This invented passage says ", "space programs spin off technologies that raise productivity across industries", " over time."),
+  },
+];
+writeFileSync("tests/fixtures/synthetic-2ac-blocks.docx", buildDocx(blocks, { title: "SYNTHETIC 2AC blocks (test fixture)" }));
+console.log("wrote tests/fixtures/synthetic-2ac-blocks.docx");

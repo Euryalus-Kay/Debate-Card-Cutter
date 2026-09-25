@@ -1,0 +1,16 @@
+{
+  "at": "2026-09-25T21:12:36.628Z",
+  "note": "Counts only.",
+  "speech": "1AR",
+  "libraryCards": 69,
+  "needs": 18,
+  "check": {
+    "candidates": 23,
+    "rated": 26,
+    "offered": 7,
+    "cached": 0,
+    "ms": 7854,
+    "skipped": null
+  },
+  "contextMs": 8224
+}

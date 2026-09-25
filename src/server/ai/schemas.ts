@@ -27,6 +27,11 @@ export const DraftSectionSchema = z.object({
   priority: z.number().describe("1 = must keep, 2 = important, 3 = cut first if over time"),
 });
 
+/** New tags for library cards in this speech (B3), checked in code against the card's own words. */
+export const CardTagsSchema = z
+  .array(z.object({ cardId: z.string(), tag: z.string().describe("the new tag: what the card proves here, only from its read text") }))
+  .describe("Only for a LIBRARY card you read whose own tag doesn't say what it proves in this speech: a new tag for it here. Say only what its read text says (no number, name or date it lacks; keep its hedges; never stronger). Cards the team selected keep their tags. Usually empty.");
+
 export const SpeechDraftSchema = z.object({
   strategy: z.object({
     summary: z.string().describe("2–4 sentences: the path to the ballot and why"),
@@ -35,6 +40,7 @@ export const SpeechDraftSchema = z.object({
   }),
   outline: z.array(z.string()).describe("Before writing any section: the title of every section you will write, in speaking order (positions and the answers under them)"),
   sections: z.array(DraftSectionSchema),
+  cardTags: CardTagsSchema,
   omitted: z.array(z.object({ targets: z.array(z.string()), reason: z.string() })).describe("arguments you deliberately did not answer and why"),
   questions: z.array(z.string()).describe("things the debaters should confirm (unclear record, missing evidence, judge preference)"),
 });
@@ -68,6 +74,7 @@ export const PatchPlanSchema = z.object({
       }),
     )
     .describe("existing sections whose answer must change (the argument it answers changed, or the team asked); keep everything that still works"),
+  cardTags: CardTagsSchema,
   notAddressed: z.array(z.object({ targets: z.array(z.string()), reason: z.string() })).describe("arguments you deliberately leave unanswered, and why"),
   questions: z.array(z.string()),
 });

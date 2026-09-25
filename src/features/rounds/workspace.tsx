@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/client/api";
 import { useDocSync, useYDocValue } from "@/client/sync/hooks";
 import { Button, cn, Dialog, Spinner, Tabs, TabsList, TabsTrigger, Textarea, toast } from "@/components/ui";
-import { useApp } from "@/components/shell/app-shell";
+import { TeamScope, useApp } from "@/components/shell/app-shell";
 import { nextSpeechFor, SPEECH_IDS, type SpeechId } from "@/domain/format";
 import { readGraph, readSlots, recordedSpeeches } from "@/shared/round-doc";
 import type { RoundBundle, RoundRecord } from "./types";
@@ -100,6 +100,7 @@ export function RoundWorkspace({ roundId }: { roundId: string }) {
   }
 
   return (
+    <TeamScope teamId={round.teamId}>
     <div className="flex h-full flex-col">
       <TopBar
         round={round}
@@ -150,6 +151,7 @@ export function RoundWorkspace({ roundId }: { roundId: string }) {
       />
       {aiEnabled ? <ResearchDialog round={round} /> : null}
     </div>
+    </TeamScope>
   );
 }
 

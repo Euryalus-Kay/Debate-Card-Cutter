@@ -262,6 +262,8 @@ function DraftProposal({ p, busy, setBusy, teamId, markOp, upd }: { p: Extract<P
           {v.newInRebuttal.length ? <Warn>New arguments in a rebuttal: {v.newInRebuttal.join("; ")}</Warn> : null}
           {v.unsupportedDropClaims?.length ? <Warn>Says something was dropped or conceded, but their speech isn&apos;t confirmed as read: {v.unsupportedDropClaims.join("; ")}. Confirm the record before claiming a drop.</Warn> : null}
           {v.positionsNotInBlock.length ? <Warn>Goes for positions not extended in the block: {v.positionsNotInBlock.join(", ")}</Warn> : null}
+          {v.library?.offered ? <div className="text-xs text-muted">Library: {v.library.offered} card{v.library.offered === 1 ? "" : "s"} fit what this speech must answer; the draft reads {v.library.used}.</div> : null}
+          <RetagNotes retags={v.retags} refused={v.retagsRefused} />
           {v.droppedCards.length ? <Warn>{v.droppedCards.length} card reference(s) removed (not in your evidence).</Warn> : null}
           {v.droppedTargets.length ? <Warn>{v.droppedTargets.length} link(s) to arguments not on the flow removed.</Warn> : null}
           {out?.questions?.length ? <div className="text-xs text-info">To confirm: {out.questions.join(" ")}</div> : null}
@@ -285,6 +287,25 @@ function DraftProposal({ p, busy, setBusy, teamId, markOp, upd }: { p: Extract<P
           </Button>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** New tags the AI gave library cards for this speech (the library keeps the original), and ones it wasn't allowed to. */
+export function RetagNotes({ retags, refused }: { retags?: { cite: string; was: string; tag: string }[]; refused?: { cite: string; tag: string; problems: string[] }[] }) {
+  if (!retags?.length && !refused?.length) return null;
+  return (
+    <div className="space-y-1">
+      {retags?.map((r, i) => (
+        <div key={`rt${i}`} className="text-xs text-muted">
+          New tag on {r.cite} for this speech: <span className="text-fg">“{r.tag}”</span> <span className="text-faint">(library tag: “{r.was.slice(0, 120)}”)</span>
+        </div>
+      ))}
+      {refused?.map((r, i) => (
+        <Warn key={`rr${i}`}>
+          Kept the library tag on {r.cite}: the suggested tag “{r.tag.slice(0, 120)}” {r.problems[0]?.replace(/^./, (c) => c.toLowerCase())}
+        </Warn>
+      ))}
     </div>
   );
 }
@@ -658,6 +679,7 @@ function PatchProposal({ p, busy, setBusy, teamId, markOp, upd, round }: { p: Ex
       {critical.length ? <Warn>After this update: {critical.map((c) => c.message).join(" ")}</Warn> : null}
       {r.remaining.length ? <Warn>Still unanswered: {r.remaining.map((a) => `“${a.text.slice(0, 70)}”`).join("; ")}</Warn> : null}
       {r.output.notAddressed.length ? <div className="text-xs text-muted">Left unanswered on purpose: {r.output.notAddressed.map((n) => n.reason).join("; ")}</div> : null}
+      <RetagNotes retags={r.retags} refused={r.retagsRefused} />
       {r.dropped.duplicates.length ? <div className="text-xs text-muted">Skipped {r.dropped.duplicates.length} answer{r.dropped.duplicates.length === 1 ? "" : "s"} the draft already has.</div> : null}
       {r.dropped.linksInPlace ? <div className="text-xs text-muted">{r.dropped.linksInPlace} suggested link{r.dropped.linksInPlace === 1 ? " was" : "s were"} already in place.</div> : null}
       <ul className="divide-y divide-line rounded-lg border border-line">

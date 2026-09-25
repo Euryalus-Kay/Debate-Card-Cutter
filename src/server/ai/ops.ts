@@ -13,8 +13,9 @@ import { readArgs, readRelations } from "@/shared/round-doc";
 import { computeCoverage, isLive, positionsAvailableFor2NR, type ArgUnit, type DraftTarget } from "@/domain/flow";
 import { isBefore, isRebuttal, SPEECHES, speechesToAnswer as speechesToAnswerFor, type SpeechId } from "@/domain/format";
 import { addLoads, countWords, estimateSeconds, presetProfile, type RateProfile } from "@/domain/timing";
-import { cardLoad, readAloud } from "@/domain/card";
-import { spanWarnings, stripIds } from "@/domain/span-check";
+import { cardLoad, readAloud, verbatimText, type BodyBlock } from "@/domain/card";
+import { retagProblems, spanWarnings, stripIds } from "@/domain/span-check";
+import { tagWarnings } from "@/domain/verify";
 import { acceptRewrites, allocateWordChange } from "@/domain/length-plan";
 import { allSections, isHumanEdited, itemLoad, sectionContentHash, type DraftItem, type DraftSection, type PMNodeJSON } from "@/shared/draft-model";
 import { buildRoundContext, renderDraft, type RoundContext } from "./context";
@@ -57,6 +58,50 @@ export interface Validation {
   lengthAdjust?: LengthAdjust;
   /** speech checks on the speech as it will stand (existing sections + this proposal) */
   checks?: SpeechCheck[];
+  /** new tags for library cards this speech gives them, and ones refused with why (B3) */
+  retags?: RetagNote[];
+  retagsRefused?: RetagRefused[];
+  /** library cards checked for fit and offered, and how many the proposal reads (B2) */
+  library?: { offered: number; used: number };
+}
+
+export interface RetagNote {
+  cardId: string;
+  cite: string;
+  was: string;
+  tag: string;
+}
+
+export interface RetagRefused {
+  cardId: string;
+  cite: string;
+  tag: string;
+  problems: string[];
+}
+
+/**
+ * New tags for library cards (B3): only for library cards the speech reads, never the team's own picks or
+ * cards already in the draft, and only when the tag says nothing the card's words don't (no new author,
+ * number or name; no certainty the read text hedges).
+ */
+export function checkCardTags(tags: { cardId: string; tag: string }[], ctx: Pick<RoundContext, "cards" | "libraryCardIds">, used: Set<string>): { kept: { cardId: string; tag: string }[]; notes: RetagNote[]; refused: RetagRefused[] } {
+  const kept: { cardId: string; tag: string }[] = [];
+  const notes: RetagNote[] = [];
+  const refused: RetagRefused[] = [];
+  const library = new Set(ctx.libraryCardIds);
+  for (const t of tags) {
+    const card = ctx.cards.find((c) => c.id === t.cardId);
+    const tag = stripIds(t.tag).replace(/\s+/g, " ").trim().slice(0, 300);
+    if (!card || !library.has(card.id) || !used.has(card.id) || !tag || tag === card.tag.trim() || kept.some((k) => k.cardId === card.id)) continue;
+    const body = card.body as BodyBlock[];
+    const problems = [...retagProblems(tag, { tag: card.tag, text: verbatimText(body) }), ...tagWarnings(tag, body).map((w) => w.message)];
+    if (problems.length) refused.push({ cardId: card.id, cite: card.shortCite, tag, problems });
+    else {
+      kept.push({ cardId: card.id, tag });
+      notes.push({ cardId: card.id, cite: card.shortCite, was: card.tag, tag });
+    }
+  }
+  return { kept, notes, refused };
 }
 
 export interface LengthAdjust {
@@ -127,10 +172,11 @@ export function validateDraft(out: SpeechDraftOutput, ctx: RoundContext, speech:
   const DROP = /\b(dropped|drops|conceded|concedes|never answered|no answer to|didn'?t answer|did not answer|went unanswered)\b/i;
   const unconfirmed = speechesToAnswerFor(speech).filter((s) => !ctx.confirmed.has(s));
   const unsupportedDropClaims = unconfirmed.length ? sections.filter((s) => DROP.test(s.analytic)).map((s) => s.title) : [];
+  const retags = checkCardTags(out.cardTags ?? [], ctx, new Set(sections.flatMap((s) => s.cardIds)));
   const clean = { ...out, strategy: { summary: stripIds(out.strategy.summary), choices: out.strategy.choices.map(stripIds), risks: out.strategy.risks.map(stripIds) }, outline: (out.outline ?? []).map(stripIds), omitted: out.omitted.map((o) => ({ ...o, reason: stripIds(o.reason) })), questions: out.questions.map(stripIds) };
   return {
-    output: { ...clean, sections },
-    validation: { unsupportedDropClaims, droppedTargets, droppedCards, unaddressed, newInRebuttal, positionsNotInBlock, estimatedSeconds: estimated, limitSeconds: ctx.limitSeconds, sectionSeconds, checks },
+    output: { ...clean, sections, cardTags: retags.kept },
+    validation: { unsupportedDropClaims, droppedTargets, droppedCards, unaddressed, newInRebuttal, positionsNotInBlock, estimatedSeconds: estimated, limitSeconds: ctx.limitSeconds, sectionSeconds, checks, retags: retags.notes, retagsRefused: retags.refused, library: { offered: ctx.libraryCardIds.length, used: new Set(sections.flatMap((s) => s.cardIds).filter((id) => ctx.libraryCardIds.includes(id))).size } },
   };
 }
 
@@ -172,11 +218,13 @@ function fakeDraft(ctx: RoundContext): SpeechDraftOutput {
     items
       .filter((i) => i.arg.positionId === pid)
       .forEach((i, n) =>
-        sections.push({ ref: `p${p}a${n}`, parentRef: `p${p}`, kind: "response", title: `${n + 1}. [AI_FAKE] Answer`, relation: "answers", targets: [i.arg.id], crossApplyFrom: "", role: "", analytic: `[AI_FAKE] They say ${i.arg.text.slice(0, 50)}. That's wrong because their evidence assumes the status quo, so it doesn't apply to the plan.`, cardIds: [], needsEvidence: "", budgetSeconds: 15, priority: 2 }),
+        sections.push({ ref: `p${p}a${n}`, parentRef: `p${p}`, kind: "response", title: `${n + 1}. [AI_FAKE] Answer`, relation: "answers", targets: [i.arg.id], crossApplyFrom: "", role: "", analytic: `[AI_FAKE] They say ${i.arg.text.slice(0, 50)}. That's wrong because their evidence assumes the status quo, so it doesn't apply to the plan.`, cardIds: (ctx.libraryFor[i.arg.id] ?? []).slice(0, 1), needsEvidence: "", budgetSeconds: 15, priority: 2 }),
       );
   });
   if (!sections.length) sections.push({ ref: "o", parentRef: "", kind: "overview", title: "[AI_FAKE] Overview", relation: "none", targets: [], crossApplyFrom: "", role: "", analytic: "[AI_FAKE] The plan solves the harms because it acts nationally, so vote for it.", cardIds: [], needsEvidence: "", budgetSeconds: 20, priority: 1 });
-  return { strategy: { summary: "[AI_FAKE] Answer everything on the flow.", choices: [], risks: [] }, outline: sections.map((x) => x.title), sections, omitted: [], questions: [] };
+  // A library card read here gets a tag from its own opening words (exercises the re-tag path).
+  const cardTags = [...new Set(sections.flatMap((x) => x.cardIds))].map((id) => ctx.cards.find((c) => c.id === id)).filter((c) => !!c).map((c) => ({ cardId: c!.id, tag: `Card says ${readAloud(c!.body as BodyBlock[]).text.split(/\s+/).slice(0, 8).join(" ").toLowerCase().replace(/[.,;:]+$/, "")}` }));
+  return { strategy: { summary: "[AI_FAKE] Answer everything on the flow.", choices: [], risks: [] }, outline: sections.map((x) => x.title), sections, cardTags, omitted: [], questions: [] };
 }
 
 export async function draftSpeech(input: DraftSpeechInput) {
@@ -184,7 +232,7 @@ export async function draftSpeech(input: DraftSpeechInput) {
   const progress = input.onProgress ? draftProgress(input.onProgress, await taskTiming(task), await taskTiming("section_revise")) : null;
   progress?.start();
   const round = await roundFor(input.roundId);
-  const ctx = await buildRoundContext(input.roundId, { speech: input.speech, draftId: input.draftId, cardIds: input.cardIds, evidenceMode: input.evidenceMode, instructions: input.instructions, rates: input.rates ?? presetProfile("fast") });
+  const ctx = await buildRoundContext(input.roundId, { speech: input.speech, draftId: input.draftId, cardIds: input.cardIds, evidenceMode: input.evidenceMode, instructions: input.instructions, rates: input.rates ?? presetProfile("fast"), abortSignal: input.abortSignal });
   const rates = ctx.rates; // capped when the judge limits speed
   const system = `${SYSTEM_BASE}\n\nSPEECH BEING PREPARED\n${SPEECH_RULES[input.speech]}`;
   const lockedNote = ctx.draft && allSections(ctx.draft).some((s) => s.locked) ? "Some sections of the current draft are LOCKED: keep them exactly as they are and plan around them (do not output replacements for them)." : "";
@@ -192,7 +240,7 @@ export async function draftSpeech(input: DraftSpeechInput) {
 
 Time limit: ${Math.round(ctx.limitSeconds)} seconds. Plan to use about ${Math.round(ctx.limitSeconds * 0.95)} seconds, with section budgets that add up to that. A speech that runs short wastes time the team needs; fill it with developed answers (warrant, comparison, implication), not filler.
 Length: this speaker reads analytics at about ${Math.round(rates.rates.analyticWpm)} words per minute (${(rates.rates.analyticWpm / 6).toFixed(0)} words per 10 seconds). Each card's read time is listed in the evidence (TIME TO READ). For a section with a budget of B seconds whose cards take C seconds, write about (B − C) × ${(rates.rates.analyticWpm / 60).toFixed(1)} words of analytic text. Across the speech, that is roughly ${Math.round((ctx.limitSeconds * 0.95 * rates.rates.analyticWpm) / 60)} words if it were all analytics, less the time of the cards you read.
-${input.evidenceMode === "selected_only" ? "Use ONLY the cards the team selected. Do not use library cards." : "Prefer the cards the team selected; use library cards only when they are clearly on point."}
+${input.evidenceMode === "selected_only" ? "Use ONLY the cards the team selected. Do not use library cards." : "Prefer the cards the team selected. Library cards listed under the evidence were checked against what this speech must answer (FITS says for which argument and what the card proves there): read one only where it is the best support for that answer, never just because it is there."}
 ${input.instructions.trim() ? `Team instructions: ${input.instructions.trim()}` : "No extra instructions."}
 ${lockedNote}
 ${ctx.draft && ctx.draft.items.length ? "There is already a draft. Build the complete speech; where an existing section already answers something well, you may keep its approach, but output the full plan." : ""}
@@ -377,7 +425,7 @@ export interface ReviseInput {
 }
 
 export async function reviseSection(input: ReviseInput) {
-  const ctx = await buildRoundContext(input.roundId, { speech: input.speech, draftId: input.draftId, cardIds: input.cardIds, evidenceMode: "selected_plus_library", instructions: input.instructions, rates: input.rates ?? presetProfile("fast") });
+  const ctx = await buildRoundContext(input.roundId, { speech: input.speech, draftId: input.draftId, cardIds: input.cardIds, evidenceMode: "selected_plus_library", instructions: input.instructions, rates: input.rates ?? presetProfile("fast"), abortSignal: input.abortSignal });
   const rates = ctx.rates;
   const sectionJson = findSection(ctx.draftJson, input.sectionId);
   if (!sectionJson) throw new Error("That section no longer exists in the draft.");
@@ -546,7 +594,7 @@ export async function fitSpeech(input: FitInput) {
   const probeCurrent = estimateSeconds(addLoads(...probe.draft.items.map(itemLoad)), probe.rates.rates);
   // Short speeches are filled (expanding with the team's evidence); long ones are cut.
   const fill = probeCurrent < probe.limitSeconds * 0.9;
-  const ctx = fill ? await buildRoundContext(input.roundId, { speech: input.speech, draftId: input.draftId, evidenceMode: "selected_plus_library", instructions: input.instructions, rates: input.rates ?? presetProfile("fast") }) : probe;
+  const ctx = fill ? await buildRoundContext(input.roundId, { speech: input.speech, draftId: input.draftId, evidenceMode: "selected_plus_library", instructions: input.instructions, rates: input.rates ?? presetProfile("fast"), abortSignal: input.abortSignal }) : probe;
   const rates = ctx.rates;
   if (!ctx.draft || !ctx.draftJson) throw new Error("Open a draft with content to fit.");
   const sections = allSections(ctx.draft);
@@ -825,7 +873,7 @@ function summarizeChanges(cs: ChangeSet, graph: RoundContext["graph"]) {
 export async function patchSpeech(input: PatchInput) {
   const round = await roundFor(input.roundId);
   if (SPEECHES[input.speech].side !== round.ourSide) throw new Error("Only your own speeches can be updated.");
-  const ctx = await buildRoundContext(input.roundId, { speech: input.speech, draftId: input.draftId, cardIds: input.cardIds, evidenceMode: input.evidenceMode, instructions: input.instructions, rates: input.rates ?? presetProfile("fast"), omitDraftText: true });
+  const ctx = await buildRoundContext(input.roundId, { speech: input.speech, draftId: input.draftId, cardIds: input.cardIds, evidenceMode: input.evidenceMode, instructions: input.instructions, rates: input.rates ?? presetProfile("fast"), abortSignal: input.abortSignal, omitDraftText: true });
   if (!ctx.draft || !ctx.draftJson) throw new Error("Open a draft to update.");
   const rates = ctx.rates;
   const instructions = input.instructions.trim();
@@ -836,7 +884,7 @@ export async function patchSpeech(input: PatchInput) {
   const base = { kind: "patch" as const, changes: summarizeChanges(cs, ctx.graph), titles, previousSeconds, limitSeconds: ctx.limitSeconds, contextRefs: { ...ctx.refs, draftHash: sectionContentHash(ctx.draftJson) } };
   if (isUpToDate(cs) && !instructions) {
     const extra = [cs.uncertain.length ? `${cs.uncertain.length} low-confidence reading${cs.uncertain.length === 1 ? "" : "s"} to confirm on the flow` : "", cs.otherFlows.length ? `${cs.otherFlows.length} unanswered on flows this speech doesn't go for` : ""].filter(Boolean);
-    const output: PatchOutput = { summary: `The draft already answers everything new on the flow${extra.length ? ` (${extra.join("; ")})` : ""}.`, adds: [], retargets: [], edits: [], notAddressed: [], questions: [] };
+    const output: PatchOutput = { summary: `The draft already answers everything new on the flow${extra.length ? ` (${extra.join("; ")})` : ""}.`, adds: [], retargets: [], edits: [], cardTags: [], notAddressed: [], questions: [] };
     const none = {
       addInfo: {} as Record<string, { positionId: string | null; where: string; seconds: number }>,
       editInfo: {} as Record<string, PatchEditInfo>,
@@ -886,6 +934,7 @@ Return only the changes: adds, retargets, edits. Leave everything else out.`;
     })),
     retargets: [],
     edits: [],
+    cardTags: [],
     notAddressed: [],
     questions: [],
   });
@@ -1058,8 +1107,9 @@ function validatePatch(out: PatchPlanOutput, ctx: RoundContext, cs: ChangeSet, j
   const positionNames = Object.fromEntries(graph.positions.map((p) => [p.id, p.name]));
   const addSeconds = Object.values(addInfo).reduce((s, x) => s + x.seconds, 0);
   const editDelta = Object.values(editInfo).reduce((s, x) => s + x.seconds - x.previousSeconds, 0);
-  const output: PatchOutput = { ...out, summary: stripIds(out.summary), adds, retargets: [...retargets.values()].map((r) => ({ ...r, reason: stripIds(r.reason) })), edits: edits.map((e) => ({ ...e, reason: stripIds(e.reason) })), notAddressed: out.notAddressed.filter((x) => x.targets.some((t) => argById.has(t))).map((x) => ({ ...x, reason: stripIds(x.reason) })), questions: out.questions.map(stripIds) };
-  return { output, addInfo, editInfo, argHashes, positionNames, estimatedSeconds: Math.round(previousSeconds + addSeconds + editDelta), checks: report.checks, remaining, dropped: { targets: droppedTargets, cards: droppedCards, duplicates, linksInPlace } };
+  const retags = checkCardTags(out.cardTags ?? [], ctx, new Set([...adds.flatMap((a) => a.cardIds), ...edits.flatMap((e) => e.cardIds)]));
+  const output: PatchOutput = { ...out, summary: stripIds(out.summary), adds, retargets: [...retargets.values()].map((r) => ({ ...r, reason: stripIds(r.reason) })), edits: edits.map((e) => ({ ...e, reason: stripIds(e.reason) })), cardTags: retags.kept, notAddressed: out.notAddressed.filter((x) => x.targets.some((t) => argById.has(t))).map((x) => ({ ...x, reason: stripIds(x.reason) })), questions: out.questions.map(stripIds) };
+  return { output, addInfo, editInfo, argHashes, positionNames, estimatedSeconds: Math.round(previousSeconds + addSeconds + editDelta), checks: report.checks, remaining, retags: retags.notes, retagsRefused: retags.refused, dropped: { targets: droppedTargets, cards: droppedCards, duplicates, linksInPlace } };
 }
 
 // ---------------------------------------------------------------------------

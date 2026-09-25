@@ -129,6 +129,7 @@ describe("sectionNodes", () => {
   const out = (sections: Partial<SpeechDraftOutput["sections"][number]>[]): SpeechDraftOutput => ({
     strategy: { summary: "", choices: [], risks: [] },
     outline: [],
+    cardTags: [],
     omitted: [],
     questions: [],
     sections: sections.map((s, i) => ({ ref: `s${i}`, parentRef: "", kind: "response", title: `S${i}`, relation: "answers", targets: [], crossApplyFrom: "", role: "", analytic: "Text.", cardIds: [], needsEvidence: "", budgetSeconds: 20, priority: 2, ...s })),
@@ -168,7 +169,7 @@ describe("applyPatch: only what changed, placed by code", () => {
   const result = (output: Partial<PatchResult["output"]>, positions: Record<string, string>): PatchResult => ({
     kind: "patch",
     upToDate: false,
-    output: { summary: "", adds: [], retargets: [], edits: [], notAddressed: [], questions: [], ...output },
+    output: { summary: "", adds: [], retargets: [], edits: [], cardTags: [], notAddressed: [], questions: [], ...output },
     changes: { unanswered: [], uncertain: [], otherFlows: [], stale: [], vanished: [] },
     titles: {},
     addInfo: Object.fromEntries(Object.entries(positions).map(([ref, positionId]) => [ref, { positionId, where: "", seconds: 10 }])),

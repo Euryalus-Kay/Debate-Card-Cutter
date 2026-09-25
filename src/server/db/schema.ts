@@ -544,6 +544,26 @@ export const jobEvents = pgTable(
   (t) => [index("job_events_job_idx").on(t.jobId, t.id)],
 );
 
+/**
+ * Which library cards fit a need (B2), cached per team and need: valid while the library is unchanged
+ * (`libraryStamp`), so drafts and updates reuse checks made after each flow update.
+ */
+export const evidenceChecks = pgTable(
+  "evidence_checks",
+  {
+    teamId: text("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    needHash: text("need_hash").notNull(),
+    libraryStamp: text("library_stamp").notNull(),
+    /** [{ cardId, fit, use }] for cards that fit (2–3), and the sides of every card checked */
+    fits: jsonb("fits").notNull().default([]),
+    sides: jsonb("sides").notNull().default({}),
+    checkedAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.teamId, t.needHash] })],
+);
+
 /** Measured latencies and failures for model/provider calls (instrumentation). */
 export const telemetry = pgTable(
   "telemetry",

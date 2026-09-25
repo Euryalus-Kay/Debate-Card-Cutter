@@ -21,3 +21,20 @@ describe("AI edits of selected words", () => {
     expect(stripIds("Extend 2AC 4 and the Lee 26 card.")).toBe("Extend 2AC 4 and the Lee 26 card.");
   });
 });
+
+import { retagProblems } from "../span-check";
+
+describe("retagProblems (new tags for library cards)", () => {
+  // SYNTHETIC card text.
+  const card = { tag: "Capital is spent", text: "Rivera 25 reports the health bill is dead in committee because political capital was spent on the budget fight in March, and 62 senators oppose it." };
+  it("allows a tag that says what the card's words say", () => {
+    expect(retagProblems("Political capital is already spent — the health bill is dead in committee", card)).toEqual([]);
+    expect(retagProblems("No link — the plan can't cost capital that was already spent on the budget", card)).toEqual([]);
+    expect(retagProblems("Perm solves: 62 senators oppose the bill regardless", card)).toEqual([]);
+  });
+  it("refuses a new number, author, or name the card lacks", () => {
+    expect(retagProblems("80 senators oppose the bill", card).join(" ")).toMatch(/80/);
+    expect(retagProblems("Capital is spent — Lee 24 agrees", card).join(" ")).toMatch(/Lee 24/);
+    expect(retagProblems("The bill is dead because China lobbied against it", card).join(" ")).toMatch(/China/);
+  });
+});
