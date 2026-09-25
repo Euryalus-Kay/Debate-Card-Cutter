@@ -1,0 +1,22 @@
+{
+  "at": "2026-09-25T22:39:59.533Z",
+  "note": "Counts only.",
+  "speech": "1AR",
+  "results": {
+    "draft": {
+      "sections": 13,
+      "mentionsInvented": 0,
+      "flaggedCiteWithoutCard": 0,
+      "droppedCardRefs": 0,
+      "questions": 3
+    },
+    "spanEdit": {
+      "warnings": 0,
+      "replacementHasNumberOrName": false
+    },
+    "comment": {
+      "quotesInReply": 1,
+      "suggestionWarnings": 0
+    }
+  }
+}
