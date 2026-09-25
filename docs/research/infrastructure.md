@@ -19,11 +19,11 @@ Researched 2026-09-25 for the Clash v2 rebuild: Next.js 16 App Router, React 19,
 | Database | Neon free plan on Postgres 18 (this matches PGlite 0.5.8, which embeds PG 18.3). Use `pg` Pool with `attachDatabasePool` on the pooled URL. Run migrations over the unpooled URL. | Neon's own recommendation for Fluid [D12]. | Running out of CU-hours or storage suspends compute or blocks writes [D3]. Point-in-time restore covers only 6 h [D1]. |
 | ORM | Drizzle ORM 0.45.3 and drizzle-kit 0.31.11, with `generate` then `migrate`. Stay on 0.x until 1.0 leaves RC. | Stable release line. Includes runtime migrators for neon-http and pglite [Z2][V-src]. | 1.0 is in RC (`1.0.0-rc.4`), so a migration will come later. |
 | Auth | Self-hosted **Better Auth 1.7.6** with the Drizzle adapter, email + password, the organization plugin (teams off), and the admin plugin. Make it invite-only. Store rate-limit counters in the database. | Current, maintained, and runs inside Next.js. Auth.js is in maintenance mode [A10]. Neon's managed Better Auth runs 1.4.18 and supports orgs only partially [D14][D16]. | Password resets, magic links, and emailed invitations need email. Resend's free tier requires a verified domain [A12][A13]. |
-| Real-time editing | **Yjs 13.6.33 + TipTap 3.31.3**, with **one top-level `Y.XmlFragment` per section**. Run a **custom HTTP state-vector sync** over Route Handlers with adaptive polling. No WebSockets in v1. | School networks may block WebSockets, and every hosted Yjs service found is WebSocket-only. Yjs updates are idempotent and state vectors repair losses (§6.2). | Polling costs function invocations (§6.7). Presence is coarse, around 1–2 s. |
+| Real-time editing | **Yjs 13.6.33 + TipTap 3.31.3**, with **one top-level `Y.XmlFragment` per section**. Run a **custom HTTP state-vector sync** over Route Handlers with adaptive polling. No WebSockets in v1. | School networks may block WebSockets. Every hosted Yjs backend evaluated (Liveblocks, Y-Sweet, PartyKit, Hocuspocus) uses WebSockets for real-time traffic; Electric's HTTP-based option wasn't evaluated in depth (§6.4). Yjs updates are idempotent and state vectors repair losses (§6.2). | Polling costs function invocations (§6.7). Presence is coarse, around 1–2 s. |
 | Offline | Your own IndexedDB outbox, plus a doc store (y-indexeddb is acceptable for doc state). Serwist through `@serwist/turbopack`. Call `navigator.storage.persist()`. Install as a home-screen PWA on iPad. | Accurate "saved on this device" requires knowing when the IndexedDB commit finished. y-indexeddb writes fire-and-forget (§6.1). | Safari evicts script-written storage after 7 days without interaction, unless the app is installed [O3][O5]. |
 | Background jobs | **Vercel Workflows** (GA since 2026-04-16) for the 1–10 minute research pipeline, with a Postgres `job` row as the source of truth. Trigger.dev is the fallback if any single step must exceed 300 s. | Built in, with durable steps, retries, streams, and cancel. The Hobby allowance of 50k events/month covers hundreds of runs [V25]. | Each step is capped at 300 s on Hobby. Run data is kept only 1 day on Hobby [V25]. |
 | Files | Vercel Blob **private** store, uploaded with presigned client uploads (`uploadPresigned` / `handleUploadPresigned`). | Avoids the 4.5 MB function body cap. Private storage is GA [V20][V21][V22]. | Hobby Blob quotas are 1 GB storage and 2k advanced ops per month, with a 30-day lockout if exceeded [V19]. |
-| DOCX in | Keep the direct OOXML parser already in `src/server/ingest/docx.ts` (fflate + XML). Don't use mammoth. | On the real sample files, mammoth's default HTML dropped all highlights and all underlines and never resolves character-style formatting (§8.1). | Style inheritance and toggle-property rules must be implemented correctly. |
+| DOCX in | Keep the direct OOXML parser already in `src/server/ingest/docx.ts` (fflate + XML). Don't use mammoth. | On the three real sample files, mammoth's default HTML dropped every highlight and underline. It also doesn't apply formatting that comes from character styles such as Verbatim's "Style Underline" (§8.1). | Style inheritance and toggle-property rules must be implemented correctly. |
 | DOCX out | `docx` 9.7.2 with explicit character-style IDs. Override the built-in headings through `styles.default.headingN`. Consider `externalStyles` taken from a real Verbatim file. | Style IDs, highlights, and sizes come out correctly (§8.2). | Defining `Heading1` through `paragraphStyles` creates **duplicate style IDs** (§8.2). |
 | PDF / OCR | `unpdf` `extractTextItems` for layout-aware text. OCR fallback through Claude or Gemini native PDF input, or Mistral OCR. Always label OCR output as machine-transcribed. | Serverless-ready. OCR pricing is modest (§8.4). | Hallucinated OCR text reaching evidence. Needs deterministic verification and human confirmation. |
 | Tests | Vitest 5, PGlite 0.5.8 (unit/DB), and Playwright 1.63 with two contexts, `setOffline`, and `routeWebSocket`. Run a small suite against a Neon branch. | Fast and deterministic. | PGlite cannot emulate PgBouncer transaction pooling or multi-connection locking. |
@@ -43,7 +43,7 @@ Researched 2026-09-25 for the Clash v2 rebuild: Next.js 16 App Router, React 19,
 | Streamed responses | Duration includes streaming time [V1]. Vercel's KB says streamed responses "don't have this limit" of 4.5 MB [V23]. | [V] |
 | Idle long-lived HTTP | Vercel sends HTTP/2 PING frames. HTTP/1.1 clients and intermediaries may close idle connections, so "stream progress or heartbeat data" [V2]. | [V] |
 | Bundle size | 250 MB uncompressed. The "large functions" beta allows up to 5 GB. | [V] [V1] |
-| Concurrency, region, file descriptors | Up to 30,000 concurrency. Default region `iad1`, single region on Hobby. 1,024 file descriptors shared per instance. | [V] [V1] |
+| Concurrency, region, file descriptors | Up to 30,000 concurrency. Default region `iad1`; multi-region is Pro/Enterprise only. 1,024 file descriptors "shared across all concurrent executions (including runtime usage)". | [V] [V1] |
 | Billing model | Active CPU excludes I/O wait. Provisioned memory is billed for instance lifetime until the last in-flight request completes. Instances pause when idle. | [V] [V7] |
 
 **Included usage per month [V3][V32]:** 1,000,000 function invocations; 4 active CPU-hours; 360 GB-hours of provisioned memory; 100 GB Fast Data Transfer; 10 GB Fast Origin Transfer; 1,000,000 Edge Requests; 50,000 Workflow events; 1 GB Workflow data written.
@@ -254,12 +254,14 @@ Latest stable versions are `drizzle-orm@0.45.3` and `drizzle-kit@0.31.11`, both 
 
 Self-host **Better Auth 1.7.6** in Next.js with the Drizzle adapter on Neon. Neon's managed version lags behind (1.4.18) and lacks teams and custom roles. Clerk adds a vendor and branding for no real gain at 2–10 users.
 
-Configuration sketch (all verified capabilities):
+Configuration sketch. Each capability is verified; how they're combined is **[I]**.
 
-- `emailAndPassword: { enabled: true, disableSignUp: true }` (scrypt hashing, 8–128 characters [A7]).
-- The `admin` plugin, so the team captain or coach can `createUser`, `setUserPassword`, and `revokeUserSessions` [A8].
-- The `organization` plugin with `allowUserToCreateOrganization` limited to admins [A5].
-- Invite-only sign-up is enforced with `databaseHooks.user.create.before`, which returns `false` or throws `APIError` unless a valid pending invitation exists [A9].
+- `emailAndPassword: { enabled: true }` (scrypt hashing, 8–128 characters [A7]).
+- Invite-only access, in one of two ways:
+  - **(a) Simplest:** `disableSignUp: true` [A7]. Admins create accounts through the `admin` plugin's `createUser` and set passwords with `setUserPassword` [A8].
+  - **(b) Self-service join:** keep sign-up enabled and gate it in `databaseHooks.user.create.before`. The hook returns `false`, or throws `APIError`, unless a valid pending invitation exists for that email [A9].
+- The `admin` plugin, so the team captain or coach can manage users and `revokeUserSessions` [A8].
+- The `organization` plugin (teams off) with `allowUserToCreateOrganization` limited to admins [A5].
 - `rateLimit: { storage: "database" }` [A3].
 - `session.cookieCache` enabled with a ~5 min `maxAge`, to cut session DB reads on every sync poll [A4].
 - **Offline [I]:** a sync request made after the session expires returns 401. Keep local edits, show "Signed out: changes are saved on this device", and never clear IndexedDB on sign-out while the outbox is non-empty.
@@ -399,7 +401,9 @@ Experiment 6 shows why re-encoding through a gc'd doc, not `mergeUpdates` alone,
 1. When a suggestion is requested, record the section, relative-position anchors for the target range (from `absolutePositionToRelativePosition`, encoded with `Y.encodeRelativePosition`), `base_text`, and the state vector.
 2. AI output is **never written into the Y.Doc by the server**. It is stored as an `ai_suggestion` row and rendered as a decoration or side panel.
 3. On accept, the client resolves the anchors against its current doc. If the text between them no longer equals `base_text`, the suggestion is marked `stale` and must be re-run.
-4. Otherwise apply it in one transaction with origin `{kind:'ai', suggestionId}`. Save a `doc_version` first. Configure the editor's undo manager `trackedOrigins` to include that AI origin, so Ctrl-Z reverts the AI change without touching human text (experiment 9).
+4. Otherwise save a `doc_version` first, then apply the change in one Yjs transaction with a dedicated origin. Use `ydoc.transact(fn, new AiApplyOrigin(suggestionId))`, editing the section's Y types directly or through y-tiptap's `updateYFragment`.
+   - Changes made through TipTap editor commands carry the ySync plugin's origin instead of your own [V-src].
+   - `Y.UndoManager` matches a tracked origin either by identity or by its **constructor** [V-src, `UndoManager.js`]. So `Collaboration.configure({ yUndoOptions: { trackedOrigins: [AiApplyOrigin] } })` lets Ctrl-Z revert the AI change without touching human text (experiment 9).
 5. Pure insertions, such as adding a new card section, never conflict and can skip the check.
 
 **Presence:** the transport carries a small awareness payload: `{user, sectionId, cursor}` from y-protocols `encodeAwarenessUpdate`. The server keeps no in-memory state. It stores the payload in a `presence(doc_id, client_id, state, expires_at)` table with a 30 s TTL (matching y-protocols' timeout). Expect "who is in which section" and 1–2 s cursor latency, not character-level live cursors. With one editor per section sharing one awareness, y-tiptap draws a remote cursor only in the editor whose fragment contains it (it checks `anchor !== null && head !== null`) [V-src]. Test the focus/blur hand-off between section editors; all of them write the same `cursor` field by default.
@@ -488,7 +492,7 @@ The outbox count is the single truth for "unsynced". Show a red badge if the out
 ### 8.1 DOCX parsing
 
 **mammoth 1.12.3 [F1]:**
-- It "aims to produce simple and clean HTML … ignoring other details (font, text size, colour)".
+- It "aims to produce simple and clean HTML by using semantic information in the document, and ignoring other details". It doesn't try to copy styling such as font, text size, and colour.
 - Underlines are ignored by default.
 - Style-map matchers for underline and highlight only match *explicit* run formatting, "not … because of its paragraph or run style".
 - The `transformDocument` API is "unstable".
@@ -641,6 +645,25 @@ Implement the **toggle-property rule**: bold, italic, caps, and similar properti
 7. **[U]** Whether the "large functions" beta (up to 5 GB) is usable on Hobby for LibreOffice. The recommendation keeps rendering in CI regardless.
 8. **Decision for the user:** confirm the app qualifies as non-commercial Hobby use [V32]. Otherwise budget for Pro ($20 per developer seat per month [V3]).
 9. **Decision for the user:** a domain for email (Resend), or launch with admin-provisioned accounts only.
+
+---
+
+## 12. Notes on the in-repo sync store (commit `0f0433a`, read 2026-09-25)
+
+These come from reading `src/server/docs/store.ts`, `src/app/api/docs/[docId]/sync/route.ts`, and `drizzle/0001_init.sql` **[V-src]**. The impact assessments are **[I]**.
+
+1. **The cursor is a global `bigserial`.**
+   - `doc_updates.seq` is `bigserial`. `pull()` returns rows with `seq > since` and sets `headSeq` to the last row seen.
+   - If two pushes overlap (both partners typing) and the later sequence number commits first, a concurrent pull can report `headSeq = 105` before 104 is visible. That client then never receives 104 unless a state-vector reconcile runs [PG1].
+   - Fix options:
+     - Assign per-document sequence numbers under a `documents` row lock (`SELECT … FOR UPDATE`, then insert with `head_seq + i`), as in §6.5.
+     - At minimum, make the client send `wantStateVector` periodically and push whatever the server lacks.
+2. **Compaction can orphan or delete an update.**
+   - `compact()` reads rows outside a transaction, sets `upTo` to the maximum `seq` it read, and in a batch sets `snapshotSeq = upTo` and deletes `seq <= upTo`.
+   - An update with a lower `seq` that commits late is either deleted without being merged, or left below `snapshotSeq`. `pull()` and `loadDoc()` never read below `snapshotSeq`, so that update disappears from every client's view.
+   - Fix: compact under the same per-document lock used for inserts (with the neon-http driver, keep it to a single statement or use a TCP or WebSocket transaction). Also skip compaction while `pendingStructs` or `pendingDs` is non-null.
+3. **Compaction doesn't garbage-collect.** `compact()` uses `Y.mergeUpdates`. Re-encoding through `new Y.Doc({ gc: true })` stores much less (experiment 6: 19.9 KB vs 534 B).
+4. **Server-side AI writes.** `applyServerChange()` writes server-side mutations, such as AI output, into the document. If AI output goes through it, callers must apply the precondition check from §6.5 (anchors plus `base_text`). Otherwise a stale server view can clobber a partner's offline edits (experiment 9).
 
 ---
 

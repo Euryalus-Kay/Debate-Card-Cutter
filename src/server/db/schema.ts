@@ -228,6 +228,8 @@ export const documents = pgTable(
     /** merged Yjs state up to snapshotSeq */
     snapshot: bytea("snapshot"),
     snapshotSeq: bigint("snapshot_seq", { mode: "number" }).notNull().default(0),
+    /** last per-document sequence number handed out (bumped under the row lock) */
+    headSeq: bigint("head_seq", { mode: "number" }).notNull().default(0),
     /** plain text for search, refreshed on compaction */
     searchText: text("search_text").notNull().default(""),
     meta: jsonb("meta").notNull().default(sql`'{}'::jsonb`),
@@ -242,7 +244,9 @@ export const documents = pgTable(
 export const docUpdates = pgTable(
   "doc_updates",
   {
-    seq: bigserial("seq", { mode: "number" }).primaryKey(),
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    /** per-document sequence; commit order equals seq order (see store.push) */
+    seq: bigint("seq", { mode: "number" }).notNull(),
     docId: text("doc_id")
       .notNull()
       .references(() => documents.id, { onDelete: "cascade" }),
@@ -254,7 +258,7 @@ export const docUpdates = pgTable(
     origin: text("origin").notNull().default("user"),
     createdAt: createdAt(),
   },
-  (t) => [index("doc_updates_doc_seq_idx").on(t.docId, t.seq), uniqueIndex("doc_updates_doc_hash_uq").on(t.docId, t.hash)],
+  (t) => [uniqueIndex("doc_updates_doc_seq_uq").on(t.docId, t.seq), uniqueIndex("doc_updates_doc_hash_uq").on(t.docId, t.hash)],
 );
 
 export const docVersions = pgTable(

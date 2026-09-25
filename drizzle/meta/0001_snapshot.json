@@ -1,6 +1,6 @@
 {
-  "id": "29930fa2-53d2-4196-b456-011b0efcb66e",
-  "prevId": "69bd8a17-2b84-4724-953f-6571c0a5b59c",
+  "id": "acd2af62-540b-4bb0-b1c4-a8424845e46b",
+  "prevId": "5fd14162-6486-4fc3-8936-1f3deb266b8b",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -750,10 +750,16 @@
       "name": "doc_updates",
       "schema": "",
       "columns": {
-        "seq": {
-          "name": "seq",
+        "id": {
+          "name": "id",
           "type": "bigserial",
           "primaryKey": true,
+          "notNull": true
+        },
+        "seq": {
+          "name": "seq",
+          "type": "bigint",
+          "primaryKey": false,
           "notNull": true
         },
         "doc_id": {
@@ -803,8 +809,8 @@
         }
       },
       "indexes": {
-        "doc_updates_doc_seq_idx": {
-          "name": "doc_updates_doc_seq_idx",
+        "doc_updates_doc_seq_uq": {
+          "name": "doc_updates_doc_seq_uq",
           "columns": [
             {
               "expression": "doc_id",
@@ -819,7 +825,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -1029,6 +1035,13 @@
         },
         "snapshot_seq": {
           "name": "snapshot_seq",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "head_seq": {
+          "name": "head_seq",
           "type": "bigint",
           "primaryKey": false,
           "notNull": true,

@@ -82,9 +82,24 @@ exposed through a Cloudflare tunnel (`zaincardcutter.xyz`).
 | P-03 | Retired Claude model IDs | Fixed in v2 (model registry, D-05) |
 | P-04 | Perplexity key leaked + out of quota | User action (EXT-02) |
 | P-05 | Public repo with secrets in history | User action recommended (EXT-03) |
+| P-06 | Global sequence numbers could let a client skip a concurrently committed update | Fixed (D-04a); verified by `scripts/sync-stress.ts` on Neon |
+| P-07 | Pull read snapshot pointer and rows in two statements → updates hidden by concurrent compaction (stress test: a puller ended with 87/200 items) | Fixed: single-statement pull; 5/5 stress runs pass |
+| P-08 | Concurrent creation of the same keyed nested Y.Map loses fields | Fixed (D-04b); unit-tested |
 
 ## 3. Architecture decisions
-(see section entries D-xx below; rationale kept brief)
+| ID | Decision | Rationale (evidence) |
+|---|---|---|
+| D-01 | Rebuild on current Next.js 16 / React 19 / TypeScript, deployed to Vercel project `clash-debate` | Retain the familiar stack; v1 code kept on `main` for reference |
+| D-02 | **Neon Postgres** (Vercel Marketplace, already installed) instead of Supabase | Supabase free tier pauses after 7 days idle and v1's project expired. Neon scales to zero but resumes automatically, and needs no new account. Trade-off: no built-in realtime/auth/storage, so those are handled below |
+| D-03 | Better Auth (email + password) for accounts; **custom teams + hashed invite links** (no email dependency) | Self-hosted, current (1.7.6). Team authorization is simple SQL checked on every route (`server/authz.ts`) |
+| D-04 | **Yjs CRDT documents** for speech drafts, library files, and round state, synced over **plain HTTPS** (adaptive polling, no WebSockets) | School/tournament networks may block WebSockets; every hosted Yjs backend requires them (infrastructure.md §6.4). CRDT merge means no lost edits; IndexedDB outbox gives offline recovery |
+| D-04a | Per-document `head_seq` bumped under the row lock in a single statement; `pull` is a single statement | Found by research review + reproduced by stress test: a global bigserial and two-statement pull could skip updates (P-06, P-07) |
+| D-04b | Keyed shared records (slots, strategy) use flat Y.Map keys | Concurrent creation of the same nested Y.Map loses one side's fields (infrastructure.md §6.2) |
+| D-05 | One model registry; task-specific routing. Anthropic-first: AI SDK 7 + `@ai-sdk/anthropic` for streamed/structured work; raw Anthropic SDK for evidence retrieval (`web_fetch` returns full text) | models-and-providers.md §9. Gemini excluded: API terms forbid apps likely used by under-18s |
+| D-06 | Evidence text is never produced by a model: models select spans/phrases; code copies verbatim text from stored sources and verifies it (`domain/verify.ts`) | Core integrity requirement; v1 let the model retype sources |
+| D-07 | Direct OOXML parser for DOCX import; hand-written OOXML writer for export (Verbatim style IDs: Heading1–4 = Pocket/Hat/Block/Tag; character styles for cite/underline/emphasis) | mammoth drops highlights and style-based underline (verified on real files, infrastructure.md §8.1) |
+| D-08 | Card text is protected in the editor (marks editable, text not) and sections can be locked; enforced by ProseMirror transaction filters | Human control + integrity; tested in `shared/__tests__/editor.test.ts` |
+| D-09 | AI output is stored as a proposal tied to the hashes of its inputs; humans apply it, and stale proposals are flagged | Never overwrite newer human work |
 
 ## 4. External dependencies requiring user action
 | ID | What | Status |
@@ -94,4 +109,13 @@ exposed through a Cloudflare tunnel (`zaincardcutter.xyz`).
 | EXT-03 | Consider making the GitHub repo private | Recommended |
 
 ## 5. Test results
-(to be filled as tests run; each entry marked **verified / partially verified / unverified**)
+Each entry is marked **verified**, **partially verified**, or **unverified**.
+
+| Date | Area | Result | Status |
+|---|---|---|---|
+| 09-25 | Domain logic: formats, timing/calibration, citations, quote verification, coverage, contradictions | 39 unit tests pass | verified |
+| 09-25 | DOCX export → import round trip (headings, cites, underline/emphasis/highlight spans, omissions) | pass | verified (synthetic fixture; real Verbatim files pending) |
+| 09-25 | Editor integrity guards (card text protected, marks editable, locks, id de-duplication) | 7 tests pass (happy-dom) | verified |
+| 09-25 | Doc store on PGlite: convergence, dedupe, compaction, server-side changes | 4 tests pass | verified |
+| 09-25 | Client sync: offline edits survive restart, lost response no duplicate, concurrent merge, repair handshake | 5 tests pass | verified |
+| 09-25 | **Neon concurrency stress**: 4 writers × 50 updates, 3 pullers, concurrent compaction | 5/5 runs: all pullers converge to 200/200 | verified |

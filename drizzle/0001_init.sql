@@ -74,7 +74,8 @@ CREATE TABLE "cards" (
 );
 --> statement-breakpoint
 CREATE TABLE "doc_updates" (
-	"seq" bigserial PRIMARY KEY NOT NULL,
+	"id" bigserial PRIMARY KEY NOT NULL,
+	"seq" bigint NOT NULL,
 	"doc_id" text NOT NULL,
 	"update" "bytea" NOT NULL,
 	"hash" text NOT NULL,
@@ -106,6 +107,7 @@ CREATE TABLE "documents" (
 	"status" text DEFAULT 'draft' NOT NULL,
 	"snapshot" "bytea",
 	"snapshot_seq" bigint DEFAULT 0 NOT NULL,
+	"head_seq" bigint DEFAULT 0 NOT NULL,
 	"search_text" text DEFAULT '' NOT NULL,
 	"meta" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"created_by" text,
@@ -357,7 +359,7 @@ CREATE INDEX "cards_team_updated_idx" ON "cards" USING btree ("team_id","updated
 CREATE INDEX "cards_team_hash_idx" ON "cards" USING btree ("team_id","body_hash");--> statement-breakpoint
 CREATE INDEX "cards_search_idx" ON "cards" USING gin ("search");--> statement-breakpoint
 CREATE INDEX "cards_tag_trgm_idx" ON "cards" USING gin ("tag" gin_trgm_ops);--> statement-breakpoint
-CREATE INDEX "doc_updates_doc_seq_idx" ON "doc_updates" USING btree ("doc_id","seq");--> statement-breakpoint
+CREATE UNIQUE INDEX "doc_updates_doc_seq_uq" ON "doc_updates" USING btree ("doc_id","seq");--> statement-breakpoint
 CREATE UNIQUE INDEX "doc_updates_doc_hash_uq" ON "doc_updates" USING btree ("doc_id","hash");--> statement-breakpoint
 CREATE INDEX "doc_versions_doc_idx" ON "doc_versions" USING btree ("doc_id","created_at");--> statement-breakpoint
 CREATE INDEX "documents_team_kind_idx" ON "documents" USING btree ("team_id","kind","updated_at");--> statement-breakpoint
