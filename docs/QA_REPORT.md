@@ -12,7 +12,7 @@ Decisions, problems and the full test log are in [PROJECT_RECORD.md](PROJECT_REC
 - CX help, the last-rebuttal scorecard, opponent memory, the analytics bank.
 - Spend visibility, a monthly budget, and rate limits.
 
-Every automated suite passes. Production passes a 22-step smoke test with real models.
+Every automated suite passes. Production passes a 23-step smoke test with real models.
 
 **Not verified here:**
 - Live speech-to-text: it needs the parent's `OPENAI_API_KEY` in Vercel and a person to allow audio capture in Chrome. Transcript paste and upload are verified.
@@ -27,7 +27,7 @@ Every automated suite passes. Production passes a 22-step smoke test with real m
 | TypeScript and ESLint | clean | verified |
 | Production build (local, separate worktree) | builds | verified |
 | End-to-end, fake model (`E2E_FAKE=1`) | 22 passed. 2 skipped by design: the real-model test and the screenshot walkthrough. One run failed on a timeout while a real-model build was running on the same machine; the next two runs passed | verified |
-| Production smoke test (`scripts/e2e/prod-smoke.ts`, real models) | 22/22 steps (see §11) | verified |
+| Production smoke test (`scripts/e2e/prod-smoke.ts`, real models) | 23/23 steps (see §11) | verified |
 
 The end-to-end suite covers:
 - sign-in gate, round creation, partners co-editing, locks, offline edits;
@@ -115,7 +115,7 @@ The end-to-end suite covers:
 | Cutting a card (cut step) | 7.1 s | 11.5 s | 1.6 s | $0.015 |
 | Planning a file | 62.5 s | 66.4 s | 12.1 s | $0.13 |
 
-- **Production smoke timings:** typed notes → flow 5.5 s; fast 2AC draft 63.5 s including fit to time; update 38.1 s; selection edit 4.1 s; research job 10.9 s; one-card file build 99.7 s (plan and research).
+- **Production smoke timings (last run):** typed notes → flow 5.6 s; fast 2AC draft 60.8 s including fit to time; update 30.0 s; selection edit 3.1 s; research job 11.3 s; one-card file build 81.5 s (plan 56 s, research 25 s); CX help about 20 s.
 - **Sync:** partners see each other within about 1–3 s over HTTPS polling (E2E).
 
 ## 9. Accessibility
@@ -143,12 +143,14 @@ Settings shows the month's spend by feature. The team's monthly budget defaults 
 
 ## 11. Production
 
-Each deploy was preceded by its migrations (0003–0006), applied while production had 0 users. After the last deploy:
-- **Smoke test:** 22/22 steps, covering:
+Each deploy was preceded by its migrations (0003–0006), applied while production had 0 users. After the last deploy (commit 8681ce2):
+- **Smoke test:** 23/23 steps, covering:
   - sign-up and invites, access control, Blob upload and flow import;
   - library import and dedupe, speech-to-text gating, two-client sync;
   - typed notes → flow, the fast draft, the update, a selection edit, stopping a job;
-  - a background research job, a one-card file build, Word export, and outsider checks.
+  - a background research job, a one-card file build (plan 56 s, card 25 s);
+  - CX help (10 questions), the spend view, the budget (a partner can't change it), and opponent memory;
+  - Word export, and outsider checks.
 - **Cleanup:** QA accounts and files removed; production has 0 users, teams, rounds, and cards.
 - **Environment:** Vercel holds `ANTHROPIC_API_KEY` and no Gemini key. `OPENAI_API_KEY` is not set, so server speech-to-text is off.
 
