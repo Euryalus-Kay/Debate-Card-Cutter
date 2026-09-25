@@ -12,6 +12,7 @@
  * typed notes. Nothing is recorded or kept beyond the transcription.
  */
 
+import { upload } from "@vercel/blob/client";
 import { useEffect, useRef, useState } from "react";
 import type * as Y from "yjs";
 import { Ear, Mic, MonitorUp, AppWindow, Square, Upload } from "lucide-react";
@@ -198,7 +199,7 @@ export function useListener(opts: { roundId: string; doc: Y.Doc; speech: SpeechI
 }
 
 /** The "Listen" control and transcript upload, for one opponent speech. */
-export function ListenControls({ roundId, doc, speech, recordingAllowed, keywords }: { roundId: string; doc: Y.Doc; speech: SpeechId; recordingAllowed: boolean; keywords: () => string }) {
+export function ListenControls({ roundId, teamId, doc, speech, recordingAllowed, keywords }: { roundId: string; teamId: string; doc: Y.Doc; speech: SpeechId; recordingAllowed: boolean; keywords: () => string }) {
   const listener = useListener({ roundId, doc, speech, keywords });
   const [consentFor, setConsentFor] = useState<Source | null>(null);
   const [agreed, setAgreed] = useState(false);
@@ -235,11 +236,22 @@ export function ListenControls({ roundId, doc, speech, recordingAllowed, keyword
     }
     if (!file.type.startsWith("audio/") && !/\.(m4a|mp3|wav|webm|ogg|aac)$/i.test(file.name)) return toast(recordingAllowed ? "Upload a recording (m4a, mp3, wav, webm) or a transcript (vtt, srt, txt)." : "Upload a transcript (vtt, srt, txt).", "warn");
     if (!recordingAllowed) return toast("This round's rules don't allow recordings. Paste or upload a transcript, or type what you hear.", "warn");
-    if (file.size > 4 * 1024 * 1024) return toast("Recordings over 4 MB: split them (one speech at a time), or paste a transcript.", "warn");
+    if (file.size > 25 * 1024 * 1024) return toast("Recordings over 25 MB: upload one speech at a time (about 25 minutes), or paste a transcript.", "warn");
     const form = new FormData();
     form.set("roundId", roundId);
-    form.set("audio", file);
     form.set("keywords", keywords());
+    form.set("fileName", file.name);
+    if (file.size > 4 * 1024 * 1024) {
+      // Too big for one request: straight to the team's storage first, deleted once transcribed.
+      toast("Uploading the recording…");
+      try {
+        const safe = file.name.replace(/[^\w.\-]+/g, "_").slice(0, 120);
+        const blob = await upload(`teams/${teamId}/incoming/${safe}`, file, { access: "private", handleUploadUrl: "/api/blob/upload", clientPayload: JSON.stringify({ teamId, purpose: "recording" }), multipart: file.size > 8 * 1024 * 1024 });
+        form.set("pathname", blob.pathname);
+      } catch (e) {
+        return toast(`Couldn't upload the recording: ${(e as Error).message}`, "bad");
+      }
+    } else form.set("audio", file);
     toast("Transcribing the recording…");
     const res = await fetch("/api/transcribe", { method: "POST", body: form, credentials: "same-origin" });
     const out = (await res.json().catch(() => ({}))) as { text?: string; error?: string };
@@ -327,7 +339,7 @@ export function ListenControls({ roundId, doc, speech, recordingAllowed, keyword
         open={paste}
         onOpenChange={setPaste}
         title={`Add a transcript of their ${speech}`}
-        description={`${recordingAllowed ? "Upload a recording (m4a, mp3, wav, webm, up to 4 MB) or a transcript (vtt, srt, txt)" : "Upload a transcript (vtt, srt, txt)"}, or paste the text. It goes into the notes and onto the flow like typed notes.`}
+        description={`${recordingAllowed ? "Upload a recording (m4a, mp3, wav, webm, up to 25 MB) or a transcript (vtt, srt, txt)" : "Upload a transcript (vtt, srt, txt)"}, or paste the text. It goes into the notes and onto the flow like typed notes.`}
         footer={
           <>
             <label className="mr-auto">

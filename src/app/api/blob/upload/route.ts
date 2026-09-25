@@ -9,6 +9,7 @@ import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { z } from "zod";
 import { handle, HttpError, requireTeam, requireUser } from "@/server/authz";
 import { MAX_IMPORT_BYTES } from "@/server/library/import-job";
+import { isTeamIncomingPath } from "@/server/uploads";
 
 const Payload = z.object({ teamId: z.string().min(1), purpose: z.enum(["library", "recording"]) });
 
@@ -27,7 +28,7 @@ export const POST = handle(async (request: Request) => {
       const p = Payload.safeParse(JSON.parse(clientPayload ?? "{}"));
       if (!p.success) throw new HttpError(400, "Invalid upload.");
       await requireTeam(u.id, p.data.teamId);
-      if (!pathname.startsWith(`teams/${p.data.teamId}/incoming/`)) throw new HttpError(400, "Invalid upload path.");
+      if (!isTeamIncomingPath(p.data.teamId, pathname)) throw new HttpError(400, "Invalid upload path.");
       return {
         allowedContentTypes: TYPES[p.data.purpose],
         maximumSizeInBytes: p.data.purpose === "library" ? MAX_IMPORT_BYTES : 25 * 1024 * 1024,

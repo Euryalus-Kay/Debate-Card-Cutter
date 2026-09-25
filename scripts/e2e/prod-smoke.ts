@@ -158,6 +158,52 @@ await step("upload 1AC + 1NC .docx to Blob and add to the flow", async () => {
   return { a, n };
 });
 
+await step("library: a file goes straight to Blob, is split into cards and labeled; re-importing finds only duplicates; another team's path is refused", async () => {
+  const { upload: blobUpload } = await import("@vercel/blob/client");
+  const bytes = readFileSync(`${docsDir}/synthetic-1nc.docx`);
+  type ImportView = { job: { status: string; result: { created: number; duplicates: number; variants: number; labeled: number } | null; error: string | null } };
+  const importOnce = async () => {
+    const blob = await blobUpload(`teams/${teamId}/incoming/smoke-1nc.docx`, new Blob([bytes]), { access: "private", handleUploadUrl: `${base}/api/blob/upload`, clientPayload: JSON.stringify({ teamId, purpose: "library" }), headers: { cookie: A.cookie(), origin: base } });
+    const r = await A.json<{ jobId: string }>("/api/library/imports", { method: "POST", json: { teamId, pathname: blob.pathname, fileName: "smoke-1nc.docx", size: bytes.length } });
+    assert(r.status === 202, `start: ${r.status} ${JSON.stringify(r.body).slice(0, 200)}`);
+    const deadline = Date.now() + 180_000;
+    let job: ImportView["job"] | null = null;
+    while (Date.now() < deadline) {
+      const g: { status: number; body: ImportView } = await A.json<ImportView>(`/api/library/imports/${r.body.jobId}?teamId=${teamId}`);
+      job = g.body.job;
+      if (!["queued", "running"].includes(job.status)) break;
+      await new Promise((res) => setTimeout(res, 2000));
+    }
+    assert(job?.status === "succeeded" && job.result, `import ended ${job?.status}: ${job?.error}`);
+    return job!.result!;
+  };
+  const t0 = Date.now();
+  const first = await importOnce();
+  const firstMs = Date.now() - t0;
+  assert(first.created > 0 && first.labeled > 0, `first import ${JSON.stringify(first)}`);
+  const again = await importOnce();
+  assert(again.created === 0 && again.duplicates >= first.created, `re-import ${JSON.stringify(again)}`);
+  const found = await A.json<{ cards: { id: string }[] }>(`/api/cards?teamId=${teamId}&q=Rivera&limit=10`);
+  assert(found.status === 200 && found.body.cards.length > 0, `search found ${found.body.cards?.length}`);
+  const bad = await A.json("/api/library/imports", { method: "POST", json: { teamId, pathname: `teams/${teamId}/incoming/../../tm_other/incoming/x.docx`, fileName: "x.docx", size: 10 } });
+  assert(bad.status === 400, `path outside the team's folder: ${bad.status}`);
+  return { first, firstMs, again, found: found.body.cards.length };
+});
+
+await step("speech-to-text: answers or says it isn't set up (no key), and never reads another team's files", async () => {
+  const other = new FormData();
+  other.set("roundId", roundId!);
+  other.set("pathname", "teams/tm_other/incoming/x.m4a");
+  const bad = await A.json("/api/transcribe", { method: "POST", body: other });
+  assert(bad.status === 400, `another team's recording: ${bad.status}`);
+  const form = new FormData();
+  form.set("roundId", roundId!);
+  form.set("audio", new File([new Uint8Array(2000)], "silence.webm", { type: "audio/webm" }));
+  const r = await A.json<{ error?: string }>("/api/transcribe", { method: "POST", body: form });
+  assert([200, 501, 502].includes(r.status), `transcribe: ${r.status} ${JSON.stringify(r.body).slice(0, 160)}`);
+  return { status: r.status, configured: r.status !== 501 };
+});
+
 const draftId = await step("create a 2AC draft", async () => {
   const r = await A.json<{ id: string }>(`/api/rounds/${roundId}/drafts`, { method: "POST", json: { speech: "2AC" } });
   assert(r.status === 200 && r.body.id, `status ${r.status}`);

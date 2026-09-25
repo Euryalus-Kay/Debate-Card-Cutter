@@ -10,6 +10,7 @@
 import { eq } from "drizzle-orm";
 import { del } from "@vercel/blob";
 import { handle, HttpError, requireAccess, requireUser } from "@/server/authz";
+import { isTeamIncomingPath, readPrivateBlob } from "@/server/uploads";
 import { db } from "@/server/db/client";
 import { rounds } from "@/server/db/schema";
 import { ruleSetOf } from "@/domain/rules";
@@ -27,18 +28,22 @@ export const POST = handle(async (req: Request) => {
   await requireAccess(u.id, "round", roundId);
   const [round] = await db().select().from(rounds).where(eq(rounds.id, roundId));
   if (ruleSetOf(round.settings as never).recording === "off") throw new HttpError(403, "This round's tournament rules don't allow recording. Type what you hear instead.");
+  const pathname = form.get("pathname") ? String(form.get("pathname")) : null;
+  if (pathname && !isTeamIncomingPath(round.teamId, pathname)) throw new HttpError(400, "That recording isn't in this team's uploads.");
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new HttpError(501, "Speech-to-text isn't set up on the server yet (OPENAI_API_KEY). Using this browser's own speech recognition instead.");
 
-  // A segment recorded in the browser, or a recording uploaded to Blob first (too big for one request body).
+  // A segment recorded in the browser, or a recording uploaded to the team's storage first (too big for one
+  // request body). Only the round's own team folder is read, and deleted after.
   let audio = form.get("audio") as File | null;
-  const blobUrl = form.get("blobUrl") ? String(form.get("blobUrl")) : null;
-  if (!audio && blobUrl) {
-    if (!/^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//.test(blobUrl) && !/^https:\/\/[a-z0-9-]+\.blob\.vercel-storage\.com\//.test(blobUrl)) throw new HttpError(400, "Unknown upload location.");
-    const r = await fetch(blobUrl);
-    if (!r.ok) throw new HttpError(400, "The uploaded recording couldn't be read.");
-    const bytes = await r.arrayBuffer();
-    audio = new File([bytes], String(form.get("fileName") ?? "recording.m4a"), { type: r.headers.get("content-type") ?? "audio/mp4" });
+  if (!audio && pathname) {
+    const bytes = await readPrivateBlob(pathname);
+    if (bytes.byteLength > MAX_BYTES) {
+      await del(pathname).catch(() => {});
+      throw new HttpError(413, "That recording is over 25 MB. Upload one speech at a time (about 25 minutes of audio at most).");
+    }
+    const name = String(form.get("fileName") ?? "recording.m4a");
+    audio = new File([bytes as BlobPart], name, { type: /\.webm$/i.test(name) ? "audio/webm" : /\.wav$/i.test(name) ? "audio/wav" : /\.mp3$/i.test(name) ? "audio/mpeg" : "audio/mp4" });
   }
   if (!audio || audio.size === 0) throw new HttpError(400, "No audio.");
   if (audio.size > MAX_BYTES) throw new HttpError(413, "That recording is over 25 MB. Upload one speech at a time (about 25 minutes of audio at most).");
@@ -57,6 +62,6 @@ export const POST = handle(async (req: Request) => {
     return Response.json({ text: (out.text ?? "").trim() });
   } finally {
     // Audio is never kept: an uploaded recording goes as soon as it's transcribed (or fails).
-    if (blobUrl) await del(blobUrl).catch(() => {});
+    if (pathname) await del(pathname).catch(() => {});
   }
 });

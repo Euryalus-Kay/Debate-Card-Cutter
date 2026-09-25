@@ -6,7 +6,7 @@
  * are surfaced in parseResult rather than silently accepted.
  */
 
-import { put } from "@vercel/blob";
+import { get, put } from "@vercel/blob";
 import { eq } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { uploadBlocks, uploads } from "@/server/db/schema";
@@ -19,6 +19,18 @@ import { structureDocument, type ImportedItem, type StructuredDoc } from "./inge
 import { HttpError } from "./authz";
 
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+
+/** A storage path inside the team's upload folder, with no dot segments, encodings or doubled slashes that could reach another team's files once the path becomes a URL. */
+export function isTeamIncomingPath(teamId: string, pathname: string): boolean {
+  return pathname.startsWith(`teams/${teamId}/incoming/`) && !/(^|\/)\.{1,2}(\/|$)|\\|%|\/\/|[?#]/.test(pathname);
+}
+
+/** Read a private Blob file by pathname (callers check the path is the team's own first). */
+export async function readPrivateBlob(pathname: string): Promise<Uint8Array> {
+  const r = await get(pathname, { access: "private" });
+  if (!r || r.statusCode !== 200 || !r.stream) throw new HttpError(400, "The uploaded file couldn't be read from storage.");
+  return new Uint8Array(await new Response(r.stream).arrayBuffer());
+}
 
 export type UploadKind = "docx" | "pdf" | "text" | "html";
 

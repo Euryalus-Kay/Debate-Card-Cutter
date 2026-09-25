@@ -389,6 +389,7 @@ function OpponentSpeechView({ round, bundle, doc, speech, slots, aiEnabled, user
             {doc ? (
               <ListenControls
                 roundId={round.id}
+                teamId={round.teamId}
                 doc={doc}
                 speech={speech}
                 recordingAllowed={ruleSetOf(round.settings as never).recording !== "off"}

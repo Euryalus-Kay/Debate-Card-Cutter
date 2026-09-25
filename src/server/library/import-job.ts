@@ -13,12 +13,11 @@
  */
 
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { get } from "@vercel/blob";
 import { z } from "zod";
 import { db } from "@/server/db/client";
 import { cards, jobs } from "@/server/db/schema";
 import { newId } from "@/server/ids";
-import { ingest, sniffKind, storeParsedUpload, type IngestResult } from "@/server/uploads";
+import { ingest, readPrivateBlob, sniffKind, storeParsedUpload, type IngestResult } from "@/server/uploads";
 import { structureDocument, type ImportedCard } from "@/server/ingest/structure";
 import { importCardsBatch } from "@/server/cards";
 import type { BodyBlock } from "@/domain/card";
@@ -108,12 +107,6 @@ async function lease(jobId: string) {
   return rows[0] ?? null;
 }
 
-async function readBlob(pathname: string): Promise<Uint8Array> {
-  const r = await get(pathname, { access: "private" });
-  if (!r || r.statusCode !== 200 || !r.stream) throw new Error("The uploaded file couldn't be read from storage.");
-  return new Uint8Array(await new Response(r.stream).arrayBuffer());
-}
-
 /** Run with at most `n` at a time, in order. */
 async function pool<T>(n: number, items: T[], fn: (x: T) => Promise<void>) {
   let next = 0;
@@ -169,7 +162,7 @@ export async function runImportJob(jobId: string): Promise<void> {
 
   try {
     // Every run re-reads the file from storage (parsing is quick next to the model calls).
-    const bytes = await readBlob(input.pathname);
+    const bytes = await readPrivateBlob(input.pathname);
     const kind = sniffKind(bytes, input.fileName);
     if (!kind) throw new Error("Unsupported file. Upload .docx, .pdf, or text (legacy .doc files must be re-saved as .docx).");
     const parsed = await ingest(bytes, input.fileName, kind);
