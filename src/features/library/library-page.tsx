@@ -90,6 +90,7 @@ export function LibraryPage() {
         </div>
         {tab === "files" ? <FilesList teamId={team.id} /> : (
         <>
+        <SourceCheck teamId={team.id} onShowMismatches={() => setFilter("mismatch")} />
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <div className="relative min-w-72 flex-1">
             <Search className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-faint" />
@@ -137,6 +138,57 @@ export function LibraryPage() {
         </>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Check imported cards against the pages their citations link to, as one background job. */
+function SourceCheck({ teamId, onShowMismatches }: { teamId: string; onShowMismatches: () => void }) {
+  const qc = useQueryClient();
+  const [jobId, setJobId] = useState<string | null>(null);
+  const info = useQuery({ queryKey: ["source-check", teamId], queryFn: () => api<{ checkable: number; latest: { id: string; status: string } | null }>(`/api/library/checks?teamId=${teamId}`) });
+  const running = jobId ?? (info.data?.latest && ["queued", "running"].includes(info.data.latest.status) ? info.data.latest.id : null);
+  const job = useQuery({
+    queryKey: ["source-check-job", running],
+    queryFn: () => api<{ job: { status: string; progress: { total: number; done: number; verified: number; close: number; mismatch: number; unreachable: number }[]; result: { verified: number; mismatch: number; unreachable: number; total: number } | null } }>(`/api/library/checks/${running}?teamId=${teamId}`),
+    enabled: !!running,
+    refetchInterval: (q) => (q.state.data && !["queued", "running"].includes(q.state.data.job.status) ? false : 2500),
+  });
+  const p = job.data?.job.progress?.[0];
+  const finished = job.data && !["queued", "running"].includes(job.data.job.status);
+  useEffect(() => {
+    if (finished) void qc.invalidateQueries({ queryKey: ["library", teamId] });
+  }, [finished, qc, teamId]);
+  async function start() {
+    try {
+      const r = await api<{ jobId: string; cards: number }>("/api/library/checks", { method: "POST", json: { teamId } });
+      setJobId(r.jobId);
+    } catch (e) {
+      toast((e as Error).message, "bad");
+    }
+  }
+  if (running && p)
+    return (
+      <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-line bg-elev px-3 py-2 text-[12.5px]">
+        {!finished ? <Spinner className="size-3.5" /> : null}
+        <span>
+          {finished ? "Checked" : "Checking"} {p.done} of {p.total} cards against their sources: {p.verified} verified word for word, {p.close ?? 0} match except small differences (noted on the card), {p.mismatch} don&apos;t match, {p.unreachable} couldn&apos;t be checked (paywalls, previews).
+        </span>
+        {finished && p.mismatch ? (
+          <button className="text-accent hover:underline" onClick={onShowMismatches}>
+            Show the ones that don&apos;t match
+          </button>
+        ) : null}
+      </div>
+    );
+  if (!info.data?.checkable) return null;
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-line px-3 py-2 text-[12.5px] text-muted">
+      {info.data.checkable} imported card{info.data.checkable === 1 ? "" : "s"} link to their sources.
+      <button className="text-accent hover:underline" onClick={() => void start()}>
+        Check them word for word
+      </button>
+      <span className="text-faint">(pages behind paywalls stay unchecked)</span>
     </div>
   );
 }

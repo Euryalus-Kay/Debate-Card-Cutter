@@ -6,6 +6,7 @@ import { verifyContinuation } from "@/server/jobs/continue";
 import { runImportJob } from "@/server/library/import-job";
 import { runResearchJob } from "@/server/research/jobs";
 import { runFileBuild } from "@/server/files/build-job";
+import { runCheckJob } from "@/server/library/check-job";
 
 export const maxDuration = 300;
 
@@ -19,6 +20,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ jobId: string 
   if (job.kind === "library_import") after(() => runImportJob(jobId));
   else if (job.kind === "research") after(() => runResearchJob(jobId));
   else if (job.kind === "file_build") after(() => runFileBuild(jobId));
+  else if (job.kind === "library_check") after(() => runCheckJob(jobId));
   else return Response.json({ ok: false });
   return Response.json({ ok: true }, { status: 202 });
 }

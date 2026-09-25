@@ -1,0 +1,13 @@
+{
+  "at": "2026-09-25T22:00:07.381Z",
+  "note": "Counts only.",
+  "result": {
+    "done": 36,
+    "total": 36,
+    "noLink": 0,
+    "mismatch": 19,
+    "verified": 9,
+    "unreachable": 8
+  },
+  "seconds": 102
+}

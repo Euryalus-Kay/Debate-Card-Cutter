@@ -89,6 +89,7 @@ export function CardDetail({ cardId }: { cardId: string }) {
     try {
       const r = await api<{ outcome: string; note: string }>(`/api/cards/${cardId}/verify`, { method: "POST" });
       toast(r.note, r.outcome === "verified" ? "ok" : r.outcome === "mismatch" ? "bad" : "warn");
+      if (r.outcome === "close") void qc.invalidateQueries({ queryKey: ["library"] });
       await qc.invalidateQueries({ queryKey: ["card", cardId] });
     } catch (e) {
       toast((e as Error).message, "bad");
@@ -121,6 +122,9 @@ export function CardDetail({ cardId }: { cardId: string }) {
           ) : null}
           <span className="ml-auto text-xs text-faint">v{card.version}</span>
         </div>
+        {card.verification.issues.some((i) => i.code === "source_differs") && card.verificationStatus !== "mismatch" ? (
+          <div className="mb-3 rounded-md bg-warn-soft px-2 py-1.5 text-xs text-warn">{card.verification.issues.find((i) => i.code === "source_differs")!.message}</div>
+        ) : null}
         {card.verificationStatus === "mismatch" && card.verification.issues.length ? (
           <div className="mb-3 rounded-md bg-bad-soft px-2 py-1.5 text-xs text-bad">
             Not on the page as cut: {card.verification.issues.slice(0, 3).map((i) => i.message).join(" ")}
