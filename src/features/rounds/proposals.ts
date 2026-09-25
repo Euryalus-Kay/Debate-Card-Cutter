@@ -3,8 +3,9 @@
 import { create } from "zustand";
 import type { Editor } from "@tiptap/react";
 import type { Node as PMNode } from "@tiptap/pm/model";
+import type { Transaction } from "@tiptap/pm/state";
 import { api } from "@/client/api";
-import { cardToPM, highlightCss, sectionContentHash, type PMNodeJSON } from "@/shared/draft-model";
+import { cardToPM, highlightCss, sectionContentHash, sectionOwnHash, type PMNodeJSON } from "@/shared/draft-model";
 import { makeId, BYPASS_LOCKS } from "@/shared/editor/schema";
 import { fullCite, shortCite, citationGaps, type Citation } from "@/domain/citation";
 import { normalizeHighlights, normalizeSpans, type BodyBlock, type BodyText, type VerificationStatus } from "@/domain/card";
@@ -146,8 +147,13 @@ function paragraphs(text: string): PMNodeJSON[] {
 }
 
 export function sectionNodes(out: SpeechDraftOutput, cards: Map<string, CardRowLite>, opId: string | null, only?: Set<string>): PMNodeJSON[] {
+  const refs = new Set(out.sections.map((s) => s.ref));
   const byParent = new Map<string, SpeechDraftOutput["sections"]>();
-  for (const s of out.sections) byParent.set(s.parentRef, [...(byParent.get(s.parentRef) ?? []), s]);
+  // A section whose parent ref doesn't exist is kept at the top level rather than silently lost.
+  for (const s of out.sections) {
+    const parent = s.parentRef && refs.has(s.parentRef) && s.parentRef !== s.ref ? s.parentRef : "";
+    byParent.set(parent, [...(byParent.get(parent) ?? []), s]);
+  }
   const build = (s: SpeechDraftOutput["sections"][number], depth: number): PMNodeJSON => {
     const content: PMNodeJSON[] = [{ type: "heading", attrs: { level: depth === 0 ? 3 : 4 }, content: s.title ? [{ type: "text", text: s.title }] : [] }];
     content.push(...paragraphs(s.analytic));
@@ -158,7 +164,7 @@ export function sectionNodes(out: SpeechDraftOutput, cards: Map<string, CardRowL
     if (s.needsEvidence.trim()) content.push({ type: "note", content: [{ type: "text", text: `Needs evidence: ${s.needsEvidence.trim()}` }] });
     for (const child of byParent.get(s.ref) ?? []) content.push(build(child, depth + 1));
     if (content.length === 1) content.push({ type: "paragraph" });
-    return {
+    const node: PMNodeJSON = {
       type: "section",
       attrs: {
         id: makeId("sec"),
@@ -167,11 +173,15 @@ export function sectionNodes(out: SpeechDraftOutput, cards: Map<string, CardRowL
         targets: s.targets,
         role: s.role || null,
         budgetSec: Math.round(s.budgetSeconds) || null,
+        priority: s.priority || null,
+        crossApplyFrom: s.crossApplyFrom || null,
         origin: "ai",
         aiOpId: opId,
       },
       content,
     };
+    node.attrs!.appliedHash = sectionOwnHash(node);
+    return node;
   };
   return (byParent.get("") ?? []).filter((s) => !only || only.has(s.ref)).map((s) => build(s, 0));
 }
@@ -206,14 +216,59 @@ export function findSectionNode(editor: Editor, sectionId: string): { node: PMNo
 
 export type ApplyResult = "applied" | "stale" | "locked" | "missing";
 
+/** True if the section or anything nested in it is locked (replacing it would touch a locked range). */
+function lockedWithin(node: PMNode): boolean {
+  if (node.attrs.locked) return true;
+  let found = false;
+  node.descendants((child) => {
+    if (found) return false;
+    if (child.type.name === "section" && child.attrs.locked) found = true;
+    return !found;
+  });
+  return found;
+}
+
+/** Dispatch and report whether the document actually changed (the integrity guards can silently drop a transaction). */
+function dispatchChanged(editor: Editor, tr: Transaction): boolean {
+  const before = editor.state.doc;
+  editor.view.dispatch(tr);
+  return editor.state.doc !== before;
+}
+
+/** True if the position is inside a locked section's content. */
+function insideLocked(editor: Editor, pos: number): boolean {
+  const $pos = editor.state.doc.resolve(Math.min(pos, editor.state.doc.content.size));
+  for (let d = $pos.depth; d > 0; d--) if ($pos.node(d).type.name === "section" && $pos.node(d).attrs.locked) return true;
+  return false;
+}
+
 /** Delete a section, with the same lock and stale checks as applyRevision. */
 export function removeSection(editor: Editor, sectionId: string, baseHash: string, force = false): ApplyResult {
   const found = findSectionNode(editor, sectionId);
   if (!found) return "missing";
-  if (found.node.attrs.locked) return "locked";
+  if (lockedWithin(found.node)) return "locked";
   if (sectionContentHash(found.node.toJSON() as PMNodeJSON) !== baseHash && !force) return "stale";
-  editor.view.dispatch(editor.state.tr.delete(found.pos, found.pos + found.node.nodeSize));
-  return "applied";
+  return dispatchChanged(editor, editor.state.tr.delete(found.pos, found.pos + found.node.nodeSize)) ? "applied" : "locked";
+}
+
+/**
+ * Insert a section under another section (as its last child), right after it, or at the end.
+ * Refuses (returns "locked") when the destination is inside a locked section.
+ */
+export function insertSectionAt(editor: Editor, node: PMNodeJSON, where: { under: string } | { after: string } | { end: true }): ApplyResult {
+  let at = editor.state.doc.content.size;
+  if ("under" in where || "after" in where) {
+    const found = findSectionNode(editor, "under" in where ? where.under : where.after);
+    if (!found) return "missing";
+    at = "under" in where ? found.pos + found.node.nodeSize - 1 : found.pos + found.node.nodeSize;
+  }
+  if (insideLocked(editor, at)) return "locked";
+  const pm = editor.schema.nodeFromJSON(node);
+  if (isDraftEmpty(editor)) {
+    editor.chain().setContent({ type: "doc", content: [node] }, { emitUpdate: true }).run();
+    return "applied";
+  }
+  return dispatchChanged(editor, editor.state.tr.insert(at, pm)) ? "applied" : "locked";
 }
 
 /**
@@ -233,7 +288,7 @@ export function applyRevision(
   const found = findSectionNode(editor, sectionId);
   if (!found) return "missing";
   const { node, pos } = found;
-  if (node.attrs.locked) return "locked";
+  if (lockedWithin(node)) return "locked";
   const currentHash = sectionContentHash(node.toJSON() as PMNodeJSON);
   if (currentHash !== baseHash && !force) return "stale";
   // Reuse the section's existing card nodes (keeps the team's highlighting); build new ones from the library.
@@ -256,10 +311,9 @@ export function applyRevision(
   content.push(...nested);
   const newJson: PMNodeJSON = { type: "section", attrs: { ...node.attrs, origin: "ai", aiOpId: opId, role: rev.role ?? node.attrs.role }, content };
   // Hash the content as the editor will hold it (schema defaults filled in).
-  newJson.attrs!.appliedHash = sectionContentHash(editor.schema.nodeFromJSON(newJson).toJSON() as PMNodeJSON);
+  newJson.attrs!.appliedHash = sectionOwnHash(editor.schema.nodeFromJSON(newJson).toJSON() as PMNodeJSON);
   const newNode = editor.schema.nodeFromJSON(newJson);
-  editor.view.dispatch(editor.state.tr.replaceWith(pos, pos + node.nodeSize, newNode).setMeta(BYPASS_LOCKS, false));
-  return "applied";
+  return dispatchChanged(editor, editor.state.tr.replaceWith(pos, pos + node.nodeSize, newNode).setMeta(BYPASS_LOCKS, false)) ? "applied" : "locked";
 }
 
 /** Insert a node after the section the cursor is in (or at the end), never splitting text. */

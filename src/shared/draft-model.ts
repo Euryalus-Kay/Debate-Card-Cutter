@@ -208,6 +208,9 @@ export interface DraftSection {
   origin: string;
   aiOpId: string | null;
   appliedHash: string | null;
+  crossApplyFrom: string | null;
+  priority: number | null;
+  basis: Record<string, string> | null;
   title: string;
   items: DraftItem[];
 }
@@ -233,6 +236,9 @@ function sectionFrom(n: PMNodeJSON): DraftSection {
     origin: String(a.origin ?? "human"),
     aiOpId: (a.aiOpId as string) ?? null,
     appliedHash: (a.appliedHash as string) ?? null,
+    crossApplyFrom: (a.crossApplyFrom as string) ?? null,
+    priority: typeof a.priority === "number" ? a.priority : null,
+    basis: a.basis && typeof a.basis === "object" ? (a.basis as Record<string, string>) : null,
     title: heading?.text ?? "",
     items,
   };
@@ -346,4 +352,31 @@ export function contentHash(value: unknown): string {
 /** Hash of a section's content only (not attrs like locked/owner). */
 export function sectionContentHash(section: PMNodeJSON): string {
   return contentHash(section.content ?? []);
+}
+
+function plainText(n: PMNodeJSON): string {
+  if (n.type === "text") return n.text ?? "";
+  return (n.content ?? []).map(plainText).join(n.type === "doc" || n.type === "section" || n.type === "card" ? "\n" : "");
+}
+
+/**
+ * Hash of what a section itself says: its headings, paragraphs and notes (text only), each card
+ * as {cardId, text}, and each nested section as a reference. Unlike sectionContentHash it ignores
+ * edits inside nested sections, marks (re-highlighting, bold), and card state (read, verification),
+ * so a parent isn't mistaken for human-edited when a child changes or a card is re-highlighted.
+ */
+export function sectionOwnHash(section: PMNodeJSON): string {
+  const own = (section.content ?? []).map((c) => {
+    if (c.type === "section") return { type: "sectionRef", id: String(c.attrs?.id ?? "") };
+    if (c.type === "card") return { type: "card", cardId: (c.attrs?.cardId as string) ?? null, text: contentHash(plainText(c)) };
+    return { type: c.type, level: c.type === "heading" ? Number(c.attrs?.level ?? 3) : undefined, text: plainText(c) };
+  });
+  return contentHash(own);
+}
+
+/** A section counts as human-edited when AI never wrote it, or its own content changed since. */
+export function isHumanEdited(section: PMNodeJSON): boolean {
+  const a = section.attrs ?? {};
+  if (a.origin !== "ai" || !a.appliedHash) return true;
+  return sectionOwnHash(section) !== a.appliedHash;
 }

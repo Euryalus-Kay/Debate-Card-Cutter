@@ -10,6 +10,7 @@
  *    (repairs gaps if an outbox write was ever lost).
  */
 
+import { EDITOR_SCHEMA_VERSION, SCHEMA_HEADER } from "@/shared/editor/schema";
 import * as Y from "yjs";
 import * as idb from "./idb";
 
@@ -256,7 +257,7 @@ export class DocSync {
     const body = this.requestBody(false);
     if (body.length < 60_000) {
       try {
-        void this.opts.fetch(this.opts.endpoint(this.docId), { method: "POST", body, headers: { "content-type": "application/json" }, keepalive: true, credentials: "same-origin" });
+        void this.opts.fetch(this.opts.endpoint(this.docId), { method: "POST", body, headers: { "content-type": "application/json", [SCHEMA_HEADER]: String(EDITOR_SCHEMA_VERSION) }, keepalive: true, credentials: "same-origin" });
       } catch {
         /* outbox remains in IndexedDB and is retried on next load */
       }
@@ -306,7 +307,7 @@ export class DocSync {
       res = await this.opts.fetch(this.opts.endpoint(this.docId), {
         method: "POST",
         body: this.requestBody(wantSV),
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", [SCHEMA_HEADER]: String(EDITOR_SCHEMA_VERSION) },
         credentials: "same-origin",
       });
     } catch {
@@ -323,6 +324,7 @@ export class DocSync {
       } catch {
         /* ignore */
       }
+      if (res.status === 426) this.backoffMs = 60_000; // an older build: only a reload fixes it
       this.emit({ lastError: res.status === 401 ? "Signed out — sign in again to sync. Your edits are kept on this device." : msg });
       return;
     }

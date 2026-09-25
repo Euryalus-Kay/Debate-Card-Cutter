@@ -1,5 +1,6 @@
 "use client";
 
+import { RULE_SETS, ruleSetOf } from "@/domain/rules";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Check, CloudOff, Loader2, Pause, Play, TriangleAlert, Sparkles, Radio } from "lucide-react";
@@ -188,7 +189,14 @@ export function TopBar({
             <MenuItem onSelect={() => onSettings({ ...round.settings, prepOverage: "warn" })}>{(round.settings?.prepOverage ?? "warn") === "warn" ? "✓ " : ""}Warn only</MenuItem>
             <MenuItem onSelect={() => onSettings({ ...round.settings, prepOverage: "deduct" })}>{round.settings?.prepOverage === "deduct" ? "✓ " : ""}Deduct from our next speech</MenuItem>
             <MenuSeparator />
-            <MenuLabel>AI policy: {round.aiPolicy === "prep_only" ? "prep only" : round.aiPolicy}</MenuLabel>
+            <MenuLabel>Tournament rules</MenuLabel>
+            {Object.values(RULE_SETS).map((r) => (
+              <MenuItem key={r.id} onSelect={() => onSettings({ ...round.settings, ruleSet: r.id })}>
+                {ruleSetOf(round.settings).id === r.id ? "✓ " : ""}
+                {r.label}
+              </MenuItem>
+            ))}
+            <p className="max-w-72 px-2 py-1.5 text-[11px] leading-snug text-muted">{ruleSetOf(round.settings).reminder}</p>
             {!aiEnabled && round.aiPolicy !== "off" ? <MenuItem onSelect={onOverride}>Override for this round…</MenuItem> : null}
           </MenuContent>
         </Menu>

@@ -24,6 +24,16 @@ import { ReplaceStep, ReplaceAroundStep } from "@tiptap/pm/transform";
 import type { Node as PMNode } from "@tiptap/pm/model";
 import { ySyncPluginKey } from "@tiptap/y-tiptap";
 
+/**
+ * Version of the editor schema (node types and attributes). y-tiptap drops any
+ * attribute the local schema doesn't declare, so a tab running an older build
+ * would silently strip newer attributes from sections it edits. Sync refuses
+ * clients below the server's minimum (see /api/docs/[docId]/sync). Bump this
+ * whenever node attributes change.
+ */
+export const EDITOR_SCHEMA_VERSION = 2;
+export const SCHEMA_HEADER = "x-clash-schema";
+
 export const ALLOW_CARD_TEXT_EDIT = "allowCardTextEdit";
 export const BYPASS_LOCKS = "bypassLocks";
 
@@ -98,8 +108,18 @@ export const Section = Node.create({
       },
       origin: strAttr("origin", "human"),
       aiOpId: strAttr("ai-op"),
-      /** hash of the section content when an AI result was applied; lets us detect later human edits */
+      /** hash of the section's own content (sectionOwnHash) when AI wrote it; a different hash later means a human edited it */
       appliedHash: strAttr("applied-hash"),
+      /** for cross-applications: the id of our argument being cross-applied */
+      crossApplyFrom: strAttr("cross-apply-from"),
+      /** 1 = must keep, 2 = important, 3 = cut first */
+      priority: {
+        default: null,
+        parseHTML: (el: HTMLElement) => (el.getAttribute("data-priority") ? Number(el.getAttribute("data-priority")) : null),
+        renderHTML: (a: Record<string, unknown>) => (a.priority == null ? {} : { "data-priority": String(a.priority) }),
+      },
+      /** argument id → hash of that argument's text when this section was written (to spot answers that went stale) */
+      basis: jsonAttr("basis", null),
     };
   },
   parseHTML() {
@@ -323,7 +343,9 @@ function stepRanges(tr: Transaction): Array<[number, number]> {
   return ranges;
 }
 
-const overlaps = (a: [number, number], b: [number, number]) => a[0] < b[1] && b[0] < a[1];
+// A zero-width range (an insertion) counts when it sits anywhere inside b, edges included:
+// inserting at the very start or end of a locked section's content still changes it.
+const overlaps = (a: [number, number], b: [number, number]) => (a[0] === a[1] ? a[0] >= b[0] && a[0] <= b[1] : a[0] < b[1] && b[0] < a[1]);
 
 export type BlockedReason = "locked_section" | "card_text";
 

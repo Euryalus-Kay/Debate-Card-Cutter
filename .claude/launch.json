@@ -18,6 +18,15 @@
         "unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL; cd \"$HOME/Projects/Debate-Card-Cutter\" && npm run build && CLASH_LOCAL_PROD_TEST=1 exec npm run start -- --port 3200"
       ],
       "port": 3200
+    },
+    {
+      "name": "clash-dev-fake",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL; cd \"$HOME/Projects/Debate-Card-Cutter\" && AI_FAKE=1 exec npx next dev --port 3101"
+      ],
+      "port": 3101
     }
   ]
 }

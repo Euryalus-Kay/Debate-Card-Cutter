@@ -52,6 +52,17 @@ export interface RunInput<S extends z.ZodType> {
   teamId?: string | null;
   /** override the registry (benchmarks) */
   models?: ModelSpec[];
+  /**
+   * Deterministic stand-in used when AI_FAKE=1 (E2E tests at no cost). Built by the
+   * calling operation from its real inputs, so the rest of the pipeline (validation,
+   * apply, coverage) runs for real. Never used in production.
+   */
+  fake?: () => z.infer<S>;
+}
+
+/** True when the fake model is on (tests only; refused in production). */
+export function aiFake(): boolean {
+  return process.env.AI_FAKE === "1" && process.env.VERCEL_ENV !== "production";
 }
 
 function buildMessages(context: string | undefined, prompt: string): ModelMessage[] {
@@ -62,6 +73,15 @@ function buildMessages(context: string | undefined, prompt: string): ModelMessag
 }
 
 export async function runStructured<S extends z.ZodType>(input: RunInput<S>): Promise<RunResult<z.infer<S>>> {
+  if (aiFake()) {
+    if (!input.fake) throw new AiRunError(`AI_FAKE is on but task "${input.task}" has no fake output yet.`, []);
+    const started = Date.now();
+    const output = input.schema.parse(input.fake()) as z.infer<S>;
+    // Stream it in two steps so progress UIs see partial output.
+    input.onPartial?.(JSON.parse(JSON.stringify(output)));
+    await new Promise((r) => setTimeout(r, 150));
+    return { output, model: "fake", attempts: [{ model: "fake", ok: true, ttftMs: 5, totalMs: Date.now() - started }], ttftMs: 5, totalMs: Date.now() - started, usage: { inputTokens: 0, outputTokens: 0 } };
+  }
   const cfg = taskConfig(input.task);
   const chain = input.models ?? [cfg.primary, ...cfg.fallbacks];
   const attempts: RunAttempt[] = [];

@@ -45,7 +45,8 @@ export function SectionView(props: ReactNodeViewProps) {
   function toggleLock() {
     const pos = getPos();
     if (typeof pos !== "number") return;
-    const tr = editor.state.tr.setNodeMarkup(pos, undefined, { ...attrs, locked: !locked, lockedBy: !locked ? ctx.userName : null }).setMeta(BYPASS_LOCKS, true);
+    // Attribute-only steps: the lock guard allows them even when a nested section is locked.
+    const tr = editor.state.tr.setNodeAttribute(pos, "locked", !locked).setNodeAttribute(pos, "lockedBy", !locked ? ctx.userName : null).setMeta(BYPASS_LOCKS, true);
     editor.view.dispatch(tr);
   }
 
@@ -118,7 +119,7 @@ export function SectionView(props: ReactNodeViewProps) {
                 onSelect={() => {
                   const pos = getPos();
                   if (typeof pos !== "number") return;
-                  editor.view.dispatch(editor.state.tr.setNodeMarkup(pos, undefined, { ...attrs, owner: attrs.owner === ctx.userName ? null : ctx.userName }));
+                  editor.view.dispatch(editor.state.tr.setNodeAttribute(pos, "owner", attrs.owner === ctx.userName ? null : ctx.userName));
                 }}
               >
                 {attrs.owner === ctx.userName ? "Release ownership" : "I'm working on this"}
@@ -130,7 +131,7 @@ export function SectionView(props: ReactNodeViewProps) {
                   const pos = getPos();
                   if (typeof pos !== "number") return;
                   const n = Number(secs);
-                  editor.view.dispatch(editor.state.tr.setNodeMarkup(pos, undefined, { ...attrs, budgetSec: Number.isFinite(n) && n > 0 ? n : null }));
+                  editor.view.dispatch(editor.state.tr.setNodeAttribute(pos, "budgetSec", Number.isFinite(n) && n > 0 ? n : null));
                 }}
               >
                 Set time budget…

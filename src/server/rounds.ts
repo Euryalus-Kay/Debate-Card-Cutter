@@ -1,3 +1,4 @@
+import { ruleSetOf } from "@/domain/rules";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { atomic, db } from "@/server/db/client";
@@ -30,7 +31,8 @@ export const RoundInput = z.object({
       newArgumentPolicy: z.enum(["conventional", "strict", "permissive"]).optional(),
     })
     .default({}),
-  aiPolicy: z.enum(["allowed", "prep_only", "off"]).default("prep_only"),
+  /** derived from settings.ruleSet when that is given (see src/domain/rules.ts); the team default is "allowed" */
+  aiPolicy: z.enum(["allowed", "prep_only", "off"]).default("allowed"),
   phase: z.enum(["prep", "live", "done"]).default("prep"),
   speakerOverrides: z.partialRecord(z.enum(["1AC", "1NC", "2AC", "2NC", "1NR", "1AR", "2NR", "2AR"]), z.string().max(80)).default({}),
   settings: z
@@ -39,6 +41,10 @@ export const RoundInput = z.object({
       judgeKick: z.enum(["yes", "no", "if_asked", "unknown"]).optional(),
       /** tournament rule for prep overage: warn only, or deduct it from the team's next speech (e.g. KSHSAA, NDT) */
       prepOverage: z.enum(["warn", "deduct"]).optional(),
+      /** tournament rule set (COMP-1): decides in-round AI and recording */
+      ruleSet: z.enum(["ai_allowed", "nsda", "uil", "ohio", "tournament_allows", "practice"]).optional(),
+      /** the tournament's own AI rule, pasted by the team */
+      ruleText: z.string().max(4000).optional(),
     })
     .default({}),
 });
@@ -64,7 +70,7 @@ export async function createRound(teamId: string, userId: string, input: RoundIn
       roster: input.roster,
       opponent: input.opponent,
       judges: input.judges,
-      aiPolicy: input.aiPolicy,
+      aiPolicy: input.settings.ruleSet ? ruleSetOf(input.settings).aiPolicy : input.aiPolicy,
       phase: input.phase,
       speakerOverrides: input.speakerOverrides,
       settings: input.settings,

@@ -12,6 +12,7 @@ import { compact, pull, push, stateVector } from "@/server/docs/store";
 import { db } from "@/server/db/client";
 import { documents, presence } from "@/server/db/schema";
 import { extractDocText } from "@/shared/doc-text";
+import { SCHEMA_HEADER } from "@/shared/editor/schema";
 
 export const maxDuration = 30;
 
@@ -32,9 +33,14 @@ const Body = z.object({
 
 const b64 = (u: Uint8Array) => Buffer.from(u).toString("base64");
 
+/** Oldest editor schema allowed to sync (see EDITOR_SCHEMA_VERSION). Older tabs could strip newer attributes. */
+const MIN_CLIENT_SCHEMA = 2;
+
 export const POST = handle(async (req: Request, ctx: { params: Promise<{ docId: string }> }) => {
   const { docId } = await ctx.params;
   const u = await requireUser();
+  if (Number(req.headers.get(SCHEMA_HEADER) ?? 0) < MIN_CLIENT_SCHEMA)
+    throw new HttpError(426, "This tab is running an older version of Clash. Reload the page to keep syncing; your edits are saved on this device.");
   await requireAccess(u.id, "document", docId);
   const raw = await req.text();
   if (raw.length > 4_400_000) throw new HttpError(413, "Too much data in one request; the client will send it in smaller pieces.");

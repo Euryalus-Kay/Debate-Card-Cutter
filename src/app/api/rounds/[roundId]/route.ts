@@ -1,3 +1,4 @@
+import { ruleSetOf } from "@/domain/rules";
 import { after } from "next/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -40,6 +41,9 @@ export const PATCH = handle(async (req: Request, ctx: Ctx) => {
   const patch: Record<string, unknown> = {};
   for (const k of Object.keys(raw)) if (k in parsed.data) patch[k] = (parsed.data as Record<string, unknown>)[k];
   delete patch.teamId;
+  // A rule-set change decides the AI policy (COMP-1).
+  const ruleSet = (patch.settings as { ruleSet?: string } | undefined)?.ruleSet;
+  if (ruleSet) patch.aiPolicy = ruleSetOf({ ruleSet }).aiPolicy;
   if (patch.judges) {
     const [cur] = await db().select({ judges: rounds.judges }).from(rounds).where(eq(rounds.id, roundId));
     patch.judges = mergeJudges(patch.judges as StoredJudge[], (cur?.judges ?? []) as StoredJudge[]);
