@@ -125,6 +125,8 @@ export interface ArgUnit {
   delivery: DeliveryStatus;
   /** when the user corrected this unit, AI refreshes must not overwrite it */
   humanEdited?: boolean;
+  /** AI reading of the argument, kept separate from document text */
+  aiInterpretation?: { opId: string; confidence: number; claim: string };
 }
 
 export type RelationType = "answers" | "extends" | "cross_applies" | "turns";
@@ -281,7 +283,6 @@ export function computeCoverage(graph: RoundGraph, target: SpeechId, draft: Draf
     } else {
       status = "unanswered";
     }
-    if (!note && arg.delivery === "documented") note = "In their document; not confirmed as read.";
     return { arg, position, status, sections: fromDraft?.sections ?? [], note, answersOurs };
   });
 

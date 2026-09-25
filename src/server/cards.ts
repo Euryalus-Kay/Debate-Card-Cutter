@@ -1,0 +1,187 @@
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { db } from "@/server/db/client";
+import { cardRevisions, cards, uploadBlocks, uploads } from "@/server/db/schema";
+import { newId } from "@/server/ids";
+import { bodyHash, verbatimText, type BodyBlock, type Card, type CardOrigin, type VerificationStatus } from "@/domain/card";
+import { shortCite, type Citation } from "@/domain/citation";
+import { lintCard } from "@/domain/lint";
+
+export interface CardRow {
+  id: string;
+  teamId: string;
+  folderId: string | null;
+  tag: string;
+  shortCite: string;
+  citation: Citation;
+  body: BodyBlock[];
+  origin: CardOrigin;
+  verificationStatus: VerificationStatus;
+  verification: Card["verification"];
+  sourceId: string | null;
+  bodyHash: string;
+  commentary: string;
+  labels: string[];
+  importedFrom: Record<string, unknown> | null;
+  version: number;
+  createdBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export async function createCard(args: {
+  teamId: string;
+  userId: string | null;
+  tag: string;
+  citation: Citation;
+  body: BodyBlock[];
+  origin: CardOrigin;
+  verification: Card["verification"];
+  sourceId?: string | null;
+  commentary?: string;
+  labels?: string[];
+  importedFrom?: Record<string, unknown> | null;
+  folderId?: string | null;
+}): Promise<string> {
+  const id = newId("card");
+  const hash = await bodyHash(args.body);
+  const issues = lintCard({ tag: args.tag, body: args.body, citation: args.citation });
+  await db()
+    .insert(cards)
+    .values({
+      id,
+      teamId: args.teamId,
+      folderId: args.folderId ?? null,
+      tag: args.tag.slice(0, 2000),
+      shortCite: shortCite(args.citation),
+      citation: args.citation,
+      body: args.body,
+      origin: args.origin,
+      verificationStatus: args.verification.status,
+      verification: { ...args.verification, issues: [...args.verification.issues, ...issues] },
+      sourceId: args.sourceId ?? null,
+      bodyHash: hash,
+      commentary: args.commentary ?? "",
+      labels: args.labels ?? [],
+      importedFrom: args.importedFrom ?? null,
+      plainText: verbatimText(args.body).slice(0, 100_000),
+      createdBy: args.userId,
+    });
+  return id;
+}
+
+export async function getCards(teamId: string, ids: string[]): Promise<CardRow[]> {
+  if (!ids.length) return [];
+  const rows = await db()
+    .select()
+    .from(cards)
+    .where(and(eq(cards.teamId, teamId), inArray(cards.id, ids), isNull(cards.deletedAt)));
+  return rows as unknown as CardRow[];
+}
+
+export interface CardSearchHit {
+  id: string;
+  tag: string;
+  shortCite: string;
+  verificationStatus: string;
+  origin: string;
+  snippet: string;
+  labels: string[];
+  updatedAt: Date;
+  rank: number;
+}
+
+/** Full-text + trigram search over the team's cards. */
+export async function searchCards(teamId: string, q: string, opts: { limit?: number; verification?: string[] } = {}): Promise<CardSearchHit[]> {
+  const limit = Math.min(opts.limit ?? 30, 100);
+  const query = q.trim();
+  const verif = opts.verification?.length ? sql`and ${cards.verificationStatus} in (${sql.join(opts.verification.map((v) => sql`${v}`), sql`, `)})` : sql``;
+  if (!query) {
+    const rows = await db()
+      .select({ id: cards.id, tag: cards.tag, shortCite: cards.shortCite, verificationStatus: cards.verificationStatus, origin: cards.origin, snippet: sql<string>`left(${cards.plainText}, 240)`, labels: cards.labels, updatedAt: cards.updatedAt })
+      .from(cards)
+      .where(and(eq(cards.teamId, teamId), isNull(cards.deletedAt), opts.verification?.length ? inArray(cards.verificationStatus, opts.verification as never[]) : undefined))
+      .orderBy(desc(cards.updatedAt))
+      .limit(limit);
+    return rows.map((r) => ({ ...r, rank: 0 }));
+  }
+  const res = await db().execute(sql`
+    with q as (select websearch_to_tsquery('english', ${query}) as tsq)
+    select c.id, c.tag, c.short_cite as "shortCite", c.verification_status as "verificationStatus", c.origin, c.labels, c.updated_at as "updatedAt",
+      ts_headline('english', c.plain_text, q.tsq, 'MaxWords=40, MinWords=15, StartSel=«, StopSel=»') as snippet,
+      (ts_rank(c.search, q.tsq) * 2 + similarity(c.tag, ${query})) as rank
+    from ${cards} c, q
+    where c.team_id = ${teamId} and c.deleted_at is null ${verif}
+      and (c.search @@ q.tsq or c.tag % ${query} or c.short_cite ilike ${"%" + query + "%"})
+    order by rank desc
+    limit ${limit}
+  `);
+  return (res as unknown as { rows: CardSearchHit[] }).rows.map((r) => ({ ...r, rank: Number(r.rank) }));
+}
+
+/** Import every card in an uploaded document into the team library (origin "imported"). */
+export async function importCardsFromUpload(uploadId: string, teamId: string, userId: string, labels: string[] = []): Promise<{ created: number; duplicates: number }> {
+  const [up] = await db().select().from(uploads).where(and(eq(uploads.id, uploadId), eq(uploads.teamId, teamId)));
+  if (!up) throw new Error("upload not found");
+  const blocks = await db()
+    .select()
+    .from(uploadBlocks)
+    .where(and(eq(uploadBlocks.uploadId, uploadId), eq(uploadBlocks.kind, "card")))
+    .orderBy(uploadBlocks.idx);
+  let created = 0;
+  let duplicates = 0;
+  for (const b of blocks) {
+    const data = (b.data ?? {}) as { citation?: Citation; body?: BodyBlock[] };
+    const body = data.body ?? [];
+    if (!body.length) continue;
+    const hash = await bodyHash(body);
+    const [dup] = await db()
+      .select({ id: cards.id })
+      .from(cards)
+      .where(and(eq(cards.teamId, teamId), eq(cards.bodyHash, hash), isNull(cards.deletedAt)))
+      .limit(1);
+    if (dup) {
+      duplicates++;
+      continue;
+    }
+    await createCard({
+      teamId,
+      userId,
+      tag: b.text,
+      citation: data.citation ?? { authors: [], provenance: {} },
+      body,
+      origin: "imported",
+      verification: { status: "imported", issues: [] },
+      labels: [...labels, ...((b.path as string[]) ?? []).slice(0, 3)],
+      importedFrom: { uploadId, fileName: up.fileName, blockIdx: b.idx, path: b.path },
+    });
+    created++;
+  }
+  return { created, duplicates };
+}
+
+export async function updateCard(teamId: string, id: string, userId: string, patch: { tag?: string; body?: BodyBlock[]; citation?: Citation; commentary?: string; labels?: string[]; folderId?: string | null }, reason: string) {
+  const [cur] = (await getCards(teamId, [id])) as CardRow[];
+  if (!cur) throw new Error("card not found");
+  await db().insert(cardRevisions).values({ id: newId("crev"), cardId: id, version: cur.version, snapshot: { tag: cur.tag, citation: cur.citation, body: cur.body, commentary: cur.commentary }, reason, changedBy: userId });
+  const next: Record<string, unknown> = { updatedAt: new Date(), version: cur.version + 1 };
+  if (patch.tag !== undefined) next.tag = patch.tag;
+  if (patch.commentary !== undefined) next.commentary = patch.commentary;
+  if (patch.labels !== undefined) next.labels = patch.labels;
+  if (patch.folderId !== undefined) next.folderId = patch.folderId;
+  if (patch.citation !== undefined) {
+    next.citation = patch.citation;
+    next.shortCite = shortCite(patch.citation);
+  }
+  if (patch.body !== undefined) {
+    const textChanged = verbatimText(patch.body) !== verbatimText(cur.body);
+    next.body = patch.body;
+    next.plainText = verbatimText(patch.body).slice(0, 100_000);
+    next.bodyHash = await bodyHash(patch.body);
+    if (textChanged && (cur.verificationStatus === "verified" || cur.verificationStatus === "verified_quote_only")) {
+      // Editing verified text invalidates verification until re-checked.
+      next.verificationStatus = "unverified";
+      next.verification = { ...cur.verification, status: "unverified", issues: [{ severity: "warning", code: "text_edited_after_verification", message: "The evidence text was edited after it was verified. Re-verify against the source." }] };
+    }
+  }
+  await db().update(cards).set(next).where(and(eq(cards.id, id), eq(cards.teamId, teamId)));
+}

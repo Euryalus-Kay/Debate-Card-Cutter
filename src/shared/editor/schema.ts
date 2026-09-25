@@ -82,6 +82,8 @@ export const Section = Node.create({
       relation: strAttr("relation", "none"),
       targets: jsonAttr("targets", []),
       positionId: strAttr("position-id"),
+      /** argument role of this section when it is a single argument (e.g. link_turn), used for contradiction checks */
+      role: strAttr("role"),
       locked: {
         default: false,
         parseHTML: (el: HTMLElement) => el.getAttribute("data-locked") === "true",

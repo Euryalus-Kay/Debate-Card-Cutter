@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "next-dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 3000
+      "name": "clash-dev",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL; cd \"$HOME/Projects/Debate-Card-Cutter\" && exec npm run dev -- --port 3100"],
+      "port": 3100
     }
   ]
 }

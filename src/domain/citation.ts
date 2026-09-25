@@ -58,6 +58,10 @@ export interface Citation {
   raw?: string;
   /** user override of the short cite (e.g. "Smith & Jones 23") */
   shortOverride?: string;
+  /** imported cites: the exact text after the short cite, shown/exported verbatim */
+  rawRest?: string;
+  /** false once a user edits fields, so the structured cite is used instead of rawRest */
+  preferRaw?: boolean;
 }
 
 export type CitationField = "authors" | "organization" | "date" | "title" | "publication" | "url" | "doi" | "pages" | "accessed" | "qualifications";
@@ -138,6 +142,7 @@ export const DEFAULT_CITE_STYLE: CiteStyle = { includeAccessed: true, missing: "
  * document are dropped (never shown as fact).
  */
 export function fullCite(c: Citation, style: CiteStyle = DEFAULT_CITE_STYLE): string {
+  if (c.rawRest && c.preferRaw !== false) return c.rawRest;
   const parts: string[] = [];
   const missing = (label: string) => (style.missing === "explicit" ? label : null);
 

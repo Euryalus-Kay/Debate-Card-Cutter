@@ -267,9 +267,14 @@ body {
 }
 .speech-editor mark,
 .card-view mark {
-  color: inherit;
+  /* Highlight colors match what exports to Word, so keep ink dark on them in both themes. */
+  color: #161616;
   padding: 0 1px;
   border-radius: 2px;
+}
+.card-detail-editor .card-tag,
+.card-detail-editor .card-cite {
+  display: none;
 }
 .shrink-unread .card-body p {
   font-size: 11px;

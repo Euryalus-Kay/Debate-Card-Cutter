@@ -201,6 +201,7 @@ export interface DraftSection {
   relation: SectionRelation;
   targets: string[];
   positionId: string | null;
+  role: string | null;
   locked: boolean;
   owner: string | null;
   budgetSec: number | null;
@@ -225,6 +226,7 @@ function sectionFrom(n: PMNodeJSON): DraftSection {
     relation: (a.relation as SectionRelation) ?? "none",
     targets: Array.isArray(a.targets) ? (a.targets as string[]) : [],
     positionId: (a.positionId as string) ?? null,
+    role: (a.role as string) ?? null,
     locked: !!a.locked,
     owner: (a.owner as string) ?? null,
     budgetSec: typeof a.budgetSec === "number" ? a.budgetSec : null,

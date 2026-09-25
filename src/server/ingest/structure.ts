@@ -47,22 +47,47 @@ export interface StructuredDoc {
   styled: boolean;
 }
 
-const CITE_START = /^\s*[\p{Lu}][\p{L}'’.\-]+(?:\s(?:&|and)\s[\p{Lu}][\p{L}'’.\-]+|\s(?:et\.?\s?al\.?))?(?:[\s,]+(?:'?\d{2}|\d{4}|ND|N\.D\.|n\.d\.))\b/u;
+const YEAR = "['’‘`]?(?:\\d{2}|\\d{4})";
+const CITE_START = new RegExp(String.raw`^\s*[\p{Lu}][\p{L}'’.\-]+(?:\s(?:&|and)\s[\p{Lu}][\p{L}'’.\-]+|\s(?:et\.?\s?al\.?))?(?:[\s,]+(?:${YEAR}|ND|N\.D\.|n\.d\.))\b`, "u");
+const SHORT_CITE = new RegExp(String.raw`^[\p{Lu}][\p{L}'’.\-&, ]{0,60}?[\s,]+(?:${YEAR}|ND)\b`, "u");
 const URL_RE = /\bhttps?:\/\/[^\s)\]}>"]+/i;
 
 function isBlank(p: DocParagraph): boolean {
   return p.text.trim().length === 0;
 }
 
+function isCiteStyle(name: string | undefined, id: string | undefined): boolean {
+  return /cite|13\s?pt bold|bold\s?12\s?pt|style13ptbold|stylestylebold12pt/i.test(`${name ?? ""} ${id ?? ""}`);
+}
+
+/** Index of the first run that is the short cite (Cite style, or a bold "Name YY" run). */
+function shortCiteRun(p: DocParagraph): number {
+  let offset = 0;
+  for (let i = 0; i < p.runs.length; i++) {
+    const r = p.runs[i];
+    if (offset > 120) break;
+    if (r.text.trim()) {
+      if (isCiteStyle(r.charStyleName, r.charStyle)) return i;
+      if (r.props.bold) {
+        // Bold run(s) that read like "Lastname 21"
+        let joined = "";
+        for (let j = i; j < p.runs.length && (p.runs[j].props.bold || isCiteStyle(p.runs[j].charStyleName, p.runs[j].charStyle)); j++) joined += p.runs[j].text;
+        if (SHORT_CITE.test(joined.trim())) return i;
+      }
+    }
+    offset += r.text.length;
+  }
+  return -1;
+}
+
 /** A paragraph that looks like a citation line. */
 export function looksLikeCite(p: DocParagraph): boolean {
   const text = p.text.trim();
   if (!text || text.length > 1500) return false;
-  const first = p.runs.find((r) => r.text.trim());
-  const firstBold = !!first && (!!first.props.bold || /cite/i.test(first.charStyleName ?? ""));
+  if (shortCiteRun(p) >= 0) return true;
   const patterned = CITE_START.test(text);
   const hasCiteSignals = URL_RE.test(text) || /\b(19|20)\d{2}\b/.test(text) || /\/\/\s*\w{1,4}\s*$/.test(text);
-  return (firstBold && (patterned || hasCiteSignals)) || (patterned && hasCiteSignals && text.length < 900);
+  return patterned && hasCiteSignals && text.length < 900;
 }
 
 function hasCardFormatting(p: DocParagraph): boolean {
@@ -98,41 +123,95 @@ export function paragraphToBody(p: DocParagraph): BodyText {
   };
 }
 
-/** Split a cite paragraph into the bold short cite and the rest. */
-export function splitCite(p: DocParagraph): { short: string; rest: string; raw: string } {
+/** Split a cite paragraph into the short cite ("Deighton 19"), the text before it, and the rest. */
+export function splitCite(p: DocParagraph): { short: string; rest: string; raw: string; prefix: string } {
   const raw = p.text.trim();
-  let short = "";
-  for (const r of p.runs) {
-    if (!r.text.trim() && !short) continue;
-    if (r.props.bold || /cite/i.test(r.charStyleName ?? "")) short += r.text;
-    else break;
+  const at = shortCiteRun(p);
+  if (at >= 0) {
+    let prefix = "";
+    for (let i = 0; i < at; i++) prefix += p.runs[i].text;
+    let short = "";
+    let j = at;
+    for (; j < p.runs.length && (p.runs[j].props.bold || isCiteStyle(p.runs[j].charStyleName, p.runs[j].charStyle)); j++) short += p.runs[j].text;
+    let rest = "";
+    for (; j < p.runs.length; j++) rest += p.runs[j].text;
+    short = short.trim().replace(/[,;:]\s*$/, "");
+    return { short, rest: rest.replace(/^[\s,;:]+/, "").trim(), raw, prefix: prefix.trim() };
   }
-  short = short.trim().replace(/[,;:]\s*$/, "");
-  if (!short || short.length > 80) {
-    const m = CITE_START.exec(raw);
-    short = m ? m[0].trim() : "";
-  }
-  const rest = raw.slice(raw.indexOf(short) + short.length).replace(/^[\s,;:]+/, "");
-  return { short, rest, raw };
+  const m = CITE_START.exec(raw);
+  const short = m ? m[0].trim() : "";
+  return { short, rest: raw.slice(short.length).replace(/^[\s,;:]+/, ""), raw, prefix: "" };
 }
 
 /**
  * Best-effort citation fields from an imported cite. Everything is marked
  * provenance "imported"; the raw text is preserved for display and export.
  */
-export function citationFromImported(short: string, rest: string, raw: string): Citation {
-  const c: Citation = { authors: [], provenance: {}, raw };
-  const yearM = /(?:^|\s)'?(\d{2}|\d{4})\b/.exec(short);
-  const name = short.replace(/(?:^|\s)'?(\d{2}|\d{4}|ND|N\.D\.)\b.*$/i, "").trim();
-  if (name) {
-    c.authors = [{ name, family: name.replace(/\s+(et\.?\s?al\.?)$/i, "") }];
-    c.provenance.authors = "imported";
-    c.shortOverride = short;
+const MONTHS: Record<string, number> = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, sept: 9, oct: 10, nov: 11, dec: 12 };
+
+function fullYear(token: string, nowYY = new Date().getFullYear() % 100): number | undefined {
+  const t = token.replace(/['’‘`]/g, "").trim().toUpperCase();
+  if (/^\d{4}$/.test(t)) return Number(t);
+  // "2K" = 2000, "2K5" = 2005 (debate shorthand)
+  const k = /^2K(\d)?$/.exec(t);
+  if (k) return 2000 + Number(k[1] ?? 0);
+  if (/^\d{2}$/.test(t)) return Number(t) <= nowYY + 1 ? 2000 + Number(t) : 1900 + Number(t);
+  if (/^\d$/.test(t)) return 2000 + Number(t);
+  return undefined;
+}
+
+/** Year token at the end of a short cite: "Smith 21", "Smith ’21", "Bracey 6", "Reed 2K", "Segall 3/12/21". */
+function shortCiteYear(short: string): { year?: number; month?: number; day?: number } {
+  const md = /(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s*$/.exec(short);
+  if (md) return { month: Number(md[1]), day: Number(md[2]), year: fullYear(md[3]) };
+  const m = /(?:^|[\s,])(['’‘`]?(?:2K\d?|\d{1,4}))\s*$/i.exec(short);
+  return m ? { year: fullYear(m[1]) } : {};
+}
+
+/** First explicit date in the cite text: 9-18-2019, 9/18/19, September 18, 2019, Winter 2007. */
+function findDate(text: string): { year: number; month?: number; day?: number; raw: string } | null {
+  let m = /\b(\d{1,2})[-/.](\d{1,2})[-/.](\d{4}|\d{2})\b/.exec(text);
+  if (m) {
+    const y = fullYear(m[3]);
+    if (y && Number(m[1]) >= 1 && Number(m[1]) <= 12) return { year: y, month: Number(m[1]), day: Number(m[2]), raw: m[0] };
   }
-  const fullYear = /\b(19|20)\d{2}\b/.exec(rest);
-  if (yearM) {
-    const y = yearM[1].length === 2 ? (Number(yearM[1]) > 50 ? 1900 : 2000) + Number(yearM[1]) : Number(yearM[1]);
-    c.date = { year: fullYear && Number(fullYear[0]) % 100 === y % 100 ? Number(fullYear[0]) : y, raw: undefined };
+  m = /\b(jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})\b/i.exec(text);
+  if (m) return { year: Number(m[3]), month: MONTHS[m[1].toLowerCase().slice(0, 4)] ?? MONTHS[m[1].toLowerCase().slice(0, 3)], day: Number(m[2]), raw: m[0] };
+  m = /\b(jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)[a-z]*\.?\s+(\d{4})\b/i.exec(text);
+  if (m) return { year: Number(m[2]), month: MONTHS[m[1].toLowerCase().slice(0, 3)], raw: m[0] };
+  m = /\b(19[5-9]\d|20[0-4]\d)\b/.exec(text);
+  if (m) return { year: Number(m[1]), raw: m[0] };
+  return null;
+}
+
+/**
+ * Best-effort citation fields from an imported cite. Everything is marked
+ * provenance "imported"; the raw text is preserved for display and export.
+ */
+export function citationFromImported(short: string, rest: string, raw: string, prefix = ""): Citation {
+  const c: Citation = { authors: [], provenance: {}, raw, rawRest: raw && short && raw.includes(short) ? raw.slice(raw.indexOf(short) + short.length).replace(/^[\s]+/, "") : rest };
+  if (prefix) c.rawRest = raw.slice(raw.indexOf(short) + short.length).replace(/^\s+/, "");
+  // Year may sit just outside the bold short cite: "Newburger" + " 21, …"
+  let shortFull = short;
+  const lead = /^\s*(['’‘`]?(?:2K\d?|\d{1,4}))\b[\s,]*/i.exec(rest);
+  if (!Object.keys(shortCiteYear(short)).length && lead) {
+    shortFull = `${short} ${lead[1]}`;
+    rest = rest.slice(lead[0].length);
+  }
+  const sy = shortCiteYear(shortFull);
+  const name = shortFull.replace(/[\s,]*(?:['’‘`]?(?:2K\d?|\d{1,4})|\d{1,2}\/\d{1,2}\/\d{2,4}|ND|N\.D\.)\s*$/i, "").replace(/,\s*$/, "").trim();
+  if (name) {
+    const family = name.replace(/\s+(et\.?\s?al\.?)$/i, "");
+    const full = prefix && /^[\p{Lu}][\p{L}.'’\- ]{0,40}$/u.test(prefix) ? `${prefix} ${name}` : name;
+    c.authors = [{ name: full, family }];
+    c.provenance.authors = "imported";
+    c.shortOverride = shortFull.trim();
+  }
+  const found = findDate(rest);
+  if (sy.year || found) {
+    // Prefer the full date in the cite text when it agrees with the short cite's year.
+    if (found && (!sy.year || found.year === sy.year)) c.date = { year: found.year, month: found.month ?? sy.month, day: found.day ?? sy.day, raw: found.raw };
+    else c.date = { year: sy.year, month: sy.month, day: sy.day };
     c.provenance.date = "imported";
   }
   const url = URL_RE.exec(rest);
@@ -212,8 +291,8 @@ export function structureDocument(paragraphs: DocParagraph[]): StructuredDoc {
       let citation: Citation = { authors: [], provenance: {} };
       if (citeLike) {
         const s = splitCite(citeP);
-        cite = { ...s, paragraphIndex: next };
-        citation = citationFromImported(s.short, s.rest, s.raw);
+        cite = { short: s.short, rest: s.rest, raw: s.raw, paragraphIndex: next };
+        citation = citationFromImported(s.short, s.rest, s.raw, s.prefix);
       } else {
         cardIssues.push("No citation line found under this tag.");
       }

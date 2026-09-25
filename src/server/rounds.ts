@@ -30,6 +30,12 @@ export const RoundInput = z.object({
       newArgumentPolicy: z.enum(["conventional", "strict", "permissive"]).optional(),
     })
     .default({}),
+  aiPolicy: z.enum(["allowed", "prep_only", "off"]).default("prep_only"),
+  phase: z.enum(["prep", "live", "done"]).default("prep"),
+  speakerOverrides: z.partialRecord(z.enum(["1AC", "1NC", "2AC", "2NC", "1NR", "1AR", "2NR", "2AR"]), z.string().max(80)).default({}),
+  settings: z
+    .object({ omissionPolicy: z.enum(["nsda", "permissive"]).optional(), judgeKick: z.enum(["yes", "no", "if_asked", "unknown"]).optional() })
+    .default({}),
 });
 
 export type RoundInputT = z.infer<typeof RoundInput>;
@@ -53,6 +59,10 @@ export async function createRound(teamId: string, userId: string, input: RoundIn
       roster: input.roster,
       opponent: input.opponent,
       judges: input.judges,
+      aiPolicy: input.aiPolicy,
+      phase: input.phase,
+      speakerOverrides: input.speakerOverrides,
+      settings: input.settings,
       stateDocId,
       createdBy: userId,
     }),
@@ -71,6 +81,7 @@ export async function listRounds(teamId: string) {
       ourSide: rounds.ourSide,
       opponent: rounds.opponent,
       status: rounds.status,
+      phase: rounds.phase,
       updatedAt: rounds.updatedAt,
       createdAt: rounds.createdAt,
     })

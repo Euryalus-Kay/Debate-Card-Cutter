@@ -82,3 +82,37 @@ describe("DOCX round trip", () => {
     expect(s.items.map((x) => x.kind)).toEqual(["analytic", "analytic"]);
   });
 });
+
+import { citationFromImported, looksLikeCite, splitCite } from "../structure";
+import type { DocParagraph } from "../docx";
+
+describe("real-world cite patterns (from Verbatim camp files)", () => {
+  const para = (runs: { text: string; bold?: boolean; cs?: string }[]): DocParagraph => ({
+    index: 0,
+    headingLevel: 0,
+    inTable: false,
+    text: runs.map((r) => r.text).join(""),
+    runs: runs.map((r) => ({ text: r.text, props: { bold: r.bold }, emphasis: false, charStyle: r.cs, charStyleName: r.cs ? "Style 13 pt Bold" : undefined })),
+  });
+
+  it("detects a cite whose first name precedes the Cite-styled short cite", () => {
+    const p = para([{ text: "Ben " }, { text: "Deighton 19", cs: "Style13ptBold" }, { text: ", Postgraduate journalism degrees, Managing Editor of SciDev.Net, 2/18" }]);
+    expect(looksLikeCite(p)).toBe(true);
+    const s = splitCite(p);
+    expect(s).toMatchObject({ short: "Deighton 19", prefix: "Ben" });
+    const c = citationFromImported(s.short, s.rest, s.raw, s.prefix);
+    expect(c.authors[0]).toMatchObject({ name: "Ben Deighton", family: "Deighton" });
+    expect(c.date?.year).toBe(2019);
+  });
+
+  it("parses curly-apostrophe, single-digit, 2K, m/d/yy, and trailing years", () => {
+    expect(citationFromImported("Berry & Huckins ’19", "", "").date?.year).toBe(2019);
+    expect(citationFromImported("Bracey 6", "Associate Professor of Law", "").date?.year).toBe(2006);
+    expect(citationFromImported("Reed 2K", "Professor at Lancaster University", "").date?.year).toBe(2000);
+    expect(citationFromImported("Segall 3/12/21", ". Assistant Chief Counsel", "").date).toMatchObject({ year: 2021, month: 3, day: 12 });
+    const n = citationFromImported("Newburger", "21, Biden’s budget proposal calls for more, 1-27-2021, CNBC", "");
+    expect(n.date).toMatchObject({ year: 2021, month: 1, day: 27 });
+    expect(n.authors[0].name).toBe("Newburger");
+    expect(citationFromImported("Levitz 19", "9-18-2019, Democracy Dies When Labor Unions Do, https://nymag.com/x", "").date).toMatchObject({ year: 2019, month: 9, day: 18 });
+  });
+});

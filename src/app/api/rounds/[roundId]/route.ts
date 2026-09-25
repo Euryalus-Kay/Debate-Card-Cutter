@@ -16,7 +16,10 @@ export const GET = handle(async (_req: Request, ctx: Ctx) => {
   return Response.json(bundle);
 });
 
-const Patch = RoundInput.partial().extend({ status: z.enum(["active", "archived"]).optional() });
+const Patch = RoundInput.partial().extend({
+  status: z.enum(["active", "archived"]).optional(),
+  aiOverride: z.object({ by: z.string().max(80), at: z.string().max(40), reason: z.string().min(4).max(500) }).nullable().optional(),
+});
 
 export const PATCH = handle(async (req: Request, ctx: Ctx) => {
   const { roundId } = await ctx.params;

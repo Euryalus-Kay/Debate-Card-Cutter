@@ -1,0 +1,2130 @@
+[
+  {
+    "name": "sonnet5-thinking-off",
+    "ok": true,
+    "firstPartialMs": 4654,
+    "totalMs": 81269,
+    "usage": {
+      "inputTokens": 10424,
+      "outputTokens": 6625,
+      "cachedInputTokens": 0,
+      "cacheWriteTokens": 10162
+    },
+    "sections": 16,
+    "responses": 11,
+    "cardsUsed": 6,
+    "analyticWords": 1303,
+    "estSeconds": 602,
+    "unaddressed": 0,
+    "droppedTargets": 0,
+    "droppedCards": 0,
+    "omitted": 1,
+    "questions": 3,
+    "strategy": "Go for solvency deficits and a perm on the States CP (uniformity/cross-border pollution problems states can't solve, plus their own evidence that states are hostile to WOTUS-style protections), read no-link and non-unique defense on the Climate Tradeoff DA since our card base doesn't support a clean impact turn without contradicting our own case framing, and spend the mandated ~90 seconds on case defense against the water wars and alt-cause arguments. Case gets extended by author to rebuild advantage 1 before the DA and CP are answered.",
+    "output": {
+      "strategy": {
+        "summary": "Go for solvency deficits and a perm on the States CP (uniformity/cross-border pollution problems states can't solve, plus their own evidence that states are hostile to WOTUS-style protections), read no-link and non-unique defense on the Climate Tradeoff DA since our card base doesn't support a clean impact turn without contradicting our own case framing, and spend the mandated ~90 seconds on case defense against the water wars and alt-cause arguments. Case gets extended by author to rebuild advantage 1 before the DA and CP are answered.",
+        "choices": [
+          "Perm 'do both' and perm 'states first, federal backstop' against the States CP, then read a solvency deficit using our own solvency cards (uniformity, cross-border enforcement) plus the library CP-answers cards (Bower & McLean non-uniformity, Attorney General California/Vermont interstate confusion, Roper compact failure) to show states independently can't solve — this satisfies the judge's 'CP needs a clear net benefit' preference by showing the net benefit doesn't outweigh a real solvency deficit",
+          "Do NOT straight-turn the Climate Tradeoff DA — our card library only has the Parkinson evidence which is neutral/link-side, not an impact-turn card, so turning it would require inventing an impact-turn warranty we don't have; instead read non-unique/no-link defense (climate money is already committed per their own Newburger card, so the tradeoff already happened or won't be marginally caused by this plan) and impact defense against Specktor via our own extinction-framing on case rather than a fabricated turn",
+          "Answer water wars with the specific mechanism distinction: cooperation studies are about surface/boundary water treaties between nations, not about domestic ephemeral-stream contamination collapsing into economic decline within US regions — the 1NC ev doesn't disprove the internal link chain in our 1AC",
+          "Answer alt-cause (ag runoff) as non-exclusive: ag runoff and unprotected ephemeral streams are compounding causes, not competing ones — winning the CP doesn't solve ag runoff either, and our uniform federal enforcement card is comparatively better at getting polluters states can't reach"
+        ],
+        "risks": [
+          "Not straight-turning the DA is a judge-legibility risk since our notes call for a turn, but doing so without a proper impact-turn card risks a double-turn or fabricated evidence; we instead run solvency-take-out (non-unique) which is safer and still consistent with 2AC evidence integrity rules",
+          "The CP answers rely heavily on cross-applying our own solvency cards; if the judge weighs Berry & Huckins/ELI heavily in-round we need the specific rebuttal on why federalism causes a regulatory patchwork problem the CP doesn't fix — the Bower & McLean and AG cards directly answer this",
+          "Perm text must be clean (do both federal + states, no competition) since judge is fine with 2 condo but wants a 'clear net benefit' — we should press that the Climate Tradeoff DA is NOT a net benefit to the States CP (it links to federal action only, arguably not to the CP), which lets us argue the CP has no net benefit at all under this judge's stated standard"
+        ]
+      },
+      "sections": [
+        {
+          "ref": "s0",
+          "parentRef": "",
+          "kind": "overview",
+          "title": "Roadmap",
+          "relation": "none",
+          "targets": [],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "Roadmap: Climate Tradeoff DA, States CP, Advantage 1 defense — case first mentioned last per flow order but going in 1NC sequence as instructed: DA, then CP, then case. On the DA we read non-unique and no-link defense — not a turn — because our evidence doesn't support a clean impact-turn without fabricating a warrant. On the CP we perm and read a solvency deficit. On case we defend the water wars and alt-cause answers.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 10,
+          "priority": 1
+        },
+        {
+          "ref": "s1",
+          "parentRef": "",
+          "kind": "position",
+          "title": "Climate Tradeoff DA",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2ec77uq6asuv5",
+            "arg_mugr25o2iwvyel2cx5g9",
+            "arg_mugr25o2uaj095oz0f7r"
+          ],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 130,
+          "priority": 1
+        },
+        {
+          "ref": "s1a",
+          "parentRef": "s1",
+          "kind": "response",
+          "title": "1. Non-unique — budget tradeoffs already happening independent of the plan",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2ec77uq6asuv5"
+          ],
+          "crossApplyFrom": "",
+          "role": "non_unique",
+          "analytic": "Their own Newburger evidence says water policy is already in the budget alongside climate — that means the alleged tradeoff between climate funding and water funding is already occurring right now, before the plan. If Biden is already funding both simultaneously per their card, then adding CWA jurisdiction for ephemeral streams — a regulatory/enforcement expansion, not a large new spending line — doesn't create a new marginal tradeoff. The DA needs to show the plan specifically causes a shift that wouldn't happen anyway; their card actually proves the opposite, that both happen together now.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 30,
+          "priority": 1
+        },
+        {
+          "ref": "s1b",
+          "parentRef": "s1",
+          "kind": "response",
+          "title": "2. No link — the plan is a regulatory expansion of CWA jurisdiction, not a new appropriations fight",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2iwvyel2cx5g9"
+          ],
+          "crossApplyFrom": "",
+          "role": "no_link",
+          "analytic": "Parkinson et al. is about regional investment reallocation between fossil energy/water infrastructure spending and clean energy transition spending — that is a physical infrastructure investment tradeoff, not about defining which streams count as 'waters of the United States' under existing CWA permitting authority. The plan doesn't ask Congress for a new appropriations bill that pulls funding from climate programs; it expands what falls under the EPA's existing regulatory umbrella. Their link evidence doesn't speak to this mechanism, so there's no reason to believe this plan specifically trades off with climate spending the way a large infrastructure funding shift would.",
+          "cardIds": [
+            "card_mugqz7xbwh6r397onmyk"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 35,
+          "priority": 1
+        },
+        {
+          "ref": "s1c",
+          "parentRef": "s1",
+          "kind": "response",
+          "title": "3. Even if there's a marginal tradeoff, it's not zero-sum at the level of extinction",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2uaj095oz0f7r"
+          ],
+          "crossApplyFrom": "",
+          "role": "impact_mitigation",
+          "analytic": "Their internal Specktor card claims the affirmative's climate defense relies on inaccurate models to argue against extinction — but that's an answer to a climate-skepticism argument we're not making; we aren't disputing that climate change is real or catastrophic. The question is whether marginal water-policy resource allocation meaningfully changes the trajectory of an independently-funded, decades-long climate transition. Even granting warming is real and severe, they need to prove this specific plan's marginal effect on that budget line tips the outcome from survivable to extinction — that's a steep, unsupported inferential leap from a card about model accuracy generally.",
+          "cardIds": [],
+          "needsEvidence": "a card that directly quantifies how small water-jurisdiction regulatory changes would marginally affect the climate budget/trajectory, if we want more than analytic defense here",
+          "budgetSeconds": 35,
+          "priority": 2
+        },
+        {
+          "ref": "s1d",
+          "parentRef": "s1",
+          "kind": "response",
+          "title": "4. Case outweighs on timeframe and probability",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2ec77uq6asuv5",
+            "arg_mugr25o2iwvyel2cx5g9",
+            "arg_mugr25o2uaj095oz0f7r"
+          ],
+          "crossApplyFrom": "",
+          "role": "impact_calc",
+          "analytic": "Even under their most generous read of the link chain, the DA requires: budget tradeoff occurring → measurable slowdown in climate mitigation → that slowdown being the difference-maker for extinction. Our Advantage 1 impact — water insecurity escalating into economic decline and regional conflict — has a much shorter, more direct internal link chain from the plan (stream protection → less contamination → water security → economic/political stability) that doesn't depend on speculative budget reallocation math. Prefer our impact on probability and directness.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 20,
+          "priority": 2
+        },
+        {
+          "ref": "s2",
+          "parentRef": "",
+          "kind": "position",
+          "title": "States CP",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2bu40un5qs6vo",
+            "arg_mugr25o2sf0bakxbfv8q",
+            "arg_mugr25o23w6u6ly8m2ro"
+          ],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 170,
+          "priority": 1
+        },
+        {
+          "ref": "s2a",
+          "parentRef": "s2",
+          "kind": "response",
+          "title": "1. Permutation — do both",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2bu40un5qs6vo"
+          ],
+          "crossApplyFrom": "",
+          "role": "perm",
+          "analytic": "Permute: the federal government expands CWA protection and the fifty states also expand their own protections. This isn't mutually exclusive — nothing about federal jurisdiction over ephemeral and intermittent streams prevents states from separately strengthening their own regulatory programs on top of the federal floor. Their own ELI evidence says the CWA establishes a stringency 'floor' and states may protect waters more rigorously — that's proof the two levels of government stack rather than compete. If the perm is net beneficial, it's a reason to reject the CP outright under this judge's standard that CPs need a clear net benefit — there's no separate net benefit to states-only action once you can have both.",
+          "cardIds": [
+            "card_mugqzajbadqppk6hd5qz"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 40,
+          "priority": 1
+        },
+        {
+          "ref": "s2b",
+          "parentRef": "s2",
+          "kind": "response",
+          "title": "2. Permutation — states act first, federal government backstops non-compliant states",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2bu40un5qs6vo"
+          ],
+          "crossApplyFrom": "",
+          "role": "perm",
+          "analytic": "Alternatively, permute: states implement their own regulations, and the federal government maintains a floor of CWA protection for ephemeral/intermittent streams that catches states that don't act or roll back protections. This solves the CP's net benefit (state-level implementation and local knowledge) while solving our solvency deficit (uniform enforcement, cross-border pollution) because the federal backstop only kicks in where states fail. Given the judge's preference that CPs need a 'clear net benefit,' the negative has to isolate something the perm can't capture — and neither the Berry & Huckins nor the ELI evidence says federal and state authority can't coexist.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 35,
+          "priority": 1
+        },
+        {
+          "ref": "s2c",
+          "parentRef": "s2",
+          "kind": "response",
+          "title": "3. Solvency deficit — non-uniformity, most states lack programs at all",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2sf0bakxbfv8q",
+            "arg_mugr25o23w6u6ly8m2ro"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "Cross-apply our 1AC solvency evidence: only uniform federal standards stop a race to the bottom between states, because a state that under-regulates gains an economic advantage by attracting polluting industry, forcing a downward spiral. This is a distinct and larger solvency deficit than anything their Berry & Huckins or ELI cards answer — those cards describe what states are capable of doing in principle, not what they will do given competitive incentives not to regulate. Independent library evidence confirms this empirically: less than half of states even have formal wetlands permitting programs, and existing programs vary widely and have trended toward being made less restrictive over the last decade — that's the race to the bottom happening in real time, not hypothetically.",
+          "cardIds": [
+            "card_mugqzbfo8jm0od0htxs7"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 40,
+          "priority": 1
+        },
+        {
+          "ref": "s2d",
+          "parentRef": "s2",
+          "kind": "response",
+          "title": "4. Solvency deficit — cross-border pollution and interstate confusion, states were the ones fighting these protections in the first place",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2sf0bakxbfv8q",
+            "arg_mugr25o23w6u6ly8m2ro",
+            "arg_mugr25o2bu40un5qs6vo"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "Cross-apply: federal enforcement deters polluters that states cannot reach across borders — an ephemeral stream that starts in one state and flows into another can't be effectively regulated by either state acting alone, and there's no guarantee all fifty states even agree to act uniformly since the CP text just says states 'should' — it doesn't force compliance the way binding federal law does. This is empirically proven by the negative's own evidence base: state attorneys general were literally the parties suing to narrow WOTUS protections and challenging federal water rules in court, and multiple state AGs flagged that excluding interstate waters from protection specifically harms downstream water quality and creates regulatory confusion and litigation. If states were the ones trying to gut these very protections, there's no reason 50 independent state legislatures voluntarily choose to expand them absent the federal mandate the plan provides — that's an independent reason the CP doesn't solve our advantage.",
+          "cardIds": [
+            "card_mugqzav0w0k22scgzhwz",
+            "card_mugqzbmwivw1j8w3059i",
+            "card_mugqzbtvj46jk1n4kw36"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 45,
+          "priority": 1
+        },
+        {
+          "ref": "s2e",
+          "parentRef": "s2",
+          "kind": "response",
+          "title": "5. No independent net benefit to the CP under this judge's standard",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2ec77uq6asuv5",
+            "arg_mugr25o2iwvyel2cx5g9"
+          ],
+          "crossApplyFrom": "s1",
+          "role": "other",
+          "analytic": "The judge's paradigm requires counterplans to have a clear net benefit. The only net benefit offered is the Climate Tradeoff DA — but we've already shown that DA is non-unique and doesn't link to this specific plan mechanism. If the DA is answered, the CP has no net benefit standing on its own, and 'states solve better' cards are solvency claims, not reasons to prefer the CP over the permutation. Vote aff on presumption against the CP alone even without the solvency deficits.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 10,
+          "priority": 2
+        },
+        {
+          "ref": "s3",
+          "parentRef": "",
+          "kind": "position",
+          "title": "Advantage 1 — Water Security defense",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2j8pw118at6lf",
+            "arg_mugr25o25psvsqvu1efc"
+          ],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 90,
+          "priority": 1
+        },
+        {
+          "ref": "s3a",
+          "parentRef": "s3",
+          "kind": "response",
+          "title": "1. Water wars evidence is about interstate/international treaty cooperation, not domestic contamination collapse",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2j8pw118at6lf"
+          ],
+          "crossApplyFrom": "",
+          "role": "no_link",
+          "analytic": "The 1NC's 'no water wars' argument answers a different scenario than the one in our 1AC. Water-cooperation literature is almost always about nations or states negotiating shared river basins and boundary waters — treaties over rivers like the Nile, Indus, or Colorado. Our internal link chain is about domestic ephemeral and intermittent streams losing Clean Water Act coverage, contaminating drinking water supplies downstream, and that water insecurity degrading regional economic stability — which is a distinct causal pathway from interstate armed conflict over shared rivers. Even if states generally cooperate rather than go to war over trans-boundary rivers, that doesn't disprove that domestic water contamination causes economic decline, which is the actual internal link in our advantage.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 40,
+          "priority": 1
+        },
+        {
+          "ref": "s3b",
+          "parentRef": "s3",
+          "kind": "response",
+          "title": "2. Alt cause is non-exclusive — ag runoff and unprotected streams are compounding, not competing causes",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o25psvsqvu1efc"
+          ],
+          "crossApplyFrom": "",
+          "role": "no_internal_link",
+          "analytic": "Agricultural runoff being a major contamination source doesn't mean unprotected ephemeral and intermittent streams aren't also a major pathway — our 1AC evidence specifically establishes that unprotected headwaters carry pollution into the rivers that supply cities' drinking water. These are two contamination vectors that compound each other rather than compete: even if you fully solved agricultural runoff, water flowing through unregulated ephemeral streams would still carry other pollutants downstream unchecked. The plan solves its piece of the problem regardless of whether ag runoff is also addressed, and neither the CP nor status quo does anything about either.",
+          "cardIds": [],
+          "needsEvidence": "a card specifically quantifying that ephemeral/intermittent stream pollution is a distinct, non-trivial contribution to downstream contamination independent of agricultural runoff, to fully close this out",
+          "budgetSeconds": 40,
+          "priority": 1
+        },
+        {
+          "ref": "s4",
+          "parentRef": "",
+          "kind": "judge_instruction",
+          "title": "Voters",
+          "relation": "none",
+          "targets": [],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "Vote aff: the CP has no independent net benefit once the DA is answered, and even granting the CP a net benefit, the permutation solves it while our solvency deficits (uniformity and cross-border enforcement) show the CP alone doesn't solve the advantage. On case, both 1NC answers are non-responsive to our actual internal link chain. Extend 1AC solvency and advantage evidence by author into the 1AR.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 6,
+          "priority": 3
+        }
+      ],
+      "omitted": [
+        {
+          "targets": [],
+          "reason": "No other 1NC positions were listed beyond the DA, CP, and the two case answers; all required arguments were answered above."
+        }
+      ],
+      "questions": [
+        "Do we have (or can we get) a card specifically isolating the marginal contribution of ephemeral/intermittent stream contamination to downstream drinking water, independent of agricultural runoff, to fully close the alt-cause debate rather than relying on analytic non-exclusivity?",
+        "Should we invest 2AC time in reading the Adler 20 or Roper interstate-compact-failure cards offensively against the CP's 'states solve better' claim, or save them for the block since we already have sufficient solvency deficit evidence here?",
+        "Is there any 1AC card specifically on economic decline/regional conflict internal link that names the geographic scope, to help sharpen the no-link answer to 'water wars' with a card instead of pure analytic distinction?"
+      ]
+    }
+  },
+  {
+    "name": "sonnet5-effort-low",
+    "ok": true,
+    "firstPartialMs": 17766,
+    "totalMs": 80368,
+    "usage": {
+      "inputTokens": 10424,
+      "outputTokens": 6777,
+      "cachedInputTokens": 10162,
+      "cacheWriteTokens": 0
+    },
+    "sections": 17,
+    "responses": 11,
+    "cardsUsed": 5,
+    "analyticWords": 1095,
+    "estSeconds": 514,
+    "unaddressed": 0,
+    "droppedTargets": 0,
+    "droppedCards": 0,
+    "omitted": 0,
+    "questions": 3,
+    "strategy": "Go for solvency deficits and permutations against the States CP (non-uniformity, cross-border ephemeral streams, litigation/confusion, and evidence that states are actively hostile to water regulation), turn the Climate Tradeoff DA by arguing water security investment reduces downstream disaster/adaptation costs and frees resources for climate rather than competing with it, and hold defensive ground on case (no link to water wars claim, and alt causes don't eliminate the unique headwaters-contamination link).",
+    "output": {
+      "strategy": {
+        "summary": "Go for solvency deficits and permutations against the States CP (non-uniformity, cross-border ephemeral streams, litigation/confusion, and evidence that states are actively hostile to water regulation), turn the Climate Tradeoff DA by arguing water security investment reduces downstream disaster/adaptation costs and frees resources for climate rather than competing with it, and hold defensive ground on case (no link to water wars claim, and alt causes don't eliminate the unique headwaters-contamination link).",
+        "choices": [
+          "Perm do both and perm do the CP as a test of competition on the States CP, backed by solvency deficit evidence (non-uniformity, interstate confusion, litigation) rather than theory, since judge wants a 'clear net benefit' and none exists here",
+          "Read a link turn on the Climate DA (water crises are economically costly, so preventing them via the plan is not a net drain on climate budget but reduces disaster-driven diversions) since we lack a card directly contradicting Parkinson, paired with impact defense on Specktor rather than claiming no link at all, to avoid a double turn",
+          "Spend ~1:30 on case defense answering both water-wars and alt-cause arguments directly rather than extending 1AC cards at length, per team instructions",
+          "Slow down and clearly signpost tags per judge's explicit instruction"
+        ],
+        "risks": [
+          "No card directly turns the tradeoff DA's core mechanism—mitigated by making the turn analytic and pairing it with impact defense, not a contradictory no-link claim",
+          "CP solvency deficit cards (Bower & McLean, AG California/Vermont) are strong but neg could argue they only prove partial non-uniformity, not zero solvency—handled by stacking three separate deficit warrants (regulatory gaps, cross-border streams, litigation) so any one surviving is enough given judge requires a 'clear net benefit'",
+          "If 1NC didn't clearly read water-wars ev with a warrant beyond 'cooperation is common,' we still need to answer it fully since it's on the flow as 1NC argued—handled by an analytic response distinguishing cooperation literature from resource-scarcity/water-insecurity specific to the aff's internal link"
+        ]
+      },
+      "sections": [
+        {
+          "ref": "s0",
+          "parentRef": "",
+          "kind": "overview",
+          "title": "Roadmap",
+          "relation": "none",
+          "targets": [],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "Roadmap: Case defense first, then States CP, then Climate Tradeoff DA — same order as the 1NC.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 10,
+          "priority": 1
+        },
+        {
+          "ref": "s1",
+          "parentRef": "",
+          "kind": "position",
+          "title": "Advantage 1 — Water Security",
+          "relation": "none",
+          "targets": [],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 90,
+          "priority": 1
+        },
+        {
+          "ref": "s1a",
+          "parentRef": "s1",
+          "kind": "response",
+          "title": "1. Water-wars ev doesn't answer our internal link",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2j8pw118at6lf"
+          ],
+          "crossApplyFrom": "",
+          "role": "defense",
+          "analytic": "Their card says states cooperate more than they fight over shared water generally — but our 1AC impact isn't interstate war over rivers, it's regional economic decline and conflict caused by domestic water insecurity from lost drinking water supply. Historical cooperation data on transboundary basins doesn't speak to what happens when millions of stream miles lose federal protection simultaneously and drinking water for major cities is contaminated — that's a qualitatively different, more acute shock their evidence never contemplates. Even if states have cooperated in the past over normal water allocation disputes, that's not evidence they'll cooperate through a rapid contamination crisis at this scale.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 30,
+          "priority": 2
+        },
+        {
+          "ref": "s1b",
+          "parentRef": "s1",
+          "kind": "response",
+          "title": "2. Alt cause doesn't eliminate our unique link",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o25psvsqvu1efc"
+          ],
+          "crossApplyFrom": "",
+          "role": "defense",
+          "analytic": "Agricultural runoff being a contributor to contamination doesn't mean losing CWA protection for ephemeral and intermittent streams is irrelevant — our 1AC evidence establishes that unprotected headwaters themselves flow into and contaminate the rivers cities draw drinking water from, independent of agricultural sources. This is an additive link, not an alternate causality argument that displaces ours: even if agricultural runoff is one contributor, plugging the headwaters leak still solves a distinct and substantial share of the contamination problem, which is all we need for the impact to be triggered absent the plan.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 30,
+          "priority": 2
+        },
+        {
+          "ref": "s1c",
+          "parentRef": "s1",
+          "kind": "extension",
+          "title": "Extend solvency mechanism",
+          "relation": "extend",
+          "targets": [
+            "arg_mugr2513a0lhiki8oryq",
+            "arg_mugr25149z5s15isj85w"
+          ],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "Extend that only uniform federal standards stop a race to the bottom and that federal enforcement reaches polluters states can't reach across borders — this is the crucial cross-apply against the States CP later: it means the CP's decentralized approach recreates exactly the underenforcement problem the 1AC's solvency contention identifies.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 15,
+          "priority": 2
+        },
+        {
+          "ref": "s2",
+          "parentRef": "",
+          "kind": "position",
+          "title": "States CP",
+          "relation": "none",
+          "targets": [],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "Judge's paradigm explicitly requires a clear net benefit for any CP — the Climate Tradeoff DA is the only net benefit offered, and we're about to turn/mitigate it below, which independently guts this CP's rationale for existing.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 190,
+          "priority": 1
+        },
+        {
+          "ref": "s2a",
+          "parentRef": "s2",
+          "kind": "response",
+          "title": "1. Permutation — do both",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2bu40un5qs6vo"
+          ],
+          "crossApplyFrom": "",
+          "role": "perm",
+          "analytic": "Perm: the fifty states and the federal government should both substantially expand protection. This isn't severance — the plan doesn't specify exclusive federal action to the exclusion of state supplementation, and federal floors plus state supplementary protection is normal CWA practice (states already can be more stringent than the federal floor). The perm solves the CP's state-level flexibility/expertise advantages while keeping the federal uniformity and cross-border enforcement the aff's solvency contention requires — best of both worlds, and it's a legitimate test since the CP claims to be non-mutually-exclusive functional overlap with the plan.",
+          "cardIds": [
+            "card_mugqzajbadqppk6hd5qz"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 35,
+          "priority": 1
+        },
+        {
+          "ref": "s2b",
+          "parentRef": "s2",
+          "kind": "response",
+          "title": "2. Permutation — do the CP",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2bu40un5qs6vo"
+          ],
+          "crossApplyFrom": "",
+          "role": "perm",
+          "analytic": "Alternatively, perm do the CP: if fifty states acting in concert is functionally equivalent to comprehensive coverage, that proves competition is illusory and the CP is just the plan through a different mechanism — meaning there's no independent reason to prefer it absent a real net benefit, which the DA fails to provide as shown below.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 20,
+          "priority": 2
+        },
+        {
+          "ref": "s2c",
+          "parentRef": "s2",
+          "kind": "response",
+          "title": "3. Solvency deficit — non-uniformity, most states lack programs",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2sf0bakxbfv8q",
+            "arg_mugr25o23w6u6ly8m2ro"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "Cross-apply our 1AC solvency contention: uniform federal standards stop a race to the bottom, and this card proves the CP can't provide that. Less than half the states even have formal wetland/isolated-waters permitting programs, and those that exist vary wildly and trend toward weakening, not strengthening, protection — e.g., Wisconsin loosened its program rather than tightening it. That means the CP doesn't uniformly 'expand protection' as fiated — it recreates the exact patchwork the 1AC's race-to-the-bottom link describes, since polluting industries relocate to the weakest-regulation state.",
+          "cardIds": [
+            "card_mugqzbfo8jm0od0htxs7"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 45,
+          "priority": 1
+        },
+        {
+          "ref": "s2d",
+          "parentRef": "s2",
+          "kind": "response",
+          "title": "4. Solvency deficit — can't solve interstate/cross-border ephemeral streams",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2sf0bakxbfv8q",
+            "arg_mugr25o23w6u6ly8m2ro"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "Our 1AC internal link is specifically that unprotected headwaters contaminate downstream drinking water — often across state lines. This evidence shows exactly that problem: ephemeral streams straddling state borders and out-of-state streams that feed jurisdictional waters fall through the cracks of a state-by-state regulatory patchwork, because no individual state has authority or incentive to regulate a stream that primarily harms a neighboring state's water supply. That's a distinct reason the CP can't solve the water security advantage even where states do regulate.",
+          "cardIds": [
+            "card_mugqzbmwivw1j8w3059i"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 40,
+          "priority": 1
+        },
+        {
+          "ref": "s2e",
+          "parentRef": "s2",
+          "kind": "response",
+          "title": "5. Solvency deficit — confusion/litigation delays implementation",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2sf0bakxbfv8q",
+            "arg_mugr25o23w6u6ly8m2ro"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "Even where states try to regulate, disparity between state and federal definitions creates confusion for the regulated public, requiring additional outreach, oversight, and enforcement capacity most states lack — meaning implementation is slower and less effective than uniform federal rules, undermining the timeframe on which our water security advantage depends.",
+          "cardIds": [
+            "card_mugqzbtvj46jk1n4kw36"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 30,
+          "priority": 2
+        },
+        {
+          "ref": "s2f",
+          "parentRef": "s2",
+          "kind": "response",
+          "title": "6. States have historically fought water regulation, not embraced it",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2sf0bakxbfv8q"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "This card cuts against the CP's own 'states solve better' claim — it shows state AGs led the charge to gut WOTUS and other federal water protections in the first place. That's a warrant that many states are not just passively under-resourced but actively hostile to exactly the kind of expanded protection the CP fiats, which is a reason to doubt the CP solves as fiated even on paper, since real-world state political incentives run the opposite direction.",
+          "cardIds": [
+            "card_mugqzav0w0k22scgzhwz"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 20,
+          "priority": 3
+        },
+        {
+          "ref": "s3",
+          "parentRef": "",
+          "kind": "position",
+          "title": "Climate Tradeoff DA",
+          "relation": "none",
+          "targets": [],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "We turn this DA rather than reading no-link defense, to generate offense — but we're careful not to double-turn by also claiming there's zero link.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 166,
+          "priority": 1
+        },
+        {
+          "ref": "s3a",
+          "parentRef": "s3",
+          "kind": "response",
+          "title": "1. Non-unique — budget already committed, no reason plan changes the calculus",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2ec77uq6asuv5"
+          ],
+          "crossApplyFrom": "",
+          "role": "non_unique",
+          "analytic": "Newburger's evidence just shows Biden is prioritizing climate and that water policy is already in the current budget baseline — it doesn't say a specific ephemeral-streams CWA expansion would displace additional climate funding beyond what's already accounted for. If water policy is already budgeted for, the marginal cost of the plan's incremental regulatory action is small, and the DA's uniqueness claim that new tradeoffs are coming is not established by this card.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 30,
+          "priority": 2
+        },
+        {
+          "ref": "s3b",
+          "parentRef": "s3",
+          "kind": "response",
+          "title": "2. Turn — preventing water crises reduces disaster-driven diversions from climate spending",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2iwvyel2cx5g9"
+          ],
+          "crossApplyFrom": "",
+          "role": "link_turn",
+          "analytic": "Even granting Parkinson's general point that water and energy/climate investment compete for the same dollars, that's an argument about routine infrastructure tradeoffs, not about what happens when water contamination crises hit — unaddressed drinking water contamination triggers emergency response spending, litigation, and public health costs that are far more disruptive to budgets than proactive regulation. By preventing the water insecurity and economic decline our 1AC advantage identifies, the plan avoids costlier emergency diversions later, meaning it's a net wash or a net gain for climate-adjacent spending in the long run, not a straight drain.",
+          "cardIds": [],
+          "needsEvidence": "needs a card specifically comparing proactive water regulation costs versus reactive contamination/disaster response costs to fully substantiate the magnitude of the turn",
+          "budgetSeconds": 50,
+          "priority": 1
+        },
+        {
+          "ref": "s3c",
+          "parentRef": "s3",
+          "kind": "response",
+          "title": "3. No impact — extinction claim is not comparatively probable, and their own ev is about models being 'inaccurate,' not about a specific timeframe or mechanism",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2uaj095oz0f7r"
+          ],
+          "crossApplyFrom": "",
+          "role": "no_impact",
+          "analytic": "Even if some climate models understate risk, that's a generic indictment of modeling uncertainty, not specific evidence that this plan's marginal water-policy tradeoff is what pushes climate change to extinction. The link chain requires: plan drains water funding → less climate funding → extinction, and each additional link decreases probability. Our turn above already undercuts the first link, and 'models could be wrong' evidence doesn't establish that this particular funding shift, rather than any of the thousands of other variables in climate policy, is the deciding factor.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 40,
+          "priority": 2
+        },
+        {
+          "ref": "s3d",
+          "parentRef": "s3",
+          "kind": "impact_calc",
+          "title": "4. Impact calculus — case outweighs and turns the DA net benefit",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2ec77uq6asuv5",
+            "arg_mugr25o2iwvyel2cx5g9",
+            "arg_mugr25o2uaj095oz0f7r"
+          ],
+          "crossApplyFrom": "",
+          "role": "impact_calc",
+          "analytic": "Weigh: our water security advantage is a proximate, evidenced link chain (lost CWA coverage → contamination → economic decline/conflict) that the plan directly solves. The DA requires a speculative, attenuated chain from marginal budget reallocation to extinction. Given the turn above neutralizes or reverses the DA's direction, there's no coherent net benefit left to justify the States CP under the judge's stated standard that 'counterplans need a clear net benefit.'",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 46,
+          "priority": 1
+        }
+      ],
+      "omitted": [],
+      "questions": [
+        "Was the Newburger 1NC card actually read with a specific dollar figure/mechanism, or just asserted broadly? Affects how hard to press the non-unique argument.",
+        "Do we have any card in the library specifically comparing disaster-response costs to proactive regulation costs, to better substantiate the tradeoff DA turn beyond an analytic claim?",
+        "Confirm whether 1NC read full CP solvency cards (Berry & Huckins, ELI) with warrants beyond the tag, since our solvency deficit answers assume they claimed broad state capability."
+      ]
+    }
+  },
+  {
+    "name": "opus55-effort-low",
+    "ok": true,
+    "firstPartialMs": 3190,
+    "totalMs": 46414,
+    "usage": {
+      "inputTokens": 10426,
+      "outputTokens": 4360,
+      "cachedInputTokens": 10162,
+      "cacheWriteTokens": 0
+    },
+    "sections": 17,
+    "responses": 12,
+    "cardsUsed": 4,
+    "analyticWords": 639,
+    "estSeconds": 349,
+    "unaddressed": 0,
+    "droppedTargets": 0,
+    "droppedCards": 0,
+    "omitted": 1,
+    "questions": 3,
+    "strategy": "Answer the States CP with two permutations and a solvency deficit carded by Bower & McLean and the two AG cards. Uniformity and cross-border pollution are exactly what the 1AC solvency claims, and the CP has no net benefit, which this judge says is required. Answer the Climate Tradeoff DA with non-unique, no-link, and a link turn that is only offense because it is paired with non-uniqueness. Spend about 1:30 on case defense.",
+    "output": {
+      "strategy": {
+        "summary": "Answer the States CP with two permutations and a solvency deficit carded by Bower & McLean and the two AG cards. Uniformity and cross-border pollution are exactly what the 1AC solvency claims, and the CP has no net benefit, which this judge says is required. Answer the Climate Tradeoff DA with non-unique, no-link, and a link turn that is only offense because it is paired with non-uniqueness. Spend about 1:30 on case defense.",
+        "choices": [
+          "Do not straight-turn the tradeoff DA with Parkinson. Our only on-point card is their own link card, and it cuts against us. Instead, go non-unique, then no link, then a link turn, and add analytic impact defense. Do not impact-turn climate.",
+          "CP: perm do both, perm do the CP, a solvency deficit on uniformity, one on interstate waters, and one on confusion and litigation. Then 'no net benefit' and a federalism answer to Adler-style arguments. No condo theory: this judge accepts up to two conditional positions.",
+          "Case: no water wars is defense, so impact out through economic decline and drinking water harms. Answer the alternate cause with 'plan solves the ephemeral share, and ephemeral streams carry farm runoff'."
+        ],
+        "risks": [
+          "The DA is framed as tradeoff/budget. If the 2NR goes all in on it, our defense is analytic-heavy with no cards. Mitigate by winning 'water is already in the budget' as proof of non-uniqueness. Flagged in needsEvidence.",
+          "The neg may kick the CP and go for the DA as the net benefit to the CP. Mitigate by winning 'perm do both avoids the DA'. The DA's own link logic shows the plan and CP spend the same, so it is not a net benefit.",
+          "The 1AC arguments are marked 'read not confirmed'. Extend them by claim, since author names are not given."
+        ]
+      },
+      "sections": [
+        {
+          "ref": "o1",
+          "parentRef": "",
+          "kind": "overview",
+          "title": "Roadmap",
+          "relation": "none",
+          "targets": [],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "Roadmap: States counterplan, Climate tradeoff DA, then the case — water security.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 6,
+          "priority": 1
+        },
+        {
+          "ref": "cp",
+          "parentRef": "",
+          "kind": "position",
+          "title": "States CP",
+          "relation": "none",
+          "targets": [],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 0,
+          "priority": 1
+        },
+        {
+          "ref": "cp1",
+          "parentRef": "cp",
+          "kind": "response",
+          "title": "1. Perm: do both",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2bu40un5qs6vo"
+          ],
+          "crossApplyFrom": "",
+          "role": "perm",
+          "analytic": "One: permute, do both. Federal protection sets the floor, and states build above it. Their own ELI card says the Clean Water Act is a stringency floor and states may protect more rigorously. That means the CP's additional protections are only possible on top of a federal floor. The perm captures every CP benefit and has no net benefit against it.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 25,
+          "priority": 1
+        },
+        {
+          "ref": "cp2",
+          "parentRef": "cp",
+          "kind": "response",
+          "title": "2. Perm: do the CP",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2bu40un5qs6vo"
+          ],
+          "crossApplyFrom": "",
+          "role": "perm",
+          "analytic": "Two: perm, do the counterplan. The resolution-style actor question aside, federal expansion of the Clean Water Act can be implemented through state agencies. The act is already cooperative federalism, with states administering permits. So the CP is a way to implement the plan, not a competitive alternative.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 18,
+          "priority": 2
+        },
+        {
+          "ref": "cp3",
+          "parentRef": "cp",
+          "kind": "response",
+          "title": "3. Solvency deficit — no uniformity",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2sf0bakxbfv8q",
+            "arg_mugr25o23w6u6ly8m2ro"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "Three: the CP cannot give uniformity. Fewer than half the states even have isolated wetlands programs, and states have been weakening them. Their ELI card concedes over two-thirds of states legally bar rules stronger than federal law. Fiat makes states act once, but without a federal standard the race to the bottom from our 1AC solvency evidence resumes. Their cards describe what states can do, not that they will stay uniform.",
+          "cardIds": [
+            "card_mugqzbfo8jm0od0htxs7"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 40,
+          "priority": 1
+        },
+        {
+          "ref": "cp4",
+          "parentRef": "cp",
+          "kind": "response",
+          "title": "4. Solvency deficit — interstate and cross-border pollution",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2sf0bakxbfv8q"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "Four: ephemeral streams straddle borders. An upstream state's discharges hit downstream drinking water, and no single state can regulate out-of-state streams. That is the exact harm of our advantage, and the CP cannot reach it.",
+          "cardIds": [
+            "card_mugqzbmwivw1j8w3059i"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 35,
+          "priority": 1
+        },
+        {
+          "ref": "cp5",
+          "parentRef": "cp",
+          "kind": "response",
+          "title": "5. Solvency deficit — confusion and litigation",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o23w6u6ly8m2ro"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "Five: fifty different definitions confuse the regulated public. That requires more enforcement and oversight, which delays protection.",
+          "cardIds": [
+            "card_mugqzbtvj46jk1n4kw36"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 25,
+          "priority": 2
+        },
+        {
+          "ref": "cp6",
+          "parentRef": "cp",
+          "kind": "response",
+          "title": "6. No net benefit",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2bu40un5qs6vo"
+          ],
+          "crossApplyFrom": "",
+          "role": "other",
+          "analytic": "Six: there is no net benefit. The tradeoff DA links to the CP too, because states spending on water trades off with climate spending just the same. The judge's paradigm demands a clear net benefit. Without one, any solvency deficit means you vote aff.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 20,
+          "priority": 1
+        },
+        {
+          "ref": "da",
+          "parentRef": "",
+          "kind": "position",
+          "title": "Climate Tradeoff DA",
+          "relation": "none",
+          "targets": [],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 0,
+          "priority": 1
+        },
+        {
+          "ref": "da1",
+          "parentRef": "da",
+          "kind": "response",
+          "title": "1. Non-unique",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2ec77uq6asuv5"
+          ],
+          "crossApplyFrom": "",
+          "role": "non_unique",
+          "analytic": "One: non-unique. Their Newburger card says water policy is already in the budget. If water spending is already happening and climate policy continues, the tradeoff has already occurred without extinction.",
+          "cardIds": [],
+          "needsEvidence": "Card on current federal water infrastructure funding (e.g., Bipartisan Infrastructure Law water money) coexisting with climate spending.",
+          "budgetSeconds": 30,
+          "priority": 1
+        },
+        {
+          "ref": "da2",
+          "parentRef": "da",
+          "kind": "response",
+          "title": "2. No link — regulation, not spending",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2iwvyel2cx5g9"
+          ],
+          "crossApplyFrom": "",
+          "role": "no_link",
+          "analytic": "Two: no link. The plan expands Clean Water Act jurisdiction. That is a regulatory definition, not an appropriation. Parkinson is about investment reallocation in energy and water infrastructure by 2030, not a federal permitting rule, and it is global and regional, not about U.S. budgets.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 30,
+          "priority": 1
+        },
+        {
+          "ref": "da3",
+          "parentRef": "da",
+          "kind": "response",
+          "title": "3. Link turn — wetlands are climate policy",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2iwvyel2cx5g9"
+          ],
+          "crossApplyFrom": "",
+          "role": "link_turn",
+          "analytic": "Three: link turn. Protected wetlands store carbon and buffer climate impacts, so the plan is climate policy. Their own Parkinson card says balancing tradeoffs requires a shift toward efficiency and clean supply across both water and energy systems. Integrated policy complements climate action. Combined with non-uniqueness, that makes the DA a reason to vote aff.",
+          "cardIds": [],
+          "needsEvidence": "Card that wetlands/headwater protection sequesters carbon or supports climate adaptation.",
+          "budgetSeconds": 35,
+          "priority": 1
+        },
+        {
+          "ref": "da4",
+          "parentRef": "da",
+          "kind": "response",
+          "title": "4. No internal link to extinction",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2uaj095oz0f7r"
+          ],
+          "crossApplyFrom": "",
+          "role": "no_internal_link",
+          "analytic": "Four: no internal link to extinction. Specktor is about climate models, not about one marginal budget tradeoff. Even a small delay in climate spending does not make the difference between survival and extinction, so the DA's risk is near zero.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 25,
+          "priority": 2
+        },
+        {
+          "ref": "case",
+          "parentRef": "",
+          "kind": "position",
+          "title": "Case — Water Security",
+          "relation": "none",
+          "targets": [],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 0,
+          "priority": 1
+        },
+        {
+          "ref": "c1",
+          "parentRef": "case",
+          "kind": "response",
+          "title": "No water wars",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2j8pw118at6lf"
+          ],
+          "crossApplyFrom": "",
+          "role": "impact_mitigation",
+          "analytic": "They say no water wars. First, that is only defense against the conflict piece. Extend our 1AC evidence that contaminated headwaters flow into city drinking water, and that insecurity causes economic decline. They have no answer to the economic impact. Second, cooperation between states depends on stable supply. Contamination is what breaks cooperation, and historical cooperation does not assume the scale of lost coverage in our 1AC, where millions of stream miles lost Clean Water Act protection. Third, predictions based on specific facts and causal principles are reliable, so don't discount our scenario.",
+          "cardIds": [
+            "card_mugqz9b6pgm6voxv3las"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 50,
+          "priority": 1
+        },
+        {
+          "ref": "c2",
+          "parentRef": "case",
+          "kind": "response",
+          "title": "Alternate causes",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o25psvsqvu1efc"
+          ],
+          "crossApplyFrom": "",
+          "role": "defense",
+          "analytic": "They say agricultural runoff is the alternate cause. But farm runoff travels through ephemeral and intermittent streams, which are the channels. Protecting headwaters regulates the pathway, so the alternate cause is solved by the plan. Even if not, we solve a significant share, and alternate causes aren't a reason to reject partial solvency.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 35,
+          "priority": 1
+        },
+        {
+          "ref": "c3",
+          "parentRef": "case",
+          "kind": "extension",
+          "title": "Extend solvency",
+          "relation": "extend",
+          "targets": [
+            "arg_mugr2513a0lhiki8oryq",
+            "arg_mugr25149z5s15isj85w"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "Extend solvency. Only uniform federal standards stop the race to the bottom, and federal enforcement reaches cross-border polluters. They conceded both on the case flow, and those two arguments are the net-benefit deficit to the CP.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 22,
+          "priority": 2
+        }
+      ],
+      "omitted": [
+        {
+          "targets": [],
+          "reason": "Library cards on unions, the K (Burke) and Adler/Troutman/Roper are either off-topic or neg cards. Not read."
+        }
+      ],
+      "questions": [
+        "Were the 1AC cards actually read? Confirm author names so we can extend by author.",
+        "Do we have carded evidence that wetlands help the climate (for the link turn) and evidence of current water funding (for non-uniqueness)?",
+        "Is the CP conditional? Condo up to 2 is fine for this judge, so theory is only viable if there are more positions."
+      ]
+    }
+  },
+  {
+    "name": "opus55-effort-medium",
+    "ok": true,
+    "firstPartialMs": 42849,
+    "totalMs": 106054,
+    "usage": {
+      "inputTokens": 10426,
+      "outputTokens": 9552,
+      "cachedInputTokens": 10162,
+      "cacheWriteTokens": 0
+    },
+    "sections": 19,
+    "responses": 12,
+    "cardsUsed": 4,
+    "analyticWords": 894,
+    "estSeconds": 459,
+    "unaddressed": 0,
+    "droppedTargets": 0,
+    "droppedCards": 0,
+    "omitted": 1,
+    "questions": 6,
+    "strategy": "Beat the States CP by making it lose its net benefit. First, argue it links to the tradeoff DA as much as the plan does, so the judge's 'clear net benefit' standard is not met. Second, win solvency deficits on uniformity and cross-border pollution with the Bower & McLean, California AG, and Vermont AG cards. On the DA, set up a straight turn: their own uniqueness card says water policy is already budgeted (non-unique), their own Parkinson card concedes developed economies need little new water investment (no link), and headwater and wetland protection is itself climate policy (link turn). Keep case defense to about 1:45 and tie federal solvency into the CP debate.",
+    "output": {
+      "strategy": {
+        "summary": "Beat the States CP by making it lose its net benefit. First, argue it links to the tradeoff DA as much as the plan does, so the judge's 'clear net benefit' standard is not met. Second, win solvency deficits on uniformity and cross-border pollution with the Bower & McLean, California AG, and Vermont AG cards. On the DA, set up a straight turn: their own uniqueness card says water policy is already budgeted (non-unique), their own Parkinson card concedes developed economies need little new water investment (no link), and headwater and wetland protection is itself climate policy (link turn). Keep case defense to about 1:45 and tie federal solvency into the CP debate.",
+        "choices": [
+          "States CP: one perm (do both), plus deficits on uniformity/race to the bottom, interstate ephemeral streams and confusion, plus 'CP links to the net benefit'. This uses the judge's 'counterplans need a clear net benefit' language. 50-state fiat theory and the compacts card are low-priority insurance.",
+          "Skip condo theory. There is only one conditional advocacy, and the judge says condo is fine up to 2, so it would waste time and credibility.",
+          "Climate DA: non-unique plus link turn, with no impact defense. That keeps the extinction impact available as our offense, and avoids a double turn and turn-plus-defense contradictions.",
+          "The no-link argument comes from their own Parkinson card: 'little incremental water sector investment needs are projected for developed economies', and the plan is regulatory, not spending. Flagged for the 1AR: go for the turn and the no-link together, since they are consistent — the plan both costs nothing and helps climate.",
+          "Case: no-water-wars and alt causes are answered with analytics that isolate the domestic drinking-water and economy impacts and argue wetlands filter runoff. Solvency (uniform federal standards, cross-border enforcement) is extended to feed the CP deficits.",
+          "Use the neg's ELI card against them: state protections are statutory and legislatures can alter them, and two-thirds of states restrict authority beyond federal law. That proves the CP has no durable floor."
+        ],
+        "risks": [
+          "The link turn has no card. The analytic claim that wetlands and headwaters store carbon and build climate resilience needs evidence (see needsEvidence). If none is found, the 1AR should lean on non-unique plus no-link plus 'CP links too' rather than the turn.",
+          "The 2NC may kick the CP and read the compact card (Roper, card_mugqzaloii1s3vodz186). The low-priority Roper 'compacts fail' card preempts this; keep it if time allows.",
+          "The 2NC may claim the CP avoids the DA because states' budgets are separate from Biden's federal focus. The 'CP links' answer must stress that Parkinson is about water investment in general, not federal spending specifically.",
+          "Their 'Extinction – their defense is based on inaccurate models' card (Specktor) is not answered with defense, on purpose. If the link turn falls, the DA impact is uncontested, so the case-outweighs and no-link arguments must be extended.",
+          "The judge wants tags slowed down. Tags are short, and the analytic budget assumes about 210 wpm."
+        ]
+      },
+      "sections": [
+        {
+          "ref": "s0",
+          "parentRef": "",
+          "kind": "overview",
+          "title": "Roadmap",
+          "relation": "none",
+          "targets": [],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "Roadmap: States counterplan, then the Climate Tradeoff DA, then case — Water Security and Solvency.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 8,
+          "priority": 1
+        },
+        {
+          "ref": "s1",
+          "parentRef": "",
+          "kind": "position",
+          "title": "States CP",
+          "relation": "none",
+          "targets": [
+            "arg_mugr25o2bu40un5qs6vo",
+            "arg_mugr25o2sf0bakxbfv8q",
+            "arg_mugr25o23w6u6ly8m2ro"
+          ],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 0,
+          "priority": 1
+        },
+        {
+          "ref": "s1a",
+          "parentRef": "s1",
+          "kind": "response",
+          "title": "1. Perm: do both",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2bu40un5qs6vo"
+          ],
+          "crossApplyFrom": "",
+          "role": "perm",
+          "analytic": "One: perm, do both. The federal government sets the Clean Water Act floor, and states build additional protections on top of it. Their own ELI evidence says the Clean Water Act is a stringency floor and states may protect more rigorously. That describes the perm, not a competing policy. So any state-specific benefit they claim, the perm captures, and the perm keeps our federal floor.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 18,
+          "priority": 1
+        },
+        {
+          "ref": "s1b",
+          "parentRef": "s1",
+          "kind": "response",
+          "title": "2. Solvency deficit — no uniform floor means a race to the bottom",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2sf0bakxbfv8q",
+            "arg_mugr25o23w6u6ly8m2ro"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "Two: solvency deficit, uniformity. Less than half the states even have nonfederal wetland programs, they vary wildly, and the trend is toward weakening them.\n\nTheir ELI card proves our point. Two-thirds of states restrict themselves to 'no more stringent than' federal law. And because state protections are statutory, legislatures can alter them. Fifty-state fiat gets one vote, but it gives no durable floor: the next legislature repeals it, and Wisconsin already did exactly that.\n\nThat is the race to the bottom from our 1AC solvency evidence. Only a federal standard stops it.",
+          "cardIds": [
+            "card_mugqzbfo8jm0od0htxs7"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 55,
+          "priority": 1
+        },
+        {
+          "ref": "s1c",
+          "parentRef": "s1",
+          "kind": "response",
+          "title": "3. Solvency deficit — interstate ephemeral streams and cross-border pollution",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2sf0bakxbfv8q"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "Three: cross-border deficit. Ephemeral streams straddle state lines and feed waters downstream. A downstream state cannot regulate discharges into an upstream state's stream. Fifty separate laws still leave each state blind to pollution entering from its neighbor. That is exactly the 1AC internal link to downstream drinking water, so the CP cannot solve our impact.",
+          "cardIds": [
+            "card_mugqzbmwivw1j8w3059i"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 40,
+          "priority": 1
+        },
+        {
+          "ref": "s1d",
+          "parentRef": "s1",
+          "kind": "response",
+          "title": "4. CP causes confusion and enforcement gaps",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o23w6u6ly8m2ro"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "Four: a gap between state and federal definitions confuses the regulated public and requires more oversight and enforcement. Fifty definitions is the maximum disparity.",
+          "cardIds": [
+            "card_mugqzbtvj46jk1n4kw36"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 15,
+          "priority": 2
+        },
+        {
+          "ref": "s1e",
+          "parentRef": "s1",
+          "kind": "response",
+          "title": "5. No net benefit — the CP links to the tradeoff DA",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2bu40un5qs6vo"
+          ],
+          "crossApplyFrom": "",
+          "role": "other",
+          "analytic": "Five: the CP has no net benefit. Their Parkinson link card is about water-sector investment competing with climate investment in general; it never says federal. If expanding stream protection trades off with climate, states doing it trade off too: same policy, same dollars, same agency attention. The judge wants a clear net benefit. If the CP links to the DA just as much as the plan, there isn't one, so vote aff on any solvency deficit.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 30,
+          "priority": 1
+        },
+        {
+          "ref": "s1f",
+          "parentRef": "s1",
+          "kind": "response",
+          "title": "6. Compacts fail (preempts a 2NC compact spin)",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2sf0bakxbfv8q"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "Six: if they spin the CP as an interstate compact, compacts fail. Diverse priorities, expense, delays, elections interrupting administration, and ambiguous language all undermine them.",
+          "cardIds": [
+            "card_mugqzbycf5mln7dz8t5s"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 12,
+          "priority": 3
+        },
+        {
+          "ref": "s1g",
+          "parentRef": "s1",
+          "kind": "response",
+          "title": "7. Theory: 50-state uniform fiat is a voting issue",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2bu40un5qs6vo"
+          ],
+          "crossApplyFrom": "",
+          "role": "theory",
+          "analytic": "Seven: uniform fifty-state fiat is illegitimate. No single policymaker can make all fifty states act at once, and there is no literature comparing that to federal action. It lets the neg fiat away the exact coordination problem the aff solves. At minimum, reject the argument and let us weigh how states actually behave.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 12,
+          "priority": 3
+        },
+        {
+          "ref": "s2",
+          "parentRef": "",
+          "kind": "position",
+          "title": "Climate Tradeoff DA",
+          "relation": "none",
+          "targets": [
+            "arg_mugr25o2ec77uq6asuv5",
+            "arg_mugr25o2iwvyel2cx5g9",
+            "arg_mugr25o2uaj095oz0f7r"
+          ],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 0,
+          "priority": 1
+        },
+        {
+          "ref": "s2a",
+          "parentRef": "s2",
+          "kind": "response",
+          "title": "1. Non-unique — water policy is already in the budget",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2ec77uq6asuv5"
+          ],
+          "crossApplyFrom": "",
+          "role": "non_unique",
+          "analytic": "One: non-unique. Their own Newburger uniqueness card says water policy is already in the budget. Whatever tradeoff exists between water and climate is already happening in the status quo. The plan doesn't create a new competition for attention or money that isn't already priced in.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 26,
+          "priority": 1
+        },
+        {
+          "ref": "s2b",
+          "parentRef": "s2",
+          "kind": "response",
+          "title": "2. No link — the plan is regulation, and Parkinson says developed economies need little new water investment",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2iwvyel2cx5g9"
+          ],
+          "crossApplyFrom": "",
+          "role": "no_link",
+          "analytic": "Two: no link. The plan expands Clean Water Act jurisdiction. That is a regulatory definition, not an appropriation. Their Parkinson card is about global investment financing through 2030. The same card says little incremental water sector investment needs are projected for developed economies. The U.S. is a developed economy, so their own evidence says the plan does not pull money away from climate.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 35,
+          "priority": 1
+        },
+        {
+          "ref": "s2c",
+          "parentRef": "s2",
+          "kind": "response",
+          "title": "3. Link turn — protecting headwaters and wetlands IS climate policy",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2iwvyel2cx5g9"
+          ],
+          "crossApplyFrom": "",
+          "role": "link_turn",
+          "analytic": "Three: link turn. Wetlands and intermittent streams store carbon, buffer floods and droughts, and recharge groundwater. Protecting them advances both climate mitigation and adaptation; they don't compete. Parkinson itself says balancing climate and clean water requires a shift toward integrated policy, and the plan is that integration. Combined with non-uniqueness, this is a straight turn: the plan boosts the climate agenda and reduces the extinction risk they read. We are not reading impact defense, so their extinction impact is our offense.",
+          "cardIds": [],
+          "needsEvidence": "Card that wetlands/headwater streams sequester carbon and that wetland protection improves climate resilience (flood/drought buffering) — ideally saying Clean Water Act protection is a climate co-benefit.",
+          "budgetSeconds": 50,
+          "priority": 1
+        },
+        {
+          "ref": "s2d",
+          "parentRef": "s2",
+          "kind": "impact_calc",
+          "title": "4. We access their extinction impact",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2uaj095oz0f7r"
+          ],
+          "crossApplyFrom": "",
+          "role": "impact_calc",
+          "analytic": "Four: take their Specktor card that the models underestimate warming. That makes our turn bigger. If warming is worse than predicted, protecting carbon-storing wetlands and building water resilience matters more. The impact runs aff.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 25,
+          "priority": 2
+        },
+        {
+          "ref": "s2e",
+          "parentRef": "s2",
+          "kind": "impact_calc",
+          "title": "5. Case outweighs — the link chain is thin",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2uaj095oz0f7r",
+            "arg_mugr25o2iwvyel2cx5g9"
+          ],
+          "crossApplyFrom": "",
+          "role": "impact_calc",
+          "analytic": "Five: even if some link survives, one regulatory expansion shifting budget attention at the margin does not decide global warming. Our impact is immediate: contaminated drinking water for cities downstream of unprotected headwaters, happening now as coverage collapses. Probability and timeframe favor the aff.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 25,
+          "priority": 2
+        },
+        {
+          "ref": "s3",
+          "parentRef": "",
+          "kind": "position",
+          "title": "Case — Advantage 1: Water Security",
+          "relation": "none",
+          "targets": [
+            "arg_mugr25o2j8pw118at6lf",
+            "arg_mugr25o25psvsqvu1efc"
+          ],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 0,
+          "priority": 1
+        },
+        {
+          "ref": "s3a",
+          "parentRef": "s3",
+          "kind": "response",
+          "title": "1. No water wars — doesn't touch our drinking water or economic impacts",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2j8pw118at6lf"
+          ],
+          "crossApplyFrom": "",
+          "role": "defense",
+          "analytic": "On no water wars. One: at best that takes out one piece of the terminal impact. Extend 1AC card 2: unprotected headwaters contaminate city drinking water, and card 3: that insecurity drives economic decline. Neither requires a war.\n\nTwo: their evidence is about states cooperating over shared basins historically. Cooperation assumes shared water that is usable. Contamination from unregulated upstream sources is exactly what strains that cooperation.\n\nThree: our uniform federal standard is the institution that makes cooperation possible, so their argument proves the plan's mechanism.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 35,
+          "priority": 1
+        },
+        {
+          "ref": "s3b",
+          "parentRef": "s3",
+          "kind": "response",
+          "title": "2. Alt causes — the plan's wetland protection filters agricultural runoff",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o25psvsqvu1efc"
+          ],
+          "crossApplyFrom": "",
+          "role": "defense",
+          "analytic": "On alt causes. One: the plan protects wetlands and headwaters, and those are the natural filters that catch agricultural runoff before it reaches rivers. The plan reduces their alt cause instead of being swamped by it.\n\nTwo: an alternate cause is not a reason to leave another source unregulated. We still reduce contamination at the margin, and any risk of solvency outweighs a DA with no link.\n\nThree: extend 1AC card 1: millions of stream miles have lost coverage. That is a massive independent pathway, not a trivial one.",
+          "cardIds": [],
+          "needsEvidence": "Card that wetlands/riparian buffers filter nitrogen and phosphorus from agricultural runoff.",
+          "budgetSeconds": 35,
+          "priority": 1
+        },
+        {
+          "ref": "s3c",
+          "parentRef": "s3",
+          "kind": "extension",
+          "title": "Extend Solvency — only federal standards stop the race to the bottom and cross-border pollution",
+          "relation": "extend",
+          "targets": [
+            "arg_mugr2513a0lhiki8oryq",
+            "arg_mugr25149z5s15isj85w"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "Extend our solvency, which the 1NC never answered on the case page. Only uniform federal standards stop states from undercutting each other. Federal enforcement reaches polluters across state borders, which states cannot do. Cross-apply both to the counterplan: these are the deficits, and they're conceded on case.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 35,
+          "priority": 1
+        }
+      ],
+      "omitted": [
+        {
+          "targets": [
+            "arg_mugr25o2uaj095oz0f7r"
+          ],
+          "reason": "No impact defense is read against the Specktor extinction card, on purpose. Defense would undercut the straight turn by shrinking the impact we claim to access. It is handled instead by the 'we access their impact' and case-outweighs sections."
+        }
+      ],
+      "questions": [
+        "Who are the 1AC authors on Advantage 1 cards 1–3 and Solvency cards 1–2? The record lists only tags, so the extensions should be delivered by author name once confirmed.",
+        "Were the 1AC cards and all 1NC arguments actually read? Every item is marked documented, not confirmed read. Do not call anything 'dropped' until it's confirmed; the 'never answered on the case page' line in the Solvency extension depends on this.",
+        "Do we have a card showing wetlands/headwaters store carbon or build climate resilience? Without it, the DA link turn is analytic only, and the 1AR should lean on non-unique plus no-link.",
+        "Do we have a card showing wetlands filter agricultural runoff, for the alt-causes answer?",
+        "Check whether the neg read the Roper compact card or the Troutman card (states challenged WOTUS) in the 1NC. If not, the compacts-fail answer is only a preempt and can be cut.",
+        "Is the judge receptive to 50-state fiat theory? The paradigm only addresses condo and net benefits, so it is priority 3."
+      ]
+    }
+  },
+  {
+    "name": "opus5-thinking-off",
+    "ok": true,
+    "firstPartialMs": 7448,
+    "totalMs": 87749,
+    "usage": {
+      "inputTokens": 10424,
+      "outputTokens": 6807,
+      "cachedInputTokens": 0,
+      "cacheWriteTokens": 10162
+    },
+    "sections": 18,
+    "responses": 13,
+    "cardsUsed": 5,
+    "analyticWords": 1448,
+    "estSeconds": 641,
+    "unaddressed": 0,
+    "droppedTargets": 3,
+    "droppedCards": 0,
+    "omitted": 1,
+    "questions": 5,
+    "strategy": "The round is won on the States CP and the Climate Tradeoff DA. We have excellent CP solvency-deficit evidence (Bower & McLean on non-uniform/absent state programs, CA AG on interstate ephemeral streams, VT AG on confusion/litigation, Roper on compact failure) that directly answers Berry & Huckins and ELI — in fact ELI concedes two-thirds of states have 'no more stringent than' laws, which is a link to our race-to-the-bottom solvency card. On the DA we cannot straight-turn: the only tradeoff card in the library is their own Parkinson evidence, so we go for no link/no internal link (Parkinson is about developing-economy water infrastructure finance, not U.S. CWA jurisdictional rules, and says developed economies need little incremental water investment) plus no uniqueness. Case defense is ~1:20: alt-cause is not offense and our second advantage internal link (drinking water) survives, and water wars defense doesn't touch the economic-decline internal link.",
+    "output": {
+      "strategy": {
+        "summary": "The round is won on the States CP and the Climate Tradeoff DA. We have excellent CP solvency-deficit evidence (Bower & McLean on non-uniform/absent state programs, CA AG on interstate ephemeral streams, VT AG on confusion/litigation, Roper on compact failure) that directly answers Berry & Huckins and ELI — in fact ELI concedes two-thirds of states have 'no more stringent than' laws, which is a link to our race-to-the-bottom solvency card. On the DA we cannot straight-turn: the only tradeoff card in the library is their own Parkinson evidence, so we go for no link/no internal link (Parkinson is about developing-economy water infrastructure finance, not U.S. CWA jurisdictional rules, and says developed economies need little incremental water investment) plus no uniqueness. Case defense is ~1:20: alt-cause is not offense and our second advantage internal link (drinking water) survives, and water wars defense doesn't touch the economic-decline internal link.",
+        "choices": [
+          "Go hard on the States CP: perm do both, three distinct solvency deficits with cards, and turn their own ELI evidence into a race-to-the-bottom link.",
+          "Do NOT straight-turn the Climate DA — we have no link-turn or impact-turn evidence and Parkinson is their card; instead run no-link/no-internal-link + non-unique + no CP-competition-relevant net benefit (the DA links to the CP too via state-level water spending competing for the same climate agenda? — no, keep it clean: DA doesn't link to CP, so we just beat the link).",
+          "Read Adler-style 'one size fits none' answers? No — Adler is a neg card; explicitly do not read it. Use Bower & McLean and the AG cards as the aff's CP answers.",
+          "Case defense kept to ~1:20, framed as 'these are defense, not offense, and don't touch the pollution/economy internal link.'"
+        ],
+        "risks": [
+          "Double-turn risk on the DA — the draft explicitly avoids any impact turn to climate action and runs only defense/uniqueness.",
+          "Losing CP competition: the perm needs an explanation of why doing both isn't a reason to vote neg absent a net benefit — judge's paradigm says CPs need a clear net benefit, so we press that the only net benefit offered is the DA, and the DA doesn't link to the plan.",
+          "Time crunch: case defense is capped at 80 seconds and the lowest-priority CP argument (compacts fail) is priority 3.",
+          "Reading library cards that are actually neg-authored (Adler, Roper compact-good, Troutman) would hurt us — flagged to avoid."
+        ]
+      },
+      "sections": [
+        {
+          "ref": "s0",
+          "parentRef": "",
+          "kind": "overview",
+          "title": "Roadmap",
+          "relation": "none",
+          "targets": [],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "Order: States CP, Climate Tradeoff DA, then case. Judge, one framing note for the whole flow: your paradigm says counterplans need a clear net benefit. The only net benefit they've articulated is the Climate Tradeoff DA, so if we win the DA doesn't link to the plan, the counterplan is not competitive and the permutation is the end of the debate.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 16,
+          "priority": 1
+        },
+        {
+          "ref": "s1",
+          "parentRef": "",
+          "kind": "position",
+          "title": "States CP",
+          "relation": "answers",
+          "targets": [],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 0,
+          "priority": 1
+        },
+        {
+          "ref": "s1a",
+          "parentRef": "s1",
+          "kind": "response",
+          "title": "1. Permutation: do both — the federal government and the fifty states both expand protection",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2bu40un5qs6vo"
+          ],
+          "crossApplyFrom": "",
+          "role": "perm",
+          "analytic": "Perm: do the plan and the counterplan. This is the test of competition, not an advocacy. Their own ELI evidence says the Clean Water Act sets a stringency floor and states may protect waters more rigorously — that means federal and state action are complementary, not mutually exclusive. The perm captures every offense they have: states still get to regulate, implement, and allocate funding, exactly as Berry and Huckins describe, but with a federal floor underneath so the states that do nothing can't be the weak link. The only way to reject the perm is a net benefit, and their only net benefit is the Climate DA, which I'm about to prove doesn't link to the plan.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 40,
+          "priority": 1
+        },
+        {
+          "ref": "s1b",
+          "parentRef": "s1",
+          "kind": "response",
+          "title": "2. Solvency deficit — most states have no program and the ones that do aren't uniform",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2sf0bakxbfv8q",
+            "arg_mugr25o23w6u6ly8m2ro"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "Berry and Huckins say states are 'uniquely positioned' and cite 'promising examples' — that's a card about capacity and best cases, not about whether states actually will or do protect nonfederal waters. The empirical answer is no. Bower and McLean, 2019, studying exactly this question after the WOTUS repeal: fewer than half the states have formal isolated nonfederal wetlands permitting programs, the ones that exist vary widely in scope, and the recent trend — Wisconsin is their example — has been to make nonfederal wetland programs less restrictive and waive water quality certification. That's a direct answer to their solvency warrant: fifty separate actors with fifty different standards means the counterplan leaves the most polluted headwaters unprotected, and it's the reason this extends Solvency 1 from the 1AC — only uniform federal standards stop the race to the bottom.",
+          "cardIds": [
+            "card_mugqzbfo8jm0od0htxs7"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 50,
+          "priority": 1
+        },
+        {
+          "ref": "s1c",
+          "parentRef": "s1",
+          "kind": "response",
+          "title": "3. Their ELI evidence concedes the race to the bottom",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o23w6u6ly8m2ro"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "Turn their own card. ELI says over two-thirds of states restrict their own authority to regulate waters through 'no more stringent than federal law' statutes and property-rights limitations. Two things follow. First, under the counterplan alone, with no federal floor, 'no more stringent than federal law' means state protection collapses to whatever the shrunken federal definition is — that is the race to the bottom our 1AC solvency evidence describes. Second, ELI also says these are statutory, so legislatures can alter them — which is an argument for the perm, not the counterplan: pairing a federal floor with state action is what makes state stringency meaningful.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 32,
+          "priority": 1
+        },
+        {
+          "ref": "s1d",
+          "parentRef": "s1",
+          "kind": "response",
+          "title": "4. Can't solve interstate and cross-border waters",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2sf0bakxbfv8q"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "This is the deficit their evidence structurally cannot answer, and it extends 1AC Solvency 2 — federal enforcement deters polluters states cannot reach across borders. The California Attorney General, writing with fourteen other state AGs in 2019 about this exact jurisdictional question, explains that ephemeral streams straddle state borders and that out-of-state ephemeral streams contribute flow into another state's jurisdictional waters — so protecting water quality requires regulating discharges to streams a downstream state has no authority over. No state can regulate an upstream neighbor. That's a one hundred percent solvency deficit for the cross-border pollution that drives our drinking water internal link.",
+          "cardIds": [
+            "card_mugqzbmwivw1j8w3059i"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 45,
+          "priority": 1
+        },
+        {
+          "ref": "s1e",
+          "parentRef": "s1",
+          "kind": "response",
+          "title": "5. Fifty different definitions cause confusion, litigation, and under-enforcement",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o23w6u6ly8m2ro"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "Even where states act, the Vermont Attorney General explains that greater disparity between state and federal definitions creates confusion among the regulated public and requires additional outreach, oversight, and enforcement that states don't have the resources for. Their ELI card assumes clean agency implementation; this card says the implementation environment the counterplan creates is a mess. That's a reason the counterplan solves slower and less completely even in the best-case states.",
+          "cardIds": [
+            "card_mugqzbtvj46jk1n4kw36"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 26,
+          "priority": 2
+        },
+        {
+          "ref": "s1f",
+          "parentRef": "s1",
+          "kind": "response",
+          "title": "6. If they go for compacts in the block, compacts fail",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2bu40un5qs6vo"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "Pre-empting the interstate compact answer to the cross-border deficit: Roper, 2015, the same author who says compacts are a viable tool, also says compacts can and do fail — diverse cultural, political, and economic priorities in negotiation, they are complicated, expensive, and time-consuming to develop, state elections interrupt administration, and ambiguous language leaves issues unresolved. Fifty-state compact negotiation is not a solvency mechanism, it's a delay mechanism, and every year of delay is another year of unprotected headwaters.",
+          "cardIds": [
+            "card_mugqzbycf5mln7dz8t5s"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 28,
+          "priority": 3
+        },
+        {
+          "ref": "s2",
+          "parentRef": "",
+          "kind": "position",
+          "title": "Climate Tradeoff DA",
+          "relation": "answers",
+          "targets": [],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 0,
+          "priority": 1
+        },
+        {
+          "ref": "s2a",
+          "parentRef": "s2",
+          "kind": "response",
+          "title": "1. Non-unique — their own uniqueness card says water policy is already in the budget",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2ec77uq6asuv5"
+          ],
+          "crossApplyFrom": "",
+          "role": "non_unique",
+          "analytic": "Newburger says the administration is focused on climate and water policy is already in the budget. That's non-uniqueness, not uniqueness. If water spending is already inside the climate agenda and the climate agenda is still moving, then water policy and climate policy are being pursued simultaneously in the status quo — the tradeoff they describe has already happened and the disad's impact would already be triggered. They need a card saying the plan is the marginal straw; they read a card saying water is already baked in.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 32,
+          "priority": 1
+        },
+        {
+          "ref": "s2b",
+          "parentRef": "s2",
+          "kind": "response",
+          "title": "2. No link — the plan is a jurisdictional rule, not a budget request",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2iwvyel2cx5g9"
+          ],
+          "crossApplyFrom": "",
+          "role": "no_link",
+          "analytic": "The plan expands the definition of which waters are covered by the Clean Water Act. It is a regulatory jurisdiction change implemented by EPA and the Corps under existing statutory authority — it does not appropriate money and it does not ask Congress for anything, so there is no fiscal pot from which climate investment is drawn. Parkinson's entire mechanism is financing: re-allocation of capital away from fossil fuels and toward water supply systems and infrastructure investment. A permitting-jurisdiction rule is not an infrastructure investment. Absent a link story about dollars or floor time specific to CWA rulemaking, the disad does not attach to this plan — and remember, this is also their only net benefit, so no link means the counterplan is not competitive and the perm solves.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 45,
+          "priority": 1
+        },
+        {
+          "ref": "s2c",
+          "parentRef": "s2",
+          "kind": "response",
+          "title": "3. No internal link — Parkinson is about developing economies, and says developed economies need little new water investment",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2iwvyel2cx5g9"
+          ],
+          "crossApplyFrom": "",
+          "role": "no_internal_link",
+          "analytic": "Read their own Parkinson evidence closely. It says little incremental water sector investment is projected for developed economies, and that the constraint it identifies is climate financing limiting water infrastructure coverage — that's the opposite direction of their link, it's climate crowding out water, in countries building out basic water access. The United States is a developed economy with existing water infrastructure. Their card describes a global development-finance tradeoff; it says nothing about whether a U.S. Clean Water Act jurisdictional rule reduces U.S. climate policy. The author's own conclusion is that balancing these trade-offs requires a policy shift, not that you must abandon clean water — which is exactly what the plan plus their counterplan would do.",
+          "cardIds": [
+            "card_mugqz7xbwh6r397onmyk"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 45,
+          "priority": 1
+        },
+        {
+          "ref": "s2d",
+          "parentRef": "s2",
+          "kind": "response",
+          "title": "4. The DA links to the counterplan too",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2iwvyel2cx5g9",
+            "arg_mugr25o2sf0bakxbfv8q"
+          ],
+          "crossApplyFrom": "",
+          "role": "no_link",
+          "analytic": "Even on their own terms, Berry and Huckins say the counterplan works by state legislatures prioritizing funding for sustainable water management. That is water sector investment — the exact thing Parkinson says trades off with climate spending. If the link is 'resources devoted to water,' the counterplan spends more on water than the plan does, because the plan is just a definitional change. They can't have a resource-tradeoff link and a funding-based counterplan at the same time.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 30,
+          "priority": 2
+        },
+        {
+          "ref": "s2e",
+          "parentRef": "s2",
+          "kind": "response",
+          "title": "5. No impact takeout needed — Specktor is not responsive",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2uaj095oz0f7r"
+          ],
+          "crossApplyFrom": "",
+          "role": "defense",
+          "analytic": "We're not reading climate impact defense, so Specktor answers an argument we haven't made — it's irrelevant to the flow. The impact only matters if they win uniqueness and a link, and they have neither. Don't let the 2NR substitute magnitude for a link.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 16,
+          "priority": 2
+        },
+        {
+          "ref": "s3",
+          "parentRef": "",
+          "kind": "position",
+          "title": "Case — Advantage 1, Water Security",
+          "relation": "answers",
+          "targets": [],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 0,
+          "priority": 1
+        },
+        {
+          "ref": "s3a",
+          "parentRef": "s3",
+          "kind": "response",
+          "title": "1. Alt causes aren't offense — and their argument concedes the pipeline",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o25psvsqvu1efc"
+          ],
+          "crossApplyFrom": "",
+          "role": "defense",
+          "analytic": "They say agricultural runoff, not ephemeral streams, drives drinking water contamination. Two responses. First, this is not a reason the plan fails — it's a reason there are multiple contamination sources. Reducing one source still reduces contamination; alternate causes only matter if they prove our contribution is zero, and they don't. Second, and more importantly, they've misread the internal link. Our second contention isn't that ephemeral streams are themselves the pollutant — it's that unprotected headwaters are the conveyance, the pathway pollution travels into the rivers that supply cities. Agricultural runoff is precisely what enters those ephemeral and intermittent streams. Regulating discharges to ephemeral streams is how you stop runoff from reaching drinking water — that's exactly what the California AG evidence I read on the counterplan says. Their alt cause is our link.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 48,
+          "priority": 1
+        },
+        {
+          "ref": "s3b",
+          "parentRef": "s3",
+          "kind": "response",
+          "title": "2. No water wars doesn't touch the economic internal link",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2j8pw118at6lf"
+          ],
+          "crossApplyFrom": "",
+          "role": "impact_mitigation",
+          "analytic": "Their evidence says states cooperate over shared water more often than they fight. Grant it — that's a claim about interstate armed conflict. Our third contention has two internal links: economic decline and regional conflict. Cooperation frequency says nothing about whether water insecurity causes economic decline, so that internal link is conceded and it is independently sufficient to affirm. And on conflict, 'cooperate more often than they fight' is a base-rate claim, not a zero-risk claim — historical cooperation under conditions of adequate supply doesn't predict behavior under the scarcity the 1AC describes, because the cooperative agreements they're counting were negotiated over water that existed to divide.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 35,
+          "priority": 1
+        },
+        {
+          "ref": "s3c",
+          "parentRef": "s3",
+          "kind": "impact_calc",
+          "title": "3. Case outweighs and controls the direction of the DA",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2uaj095oz0f7r"
+          ],
+          "crossApplyFrom": "",
+          "role": "impact_calc",
+          "analytic": "Timeframe and probability: our first contention is that millions of stream miles have already lost coverage — that harm is happening now, every day of delay is more contaminated drinking water, while their disad requires a speculative chain from a definitional rule to a budget fight to global emissions. And there's no tension with their climate impact: clean water protection and climate policy are complements, which is why their own Newburger evidence has water inside the climate budget.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 18,
+          "priority": 2
+        }
+      ],
+      "omitted": [
+        {
+          "targets": [
+            "arg_mugr25o2uaj095oz0f7r"
+          ],
+          "reason": "Answered only briefly and framed as non-responsive — we deliberately read no climate impact defense to avoid any appearance of a double turn with the tradeoff DA, and the DA is beaten at uniqueness and link."
+        }
+      ],
+      "questions": [
+        "Confirm whether the neg actually read the Roper interstate-compact card or the Troutman card in the 1NC — the flow only lists Berry & Huckins and ELI. If compacts were not read, cut section s1f (priority 3) and bank the time.",
+        "Do we have a card that the plan is executed by EPA/Corps rulemaking under existing authority with no new appropriation? That would make the 'no link — not a budget request' argument evidenced rather than purely analytic; it is currently flagged as analysis only.",
+        "Do we have any link-turn or impact-turn evidence on the Climate DA (e.g., wetlands as carbon sinks, or CWA protection as climate adaptation)? If so the 2AC should add it as offense; the current plan is defense-only because the library contains no such card.",
+        "Check whether the 1NC articulated the Climate DA as the net benefit to the States CP or as a standalone case turn — the perm framing in the overview depends on it being the net benefit.",
+        "Judge said 'slow down on tags' — make sure the Bower & McLean and CA AG tags are delivered clearly, they are the two most important cards in the speech."
+      ]
+    }
+  },
+  {
+    "name": "haiku45",
+    "ok": true,
+    "firstPartialMs": 9099,
+    "totalMs": 56959,
+    "usage": {
+      "inputTokens": 7449,
+      "outputTokens": 4563,
+      "cachedInputTokens": 0,
+      "cacheWriteTokens": 7263
+    },
+    "sections": 15,
+    "responses": 8,
+    "cardsUsed": 5,
+    "analyticWords": 1145,
+    "estSeconds": 539,
+    "unaddressed": 0,
+    "droppedTargets": 0,
+    "droppedCards": 0,
+    "omitted": 2,
+    "questions": 5,
+    "strategy": "We defend the advantage, straight-turn the climate tradeoff DA with Parkinson et al showing water investment is orthogonal to climate spending, and permute/solvency-deficit the States CP: states lack authority (less than half have wetland programs), can't solve interstate ephemeral streams (cross-border pollution returns), and uniform federal standards are essential to avoid regulatory confusion. Case + CP permutation + DA turn isolates our offense.",
+    "output": {
+      "strategy": {
+        "summary": "We defend the advantage, straight-turn the climate tradeoff DA with Parkinson et al showing water investment is orthogonal to climate spending, and permute/solvency-deficit the States CP: states lack authority (less than half have wetland programs), can't solve interstate ephemeral streams (cross-border pollution returns), and uniform federal standards are essential to avoid regulatory confusion. Case + CP permutation + DA turn isolates our offense.",
+        "choices": [
+          "Straight-turn the climate DA rather than impact-turn it—Parkinson shows water and climate policies can be resourced together, so the tradeoff is false.",
+          "Permute the CP (both plans run) and read a solvency deficit: states lack authority, can't solve interstate waters, and non-uniformity creates regulatory chaos.",
+          "Concede nothing on the advantage; briefly defend the link chain (ephemeral streams → contamination → harm) against their alternate cause and no-war arguments.",
+          "Allocate roughly equal time to CP and advantage defense, proportional to 1NC offense; spend ~90 seconds on case."
+        ],
+        "risks": [
+          "If our Parkinson card is read narrowly or if judge sees water/climate tradeoff as real, we lose the DA turn and face a net benefit to the CP. Mitigation: frame Parkinson as showing tradeoff is empirically false, not just manageable.",
+          "If we permute and judge rejects permutations (condo rules), we must have a strong solvency deficit or case outweighs. Mitigation: read Bower & McLean and interstate waters cards as independent CP solvency defeats.",
+          "We do not have evidence directly rebutting 'no water wars' or answering their water-policy-already-in-budget argument. This is a risk if judge weights spillover favorably. Mitigation: respond analytically that cooperation doesn't negate harm (they can cooperate *after* harm occurs) and that redirected funding creates opportunity cost."
+        ]
+      },
+      "sections": [
+        {
+          "ref": "roadmap",
+          "parentRef": "",
+          "kind": "overview",
+          "title": "Roadmap",
+          "relation": "none",
+          "targets": [],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "We have four speeches: advantage defense against their alternate cause and no-war argument; straight-turn their climate tradeoff DA; solvency deficit and permutation against their States CP; and case extension. Roadmap: first, 90 seconds of case; second, 2 minutes on the CP; third, 90 seconds on the climate DA turn; fourth, remaining time on case and implicit offense.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 30,
+          "priority": 1
+        },
+        {
+          "ref": "pos_adv1",
+          "parentRef": "",
+          "kind": "position",
+          "title": "Advantage 1: Water Security — Defense",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2j8pw118at6lf",
+            "arg_mugr25o25psvsqvu1efc"
+          ],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 90,
+          "priority": 1
+        },
+        {
+          "ref": "adv1_nowar",
+          "parentRef": "pos_adv1",
+          "kind": "response",
+          "title": "1. No water wars — states cooperate, not fight",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2j8pw118at6lf"
+          ],
+          "crossApplyFrom": "",
+          "role": "impact_mitigation",
+          "analytic": "Their argument assumes that interstate cooperation eliminates the harms from water insecurity. But cooperation does not prevent the harm. Even when states cooperate to allocate water, unprotected ephemeral streams allow upstream pollution to flow downstream—harming drinking water supplies in cooperating states. Cooperation happens *after* contamination is already widespread. The 1AC impact chain is still live: ephemeral streams lose Clean Water Act coverage → pollution flows into drinking water supplies → cities face economic harm and conflict over scarce resources. Their argument at best shows that states might negotiate after the harm, not that the harm doesn't occur.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 25,
+          "priority": 2
+        },
+        {
+          "ref": "adv1_altcause",
+          "parentRef": "pos_adv1",
+          "kind": "response",
+          "title": "2. Alternate cause — agricultural runoff, not ephemeral streams",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o25psvsqvu1efc"
+          ],
+          "crossApplyFrom": "",
+          "role": "impact_mitigation",
+          "analytic": "Agricultural runoff is *one* source of drinking water contamination, but our 1AC evidence shows unprotected ephemeral streams also drive contamination into downstream supplies. These are not mutually exclusive. Both agricultural runoff *and* ephemeral stream pollution contribute to water insecurity. Even if agricultural runoff is the larger share of current contamination, losing Clean Water Act coverage of ephemeral streams *increases* the problem: it removes federal jurisdiction over headwater pollution that now flows unchecked into drinking water. The plan solves the specific ephemeral-stream mechanism. We don't need to eliminate agricultural runoff—we need to prevent the additional contamination from losing federal protection.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 30,
+          "priority": 2
+        },
+        {
+          "ref": "adv1_extension",
+          "parentRef": "pos_adv1",
+          "kind": "extension",
+          "title": "3. 1AC case extension — federal protection prevents downstream harm",
+          "relation": "extend",
+          "targets": [
+            "arg_mugr2513oe7t6fgve948",
+            "arg_mugr2513gt22o4w09x8f",
+            "arg_mugr25138kspckkw7znl"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "We extend the 1AC linkage: millions of stream miles have lost or face loss of Clean Water Act coverage, allowing upstream pollution (from any source, including but not limited to agriculture) to reach downstream drinking water supplies in cities. That contamination drives economic decline and regional conflict. The plan reverses the collapsing federal protection. Case is a voter.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 20,
+          "priority": 1
+        },
+        {
+          "ref": "pos_cp",
+          "parentRef": "",
+          "kind": "position",
+          "title": "States CP — Permutation & Solvency Deficit",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2bu40un5qs6vo",
+            "arg_mugr25o2sf0bakxbfv8q",
+            "arg_mugr25o23w6u6ly8m2ro"
+          ],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 120,
+          "priority": 1
+        },
+        {
+          "ref": "cp_perm",
+          "parentRef": "pos_cp",
+          "kind": "response",
+          "title": "1. Permutation: Both plans run",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2bu40un5qs6vo"
+          ],
+          "crossApplyFrom": "",
+          "role": "perm",
+          "analytic": "The affirmative permutes: the federal government and the fifty states all expand protection of ephemeral and intermittent streams and wetlands together. This solves the CP net benefit and preserves our case. Why? Because the CP is not a true alternative—it is not competitive with the plan. The CP text says states 'substantially expand protection,' but it does not prohibit the federal government from doing the same. If both can happen, there is no choice for the judge.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 15,
+          "priority": 1
+        },
+        {
+          "ref": "cp_solvency_deficit_authority",
+          "parentRef": "pos_cp",
+          "kind": "response",
+          "title": "2. Solvency Deficit — States lack authority and programs",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2sf0bakxbfv8q",
+            "arg_mugr25o23w6u6ly8m2ro"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "The negative claims states 'can regulate, implement, and allocate funding effectively.' But Bower & McLean 2019 proves that is false: 'Less than half the states have formal isolated, nonfederal wetlands permitting programs.' Even when these programs exist, they 'vary widely in scope from state to state.' The CP's reliance on state capacity is a pipe dream. Many states lack the basic authority to regulate isolated wetlands at all, and those that do regulate inconsistently. The ELI card they read actually proves the problem: states are restricted by 'no more stringent than' federal law limitations. States cannot exceed federal standards without litigation and legislative action in each state. Our plan imposes uniform federal standards; their CP relies on patchwork state authority that doesn't exist.",
+          "cardIds": [
+            "card_mugqzbfo8jm0od0htxs7"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 30,
+          "priority": 1
+        },
+        {
+          "ref": "cp_solvency_deficit_interstate",
+          "parentRef": "pos_cp",
+          "kind": "response",
+          "title": "3. Solvency Deficit — Cannot solve interstate ephemeral streams",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2sf0bakxbfv8q",
+            "arg_mugr25o23w6u6ly8m2ro"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "The CP fails on interstate waters. The California AG's brief (in our card) warns: 'There are interstate waters that would be excluded under the proposed rule but that are nevertheless important to [the] chemical, physical and biological integrity of the Nation's waters. Streams that straddle the border that may not be jurisdictional under any [state category].' Ephemeral streams that cross state lines cannot be regulated by one state alone—the upstream state has no incentive to protect downstream states' drinking water. The Vermont AG adds: a patchwork of state rules 'create[s] confusion among the regulated public,' requiring 'additional outreach, oversight, and enforcement.' Our plan solves this with uniform federal jurisdiction. The CP creates regulatory gaps at state borders, exactly where ephemeral streams flow downstream and cause interstate contamination.",
+          "cardIds": [
+            "card_mugqzbmwivw1j8w3059i",
+            "card_mugqzbtvj46jk1n4kw36"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 35,
+          "priority": 1
+        },
+        {
+          "ref": "cp_compact_risk",
+          "parentRef": "pos_cp",
+          "kind": "extension",
+          "title": "4. Interstate compacts fail — delays and ambiguity",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2sf0bakxbfv8q"
+          ],
+          "crossApplyFrom": "",
+          "role": "solvency",
+          "analytic": "Even if the negative hoped to solve interstate problems through interstate compacts (which their cards mention), Roper 2015 shows compacts 'can and do fail.' They face 'diverse cultural, political, historic and economic priorities,' are 'complicated, expensive, and time consuming,' and are vulnerable to 'state elections' that 'may temporarily interrupt the administration' and 'ambiguous language.' By the time a compact is negotiated and implemented, ephemeral streams have been degraded and drinking water contaminated. Federal law solves immediately; state cooperation solves too late and too inconsistently.",
+          "cardIds": [
+            "card_mugqzbycf5mln7dz8t5s"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 20,
+          "priority": 2
+        },
+        {
+          "ref": "pos_da",
+          "parentRef": "",
+          "kind": "position",
+          "title": "Climate Tradeoff DA — Straight Turn",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2ec77uq6asuv5",
+            "arg_mugr25o2iwvyel2cx5g9",
+            "arg_mugr25o2uaj095oz0f7r"
+          ],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 90,
+          "priority": 1
+        },
+        {
+          "ref": "da_tradeoff_turn",
+          "parentRef": "pos_da",
+          "kind": "response",
+          "title": "1. Tradeoff is false — water and climate spending are not competing",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2iwvyel2cx5g9"
+          ],
+          "crossApplyFrom": "",
+          "role": "link_turn",
+          "analytic": "Their card claims 'water policies trade off with climate policies' and that 'investments supporting climate policy are constraining water infrastructure coverage.' But Parkinson et al 2019 actually shows that water and climate policies can be funded together. The card states: 'Balancing trade-offs between climate change mitigation and clean water policies requires a shift' in how we allocate financing. In other words, the tradeoff is manageable with better resource prioritization, not a zero-sum war. The plan expands federal water protection; Biden has a multi-trillion-dollar federal budget that accommodates both climate and water infrastructure. There is no real tradeoff—the negative is inventing scarcity where there is none. Even if there were tension, Parkinson shows it is resolved through reallocation, not by cutting water. Our plan does not cause climate harm; it requires a rational rebalancing that Biden's administration is already pursuing.",
+          "cardIds": [
+            "card_mugqz7xbwh6r397onmyk"
+          ],
+          "needsEvidence": "",
+          "budgetSeconds": 35,
+          "priority": 1
+        },
+        {
+          "ref": "da_budget_already_in",
+          "parentRef": "pos_da",
+          "kind": "response",
+          "title": "2. Water policy is already in the budget — no new tradeoff",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2ec77uq6asuv5"
+          ],
+          "crossApplyFrom": "",
+          "role": "link_turn",
+          "analytic": "Their argument says 'Biden is focusing on climate change—water policy is already in the budget.' This is actually a concession. If water policy is *already* funded, then the plan does not *cause* a new tradeoff. The plan simply expands federal protection within existing water infrastructure spending. There is no mechanism for the plan to redirect climate funding. The affirmative is not proposing a new budget; we are proposing that existing water authority be extended. The negative has conceded that water and climate can coexist in the current budget.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 20,
+          "priority": 1
+        },
+        {
+          "ref": "da_extinction_models",
+          "parentRef": "pos_da",
+          "kind": "response",
+          "title": "3. Extinction claim — defense is not based on inaccurate models",
+          "relation": "answers",
+          "targets": [
+            "arg_mugr25o2uaj095oz0f7r"
+          ],
+          "crossApplyFrom": "",
+          "role": "impact_mitigation",
+          "analytic": "The negative's extinction argument ('their defense is based on inaccurate models') is vague and unsupported. They provide no warrant explaining *which* models are inaccurate or *how* Parkinson et al mismeasures the tradeoff. Without a specific critique of our evidence's methodology or findings, we cannot cross-apply our methodology cards. But importantly: we are not claiming tradeoff *models* are entirely wrong—we are saying Parkinson shows that tradeoff is manageable through resource allocation. The negative cannot simply call our evidence inaccurate without evidence. The burden is on them to prove our card mismeasures the trade-off, and they have not.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 20,
+          "priority": 2
+        },
+        {
+          "ref": "case_final_extend",
+          "parentRef": "",
+          "kind": "position",
+          "title": "Case Extension & Impact Calculus",
+          "relation": "extend",
+          "targets": [
+            "arg_mugr2513oe7t6fgve948",
+            "arg_mugr2513gt22o4w09x8f",
+            "arg_mugr25138kspckkw7znl"
+          ],
+          "crossApplyFrom": "",
+          "role": "",
+          "analytic": "The 1AC advantage is a voter: ephemeral and intermittent streams have lost Clean Water Act protection, millions of stream miles are now unregulated, and that allows pollution to reach downstream drinking water supplies in major cities. The plan reverses that loss by restoring federal jurisdiction. The negative has not won a real defense: their no-war and alternate-cause arguments do not disprove that unprotected headwaters cause economic harm. Our plan is the only solvency. Case outweighs their climate DA because case is a certainty (we have direct evidence of ephemeral stream pollution) while their DA is a false tradeoff. Vote affirmative.",
+          "cardIds": [],
+          "needsEvidence": "",
+          "budgetSeconds": 30,
+          "priority": 1
+        }
+      ],
+      "omitted": [
+        {
+          "targets": [
+            "arg_mugr2513nzquzp0nxpb5"
+          ],
+          "reason": "Plan text was not attacked in the 1NC; no answer required. Standard convention is to re-read plan in 1AC unless it is challenged on T-topicality or workability, which the negative did not do."
+        },
+        {
+          "targets": [
+            "arg_mugr2513a0lhiki8oryq",
+            "arg_mugr25149z5s15isj85w"
+          ],
+          "reason": "Solvency arguments were not attacked directly in the 1NC off-case. Our solvency answers to the CP (uniformity, interstate waters) implicitly defend the plan's theory (uniform federal standards + federal enforcement stop race-to-bottom). No separate solvency-affirmative section is needed; these arguments are embedded in the CP section."
+        }
+      ],
+      "questions": [
+        "Do you have a card specifically rebutting 'Biden's water policy is already in the budget' (arg_mugr25o2ec77uq6asuv5)? Our draft responds analytically, but a card showing water infrastructure expansion *beyond* current budget would be stronger.",
+        "Confirm: does the Parkinson et al card explicitly state that water and climate policies are *not* in tradeoff, or does it only show they can be managed together? If the latter, our framing ('manageable' vs. 'false') matters for how a judge predicts the DA. Current draft treats it as no real tradeoff; if it is 'solvable but real,' we may need to softline and weigh case impacts as outweighing a manageable tradeoff.",
+        "The Roper 2015 card on interstate compacts is imported but not explicitly used in the 1NC or 1AC—is it in your document evidence pile? If not, cite it as from your cards library, not as team evidence.",
+        "The negative has no evidence on the 'extinction' claim (arg_mugr25o2uaj095oz0f7r); did they read a card in 1NC that we did not receive? If so, request the card in 2NR for clash clarity.",
+        "Do we have a direct card refuting 'no water wars' beyond the analytic 'cooperation doesn't prevent harm'? A card showing states *have* fought or can fight over water would sharpen that answer."
+      ]
+    }
+  }
+]

@@ -197,6 +197,16 @@ export const rounds = pgTable(
     /** [{name, paradigmText, paradigmUrl, notes}] */
     judges: jsonb("judges").notNull().default(sql`'[]'::jsonb`),
     status: text("status", { enum: ["active", "archived"] }).notNull().default("active"),
+    /** tournament AI rule for this round (COMP-1): allowed, prep_only (off once live), off */
+    aiPolicy: text("ai_policy", { enum: ["allowed", "prep_only", "off"] }).notNull().default("prep_only"),
+    /** prep before the round, live during it, done after */
+    phase: text("phase", { enum: ["prep", "live", "done"] }).notNull().default("prep"),
+    /** logged acknowledgement when a user overrides the AI policy: {by, at, reason} */
+    aiOverride: jsonb("ai_override"),
+    /** per-speech speaker overrides (FMT-2), e.g. {"1AR": "<userId>"} */
+    speakerOverrides: jsonb("speaker_overrides").notNull().default(sql`'{}'::jsonb`),
+    /** misc settings: omissionPolicy, judgeKick, newArgumentPolicy overrides */
+    settings: jsonb("settings").notNull().default(sql`'{}'::jsonb`),
     /** the Yjs document holding flow/round state */
     stateDocId: text("state_doc_id").notNull(),
     createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
