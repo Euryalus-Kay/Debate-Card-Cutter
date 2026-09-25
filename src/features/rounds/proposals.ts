@@ -11,6 +11,7 @@ import type { BodyBlock, VerificationStatus } from "@/domain/card";
 import type { SpeechDraftOutput, SectionRevisionOutput, AlternativesOutput } from "@/server/ai/schemas";
 
 export interface Validation {
+  unsupportedDropClaims?: string[];
   droppedTargets: string[];
   droppedCards: string[];
   unaddressed: { id: string; text: string }[];

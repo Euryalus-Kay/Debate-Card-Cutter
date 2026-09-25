@@ -29,6 +29,8 @@ export interface RoundContext {
   draft: Draft | null;
   draftJson: PMNodeJSON | null;
   recorded: Set<SpeechId>;
+  /** speeches whose delivery is confirmed (read confirmed or marked delivered) */
+  confirmed: Set<SpeechId>;
   limitSeconds: number;
   refs: { stateHeadSeq: number; draftHeadSeq: number | null; cardIds: string[] };
 }
@@ -125,7 +127,11 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
   }
 
   const recorded = new Set<SpeechId>();
-  for (const s of SPEECH_IDS) if (slots[s].status !== "not_started" || slots[s].notes.trim()) recorded.add(s);
+  const confirmed = new Set<SpeechId>();
+  for (const s of SPEECH_IDS) {
+    if (slots[s].status !== "not_started" || slots[s].notes.trim()) recorded.add(s);
+    if (slots[s].readConfirmed || slots[s].status === "delivered") confirmed.add(s);
+  }
   for (const a of graph.args) if (a.delivery !== "planned") recorded.add(a.speech);
 
   const ours = SPEECHES[opts.speech].side === round.ourSide;
@@ -225,6 +231,7 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
     draft,
     draftJson,
     recorded,
+    confirmed,
     limitSeconds,
     refs: { stateHeadSeq, draftHeadSeq, cardIds: [...selected, ...draftCards, ...library].map((c) => c.id) },
   };

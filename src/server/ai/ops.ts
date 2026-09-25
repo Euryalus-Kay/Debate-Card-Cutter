@@ -11,7 +11,7 @@ import { applyServerChange } from "@/server/docs/store";
 import { upsertArg, upsertRelation } from "@/shared/round-doc";
 import { readArgs, readRelations } from "@/shared/round-doc";
 import { computeCoverage, positionsAvailableFor2NR, type DraftTarget } from "@/domain/flow";
-import { isRebuttal, SPEECHES, type SpeechId } from "@/domain/format";
+import { isRebuttal, SPEECHES, speechesToAnswer as speechesToAnswerFor, type SpeechId } from "@/domain/format";
 import { countWords, estimateSeconds, presetProfile, type RateProfile } from "@/domain/timing";
 import { cardLoad } from "@/domain/card";
 import { allSections, sectionContentHash, type DraftSection, type PMNodeJSON } from "@/shared/draft-model";
@@ -28,6 +28,8 @@ Your output is editable assistance: the debaters decide strategy and final wordi
 ${GLOBAL_RULES}`;
 
 export interface Validation {
+  /** sections that claim a drop/concession while the answered speech's record is unconfirmed */
+  unsupportedDropClaims: string[];
   droppedTargets: string[];
   droppedCards: string[];
   unaddressed: { id: string; text: string }[];
@@ -90,9 +92,13 @@ export function validateDraft(out: SpeechDraftOutput, ctx: RoundContext, speech:
     positionsNotInBlock = [...new Set(sections.flatMap((s) => s.targets.map((t) => argPos.get(t)).filter((p): p is string => !!p && !allowed.has(p))))].map((pid) => ctx.graph.positions.find((p) => p.id === pid)?.name ?? pid);
   }
   const estimated = Object.values(sectionSeconds).reduce((a, b) => a + b, 0);
+  // Claims that the other side dropped/conceded something require a confirmed record (COV-5).
+  const DROP = /\b(dropped|drops|conceded|concedes|never answered|no answer to|didn'?t answer|did not answer|went unanswered)\b/i;
+  const unconfirmed = speechesToAnswerFor(speech).filter((s) => !ctx.confirmed.has(s));
+  const unsupportedDropClaims = unconfirmed.length ? sections.filter((s) => DROP.test(s.analytic)).map((s) => s.title) : [];
   return {
     output: { ...out, sections },
-    validation: { droppedTargets, droppedCards, unaddressed, newInRebuttal, positionsNotInBlock, estimatedSeconds: estimated, limitSeconds: ctx.limitSeconds, sectionSeconds },
+    validation: { unsupportedDropClaims, droppedTargets, droppedCards, unaddressed, newInRebuttal, positionsNotInBlock, estimatedSeconds: estimated, limitSeconds: ctx.limitSeconds, sectionSeconds },
   };
 }
 

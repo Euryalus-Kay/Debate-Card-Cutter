@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { handle, requireAccess, requireUser } from "@/server/authz";
 import { db } from "@/server/db/client";
 import { aiOperations } from "@/server/db/schema";
@@ -13,5 +13,11 @@ export const GET = handle(async (_req: Request, ctx: { params: Promise<{ roundId
     .where(eq(aiOperations.roundId, roundId))
     .orderBy(desc(aiOperations.createdAt))
     .limit(60);
-  return Response.json({ ops });
+  // Finished, unapplied proposals come back with their output so a refresh never loses them.
+  const pendingIds = ops.filter((o) => o.status === "complete" && !o.appliedAt && !o.dismissedAt && o.kind !== "interpret_flow").slice(0, 8).map((o) => o.id);
+  const outputs = pendingIds.length
+    ? await db().select({ id: aiOperations.id, output: aiOperations.output }).from(aiOperations).where(inArray(aiOperations.id, pendingIds))
+    : [];
+  const byId = new Map(outputs.map((o) => [o.id, o.output]));
+  return Response.json({ ops: ops.map((o) => ({ ...o, output: byId.get(o.id) ?? null })) });
 });

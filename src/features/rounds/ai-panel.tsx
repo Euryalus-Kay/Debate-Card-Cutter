@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Check, Loader2, Sparkles, X } from "lucide-react";
 import { api } from "@/client/api";
@@ -14,9 +14,32 @@ import { applyDraft, applyRevision, fetchCards, sectionNodes, useProposals, type
 import type { RoundRecord } from "./types";
 import { getActiveEditor } from "./editor/active-editor";
 
+interface OpRow {
+  id: string;
+  kind: string;
+  status: string;
+  model: string;
+  createdAt: string;
+  error: string | null;
+  docId: string | null;
+  target: { speech?: string; sectionId?: string | null };
+  output: unknown;
+}
+
 export function AiPanel({ round, aiEnabled }: { round: RoundRecord; aiEnabled: boolean }) {
   const proposals = useProposals((s) => s.proposals).filter((p) => p.draftId);
-  const history = useQuery({ queryKey: ["ai-ops", round.id], queryFn: () => api<{ ops: { id: string; kind: string; status: string; model: string; createdAt: string; error: string | null }[] }>(`/api/rounds/${round.id}/ai-ops`), refetchInterval: 15_000 });
+  const history = useQuery({ queryKey: ["ai-ops", round.id], queryFn: () => api<{ ops: OpRow[] }>(`/api/rounds/${round.id}/ai-ops`), refetchInterval: 15_000 });
+  // Rehydrate finished-but-unapplied proposals (after refresh, or ones your partner started).
+  useEffect(() => {
+    const ops = history.data?.ops ?? [];
+    const store = useProposals.getState();
+    for (const o of [...ops].reverse()) {
+      if (!o.output || !o.docId || store.proposals.some((p) => p.opId === o.id)) continue;
+      const base = { id: `op-${o.id}`, opId: o.id, draftId: o.docId, speech: o.target.speech ?? "", status: "ready" as const, partial: null, error: null, startedAt: new Date(o.createdAt).getTime() };
+      if (o.kind === "draft_speech") store.add({ ...base, kind: "draft", result: o.output as never, baseDraftHash: null });
+      else if (o.kind.startsWith("revise:") && o.target.sectionId) store.add({ ...base, kind: o.kind === "revise:alternatives" ? "alternatives" : "revision", sectionId: o.target.sectionId, action: o.kind.slice(7), result: o.output as never } as Proposal);
+    }
+  }, [history.data]);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {!aiEnabled ? (
@@ -114,7 +137,7 @@ function DraftProposal({ p, busy, setBusy, teamId, markOp, upd }: { p: Extract<P
   }
   return (
     <div className="text-[12.5px]">
-      {out?.strategy?.summary ? <p className="mb-2 text-fg">{out.strategy.summary}</p> : p.status === "running" ? <p className="animate-pulse-soft text-muted">Planning the speech…</p> : null}
+      {out?.strategy?.summary ? <p className="mb-2 text-fg">{out.strategy.summary}</p> : p.status === "running" ? <Thinking since={p.startedAt} label="Planning the speech" /> : null}
       {out?.strategy?.choices?.length ? (
         <ul className="mb-2 list-disc space-y-0.5 pl-4 text-muted">
           {out.strategy.choices.map((c, i) => (
@@ -142,6 +165,7 @@ function DraftProposal({ p, busy, setBusy, teamId, markOp, upd }: { p: Extract<P
           {v.unaddressed.length ? <Warn>Not addressed and not explained: {v.unaddressed.map((u) => u.text).join("; ")}</Warn> : null}
           {out?.omitted?.length ? <div className="text-xs text-muted">Deliberately not answered: {out.omitted.map((o) => o.reason).join("; ")}</div> : null}
           {v.newInRebuttal.length ? <Warn>New arguments in a rebuttal: {v.newInRebuttal.join("; ")}</Warn> : null}
+          {v.unsupportedDropClaims?.length ? <Warn>Says something was dropped or conceded, but their speech isn&apos;t confirmed as read: {v.unsupportedDropClaims.join("; ")}. Confirm the record before claiming a drop.</Warn> : null}
           {v.positionsNotInBlock.length ? <Warn>Goes for positions not extended in the block: {v.positionsNotInBlock.join(", ")}</Warn> : null}
           {v.droppedCards.length ? <Warn>{v.droppedCards.length} card reference(s) removed (not in your evidence).</Warn> : null}
           {v.droppedTargets.length ? <Warn>{v.droppedTargets.length} link(s) to arguments not on the flow removed.</Warn> : null}
@@ -167,6 +191,20 @@ function DraftProposal({ p, busy, setBusy, teamId, markOp, upd }: { p: Extract<P
         </div>
       ) : null}
     </div>
+  );
+}
+
+function Thinking({ since, label }: { since: number; label: string }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const s = Math.max(0, Math.round((now - since) / 1000));
+  return (
+    <p className="animate-pulse-soft text-muted">
+      {label}… {s}s{s > 20 ? " (deep reasoning takes longer before text appears)" : ""}
+    </p>
   );
 }
 
