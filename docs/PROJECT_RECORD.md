@@ -186,7 +186,7 @@ A typical round (two or three drafts, a fit, a few rewrites, one research job) c
 | EXT-02 | Revoke leaked Perplexity key | Requested |
 | EXT-03 | Consider making the GitHub repo private | Recommended |
 | EXT-05 | Speech-to-text key: an OpenAI API key from a parent-owned account (18+) with a monthly spend limit, added as `OPENAI_API_KEY` in the Vercel dashboard (never in chat) | Optional: without it, live listening uses Chrome's on-device recognition and transcript paste/upload works |
-| EXT-06 | Library import to production: migration `0003_library_meta` must be applied before the next deploy (done by me with the stored connection, not a user step) | Pending |
+| EXT-06 | Library import to production: migration `0003_library_meta` | Done 09-25 (applied before deploying; production had 0 users and 0 cards) |
 | EXT-04 | Optional search keys (Tavily/Exa) to widen discovery beyond Anthropic web search + OpenAlex | Optional; research works without them |
 
 ## 5. Test results
@@ -250,4 +250,5 @@ Each entry is marked **verified**, **partially verified**, or **unverified**.
 | 09-25 | Big-file import in the browser (E2E, fake model): upload → job with progress → cards in the library | pass (5.3 s) | verified (`tests/e2e/library-import.spec.ts`) |
 | 09-25 | Transcripts: WebVTT, SRT, Otter and plain text parse into flow lines (4 tests); pasted captions and an uploaded .txt reach the transcript pad and the flow (E2E, fake model) | pass | verified (`tests/e2e/transcript.spec.ts`) |
 | 09-25 | Live listening (tab, Zoom app, microphone) and audio transcription | not run: needs `OPENAI_API_KEY` (EXT-05) and a person to grant capture in Chrome | unverified |
+| 09-25 | **Production after deploying B1 + C** (commits ad3d378, 690198f; migration 0003 applied first): smoke test adds a library import (browser-style upload straight to Blob → split → labeled → re-import finds only duplicates → searchable; a path outside the team's folder refused) in 7.3 s, and speech-to-text gating (another team's file refused; no key → "not set up") | 21/21; QA data and 4 files removed; 0 users | verified |
 
