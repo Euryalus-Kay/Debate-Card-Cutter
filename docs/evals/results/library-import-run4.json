@@ -1,0 +1,126 @@
+{
+  "at": "2026-09-25T20:23:18.865Z",
+  "note": "Aggregates only; real files are not stored in the repo.",
+  "results": [
+    {
+      "file": "1AC - Space - KT DDI25.docx",
+      "paragraphs": 240,
+      "parser": {
+        "headings": 4,
+        "cards": 22,
+        "analytics": 2,
+        "styled": true
+      },
+      "splitter": {
+        "chunks": 2,
+        "ms": 7001,
+        "cards": 22,
+        "recall": 1,
+        "precision": 1,
+        "tagExact": 1,
+        "costUsd": 0.0215
+      },
+      "labels": {
+        "sample": 22,
+        "labeled": 22,
+        "ms": 14732,
+        "costUsd": 0.0111,
+        "costPer1000Cards": 0.51,
+        "sides": {
+          "aff": 22
+        },
+        "argTypes": {
+          "inherency": 5,
+          "impact": 8,
+          "solvency": 9
+        },
+        "positions": [
+          "Arctic maritime domain awareness",
+          "Arctic escalation",
+          "Arctic adaptation"
+        ]
+      }
+    },
+    {
+      "file": "Abolition Kritik - Michigan 2024 BFHR.docx",
+      "paragraphs": 347,
+      "parser": {
+        "headings": 31,
+        "cards": 38,
+        "analytics": 0,
+        "styled": true
+      },
+      "splitter": {
+        "chunks": 3,
+        "ms": 8928,
+        "cards": 38,
+        "recall": 1,
+        "precision": 1,
+        "tagExact": 0.947,
+        "costUsd": 0.0352
+      },
+      "labels": {
+        "sample": 30,
+        "labeled": 30,
+        "ms": 19448,
+        "costUsd": 0.0162,
+        "costPer1000Cards": 0.54,
+        "sides": {
+          "neg": 25,
+          "aff": 5
+        },
+        "argTypes": {
+          "kritik": 25,
+          "case_answer": 5
+        },
+        "positions": [
+          "Abolition K"
+        ]
+      }
+    },
+    {
+      "file": "Aff - Blockchain - DDI 2024 MS.docx",
+      "paragraphs": 2883,
+      "parser": {
+        "headings": 152,
+        "cards": 203,
+        "analytics": 199,
+        "styled": true
+      },
+      "splitter": {
+        "chunks": 25,
+        "ms": 10108,
+        "cards": 199,
+        "recall": 0.802,
+        "precision": 0.995,
+        "tagExact": 0.854,
+        "costUsd": 0.2419
+      },
+      "labels": {
+        "sample": 30,
+        "labeled": 30,
+        "ms": 13581,
+        "costUsd": 0.0132,
+        "costPer1000Cards": 0.44,
+        "sides": {
+          "aff": 30
+        },
+        "argTypes": {
+          "inherency": 7,
+          "solvency": 10,
+          "impact": 13
+        },
+        "positions": [
+          "Blockchain Efficiency",
+          "Trademark System",
+          "Economic Growth",
+          "Small Business",
+          "Cryptocurrency",
+          "Cryptocurrency Trademarks",
+          "Blockchain Enforcement",
+          "Cryptocurrency Growth"
+        ]
+      }
+    }
+  ]
+}

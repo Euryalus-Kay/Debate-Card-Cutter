@@ -1,0 +1,125 @@
+{
+  "at": "2026-09-25T20:21:10.834Z",
+  "note": "Aggregates only; real files are not stored in the repo.",
+  "results": [
+    {
+      "file": "1AC - Space - KT DDI25.docx",
+      "paragraphs": 240,
+      "parser": {
+        "headings": 4,
+        "cards": 22,
+        "analytics": 2,
+        "styled": true
+      },
+      "splitter": {
+        "chunks": 2,
+        "ms": 6944,
+        "cards": 22,
+        "recall": 1,
+        "precision": 1,
+        "tagExact": 1,
+        "costUsd": 0.0215
+      },
+      "labels": {
+        "sample": 22,
+        "labeled": 22,
+        "ms": 11742,
+        "costUsd": 0.0095,
+        "costPer1000Cards": 0.43,
+        "sides": {
+          "aff": 21,
+          "either": 1
+        },
+        "argTypes": {
+          "inherency": 2,
+          "impact": 11,
+          "solvency": 8,
+          "advantage": 1
+        },
+        "positions": [
+          "Arctic Stability",
+          "Arctic Adaptation"
+        ]
+      }
+    },
+    {
+      "file": "Abolition Kritik - Michigan 2024 BFHR.docx",
+      "paragraphs": 347,
+      "parser": {
+        "headings": 31,
+        "cards": 38,
+        "analytics": 0,
+        "styled": true
+      },
+      "splitter": {
+        "chunks": 3,
+        "ms": 9498,
+        "cards": 38,
+        "recall": 0.947,
+        "precision": 0.947,
+        "tagExact": 1,
+        "costUsd": 0.0364
+      },
+      "labels": {
+        "sample": 30,
+        "labeled": 30,
+        "ms": 17729,
+        "costUsd": 0.0147,
+        "costPer1000Cards": 0.49,
+        "sides": {
+          "neg": 25,
+          "aff": 5
+        },
+        "argTypes": {
+          "kritik": 25,
+          "case_answer": 4,
+          "theory": 1
+        },
+        "positions": [
+          "Abolition K",
+          "AT Abolition K"
+        ]
+      }
+    },
+    {
+      "file": "Aff - Blockchain - DDI 2024 MS.docx",
+      "paragraphs": 2883,
+      "parser": {
+        "headings": 152,
+        "cards": 203,
+        "analytics": 199,
+        "styled": true
+      },
+      "splitter": {
+        "chunks": 25,
+        "ms": 11271,
+        "cards": 171,
+        "recall": 0.757,
+        "precision": 0.895,
+        "tagExact": 0.843,
+        "costUsd": 0.2431
+      },
+      "labels": {
+        "sample": 30,
+        "labeled": 30,
+        "ms": 15237,
+        "costUsd": 0.015,
+        "costPer1000Cards": 0.5,
+        "sides": {
+          "aff": 30
+        },
+        "argTypes": {
+          "inherency": 12,
+          "solvency": 9,
+          "impact": 9
+        },
+        "positions": [
+          "Blockchain Efficiency",
+          "Blockchain Modernization",
+          "Slow Growth Now",
+          "Trademark Economic Growth"
+        ]
+      }
+    }
+  ]
+}

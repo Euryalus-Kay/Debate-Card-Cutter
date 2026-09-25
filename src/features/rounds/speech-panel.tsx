@@ -23,6 +23,9 @@ import { AiProgress } from "./ai-progress";
 import { SelectionMenu, SpanSuggestions } from "./editor/span-ai";
 import type { SpanEnv } from "./editor/span-common";
 import { useCommentMarks } from "./comments";
+import { ListenControls } from "./listen";
+import { ruleSetOf } from "@/domain/rules";
+import { readGraph } from "@/shared/round-doc";
 import { HistoryDialog } from "./history-dialog";
 import { speechSpeaker, useTeamMembers } from "./speakers";
 import { EditorRoundCtx } from "./editor/context";
@@ -383,6 +386,19 @@ function OpponentSpeechView({ round, bundle, doc, speech, slots, aiEnabled, user
             Their {speech} <span className="font-normal text-muted">· {SPEECHES[speech].name}</span>
           </div>
           <div className="ml-auto flex gap-1.5">
+            {doc ? (
+              <ListenControls
+                roundId={round.id}
+                doc={doc}
+                speech={speech}
+                recordingAllowed={ruleSetOf(round.settings as never).recording !== "off"}
+                // Names and cites from the flow help speech-to-text spell them.
+                keywords={() => {
+                  const g = readGraph(doc, round.ourSide);
+                  return [...g.positions.map((p) => p.name), ...g.args.flatMap((a) => a.cites ?? [])].slice(0, 80).join(", ");
+                }}
+              />
+            ) : null}
             {predraft.available ? (
               <Tooltip content={`While they speak, each flow update adds answers to the new arguments to your ${predraft.next} draft, as a suggestion in the AI panel. Shared with your partner.`}>
                 <Button size="sm" variant={predraft.on ? "subtle" : "ghost"} onClick={predraft.toggle}>

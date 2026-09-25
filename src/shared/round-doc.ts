@@ -536,3 +536,12 @@ export function pruneActivity(doc: Y.Doc, now: number, maxAgeMs = 15 * 60_000): 
     if (!a || (a.status !== "running" && now - a.at > maxAgeMs) || now - a.at > 60 * 60_000) m.delete(id);
   }
 }
+
+/** Add transcribed text to a speech's transcript pad, one line per sentence group (Phase C). */
+export function appendTranscript(doc: Y.Doc, speech: SpeechId, lines: string[]): void {
+  const clean = lines.map((l) => l.replace(/\s+/g, " ").trim()).filter(Boolean);
+  if (!clean.length) return;
+  const t = doc.getText(transcriptKey(speech));
+  const cur = t.toString();
+  t.insert(cur.length, `${cur && !cur.endsWith("\n") ? "\n" : ""}${clean.join("\n")}\n`);
+}

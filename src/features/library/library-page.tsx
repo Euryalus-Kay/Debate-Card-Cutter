@@ -8,6 +8,7 @@ import { api } from "@/client/api";
 import { useApp } from "@/components/shell/app-shell";
 import { Badge, Button, cn, EmptyState, Input, Spinner, toast } from "@/components/ui";
 import { VerificationBadge } from "@/features/rounds/evidence-panel";
+import { ImportList, useImports } from "./imports";
 
 interface Hit {
   id: string;
@@ -46,19 +47,12 @@ export function LibraryPage() {
     queryFn: () => api<{ cards: Hit[] }>(`/api/cards?teamId=${team.id}&q=${encodeURIComponent(debounced)}&limit=100${v.map((x) => `&v=${x}`).join("")}`),
   });
 
+  const imports = useImports(team.id);
   async function upload(files: FileList | null) {
     if (!files?.length) return;
     setUploading(true);
     try {
-      for (const f of Array.from(files)) {
-        const form = new FormData();
-        form.set("teamId", team.id);
-        form.set("file", f);
-        const r = await fetch("/api/library/uploads", { method: "POST", body: form, credentials: "same-origin" });
-        const data = (await r.json()) as { imported?: { created: number; duplicates: number }; upload?: { warnings: string[] }; error?: string };
-        if (!r.ok) throw new Error(data.error ?? `Upload failed (${r.status})`);
-        toast(`${f.name}: ${data.imported?.created ?? 0} cards imported${data.imported?.duplicates ? `, ${data.imported.duplicates} duplicates skipped` : ""}.${data.upload?.warnings.length ? " " + data.upload.warnings[0] : ""}`, data.upload?.warnings.length ? "warn" : "ok");
-      }
+      await imports.add(Array.from(files));
       await qc.invalidateQueries({ queryKey: ["library", team.id] });
     } catch (e) {
       toast((e as Error).message, "bad");
@@ -74,13 +68,14 @@ export function LibraryPage() {
         <div className="mb-5 flex items-center gap-3">
           <div>
             <h1 className="text-lg font-semibold tracking-tight">Library</h1>
-            <p className="text-[13px] text-muted">Your team&apos;s evidence. Imported cards keep their formatting and are labeled as not independently verified.</p>
+            <p className="text-[13px] text-muted">Your team&apos;s evidence. Import whole files (.docx, .pdf, .txt, up to 50 MB each): they are split into cards with their formatting, labeled, and marked as not independently verified.</p>
           </div>
           <Button className="ml-auto" variant="primary" loading={uploading} onClick={() => fileRef.current?.click()}>
-            <Upload className="size-4" /> Import .docx
+            <Upload className="size-4" /> Import files
           </Button>
           <input ref={fileRef} type="file" multiple accept=".docx,.pdf,.txt" className="hidden" onChange={(e) => void upload(e.target.files)} />
         </div>
+        <ImportList state={imports} teamId={team.id} />
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <div className="relative min-w-72 flex-1">
             <Search className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-faint" />

@@ -20,12 +20,14 @@ test("a missing opponent speech is never treated as a concession", async ({ brow
 });
 
 test("importing a Verbatim file keeps cards and marks them as imported", async ({ browser }) => {
+  test.setTimeout(180_000);
   const A = await signedIn(browser, "a");
   await A.page.goto("/library");
   const chooser = A.page.waitForEvent("filechooser");
-  await A.page.getByRole("button", { name: "Import .docx" }).click();
+  await A.page.getByRole("button", { name: "Import files" }).click();
   await (await chooser).setFiles("tests/fixtures/synthetic-1nc.docx");
-  await expect(A.page.getByText(/cards imported/)).toBeVisible({ timeout: 30_000 });
+  // A background import job (B1) reports what it did; re-runs find the cards already there.
+  await expect(A.page.getByText(/\d+ new cards|already in the library/).first()).toBeVisible({ timeout: 120_000 });
   await A.page.getByRole("button", { name: "Imported" }).click();
   await expect(A.page.getByText("Imported").first()).toBeVisible();
   await A.context.close();

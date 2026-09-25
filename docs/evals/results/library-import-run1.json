@@ -1,0 +1,89 @@
+{
+  "at": "2026-09-25T20:17:11.720Z",
+  "note": "Aggregates only; real files are not stored in the repo.",
+  "results": [
+    {
+      "file": "1AC - Space - KT DDI25.docx",
+      "paragraphs": 240,
+      "parser": {
+        "headings": 4,
+        "cards": 22,
+        "analytics": 2,
+        "styled": true
+      },
+      "splitter": {
+        "chunks": 2,
+        "ms": 9740,
+        "cards": 19,
+        "recall": 0.864,
+        "precision": 1,
+        "tagExact": 1,
+        "costUsd": 0.0255
+      },
+      "labels": {
+        "sample": 22,
+        "labeled": 22,
+        "ms": 16542,
+        "costUsd": 0.0113,
+        "costPer1000Cards": 0.51,
+        "sides": {
+          "aff": 22
+        },
+        "argTypes": {
+          "inherency": 1,
+          "impact": 9,
+          "solvency": 3,
+          "advantage": 8,
+          "case_answer": 1
+        },
+        "positions": [
+          "Arctic maritime domain awareness",
+          "Arctic security",
+          "Arctic escalation",
+          "Arctic space capabilities",
+          "Arctic satellite surveillance",
+          "LEO navigation",
+          "Arctic navigation disruption",
+          "Arctic space infrastructure"
+        ]
+      }
+    },
+    {
+      "file": "Abolition Kritik - Michigan 2024 BFHR.docx",
+      "paragraphs": 347,
+      "parser": {
+        "headings": 31,
+        "cards": 38,
+        "analytics": 0,
+        "styled": true
+      },
+      "splitter": {
+        "chunks": 3,
+        "ms": 8638,
+        "cards": 34,
+        "recall": 0.842,
+        "precision": 0.941,
+        "tagExact": 0.969,
+        "costUsd": 0.0334
+      },
+      "labels": {
+        "sample": 30,
+        "labeled": 30,
+        "ms": 18505,
+        "costUsd": 0.0159,
+        "costPer1000Cards": 0.53,
+        "sides": {
+          "neg": 25,
+          "aff": 5
+        },
+        "argTypes": {
+          "kritik": 25,
+          "case_answer": 5
+        },
+        "positions": [
+          "Abolition K"
+        ]
+      }
+    }
+  ]
+}

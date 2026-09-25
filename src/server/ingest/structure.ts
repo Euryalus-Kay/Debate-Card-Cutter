@@ -52,8 +52,9 @@ const CITE_START = new RegExp(String.raw`^\s*[\p{Lu}][\p{L}'’.\-]+(?:\s(?:&|an
 const SHORT_CITE = new RegExp(String.raw`^[\p{Lu}][\p{L}'’.\-&, ]{0,60}?[\s,]+(?:${YEAR}|ND)\b`, "u");
 const URL_RE = /\bhttps?:\/\/[^\s)\]}>"]+/i;
 
+let junkParagraphs: Set<number> | undefined;
 function isBlank(p: DocParagraph): boolean {
-  return p.text.trim().length === 0;
+  return p.text.trim().length === 0 || !!junkParagraphs?.has(p.index);
 }
 
 function isCiteStyle(name: string | undefined, id: string | undefined): boolean {
@@ -229,21 +230,33 @@ export function citationFromImported(short: string, rest: string, raw: string, p
   return c;
 }
 
-export function structureDocument(paragraphs: DocParagraph[]): StructuredDoc {
+/**
+ * `hints` come from AI splitting of files without Verbatim styles (src/server/library/segment.ts):
+ * paragraphs it identified as citations, and paragraphs that are neither evidence nor argument.
+ */
+export function structureDocument(paragraphs: DocParagraph[], hints: { cites?: Set<number>; junk?: Set<number> } = {}): StructuredDoc {
   const items: ImportedItem[] = [];
   const issues: string[] = [];
+  junkParagraphs = hints.junk;
   const styled = paragraphs.some((p) => p.headingLevel > 0);
   const path: string[] = [];
 
-  // Fallback tag detection for unstyled docs: short, fully bold paragraph followed by a cite-like paragraph.
+  // Tags without the Tag style: a short, fully bold paragraph followed by a cite-like paragraph. In a styled
+  // file (a tag pasted in without its style) the citation line must not be all bold itself, and the bold line
+  // must not be a short cite on its own line.
+  const allBold = (p: DocParagraph) => {
+    const runs = p.runs.filter((r) => r.text.trim());
+    return runs.length > 0 && runs.every((r) => r.props.bold);
+  };
   const isTag = (i: number): boolean => {
     const p = paragraphs[i];
     if (p.headingLevel === 4) return true;
-    if (styled || p.headingLevel !== 0 || isBlank(p)) return false;
-    const allBold = p.runs.filter((r) => r.text.trim()).every((r) => r.props.bold);
-    if (!allBold || p.text.length > 400) return false;
+    if (p.headingLevel !== 0 || isBlank(p) || !allBold(p) || p.text.length > 400) return false;
     const next = nextNonBlank(paragraphs, i + 1);
-    return next !== -1 && looksLikeCite(paragraphs[next]);
+    if (next === -1) return false;
+    const n = paragraphs[next];
+    if (!styled) return looksLikeCite(n);
+    return n.headingLevel === 0 && looksLikeCite(n) && !allBold(n) && !looksLikeCite(p);
   };
 
   let i = 0;
@@ -271,7 +284,7 @@ export function structureDocument(paragraphs: DocParagraph[]): StructuredDoc {
         continue;
       }
       const citeP = paragraphs[next];
-      const citeLike = looksLikeCite(citeP);
+      const citeLike = !!hints.cites?.has(citeP.index) || looksLikeCite(citeP);
       // Collect following body paragraphs until the next boundary.
       let j = citeLike ? next + 1 : next;
       const bodyParas: DocParagraph[] = [];
@@ -324,6 +337,7 @@ export function structureDocument(paragraphs: DocParagraph[]): StructuredDoc {
   if (!styled && counts.cards === 0 && paragraphs.length > 5) {
     issues.push("No heading styles or card structure found. The text was imported as plain paragraphs; you can mark tags and cites manually.");
   }
+  junkParagraphs = undefined;
   return { items, counts, issues, styled };
 }
 

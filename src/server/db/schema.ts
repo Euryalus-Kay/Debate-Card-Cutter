@@ -10,6 +10,7 @@
 
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   bigint,
   bigserial,
   boolean,
@@ -422,8 +423,14 @@ export const cards = pgTable(
     /** provenance of an import: {uploadId, fileName, paragraph} */
     importedFrom: jsonb("imported_from"),
     plainText: text("plain_text").notNull().default(""),
+    /** labels from the library (Phase B): {side, argType, position, role, claim, topics} */
+    meta: jsonb("meta").notNull().default(sql`'{}'::jsonb`),
+    /** the labels as words, searched alongside the tag */
+    metaText: text("meta_text").notNull().default(""),
+    /** a near-duplicate of this card (same evidence, different tag or highlighting) */
+    variantOf: text("variant_of").references((): AnyPgColumn => cards.id, { onDelete: "set null" }),
     search: tsvector("search").generatedAlwaysAs(
-      sql`setweight(to_tsvector('english', coalesce(tag, '')), 'A') || setweight(to_tsvector('simple', coalesce(short_cite, '')), 'A') || setweight(to_tsvector('english', coalesce(plain_text, '')), 'C')`,
+      sql`setweight(to_tsvector('english', coalesce(tag, '')), 'A') || setweight(to_tsvector('simple', coalesce(short_cite, '')), 'A') || setweight(to_tsvector('english', coalesce(meta_text, '')), 'B') || setweight(to_tsvector('english', coalesce(plain_text, '')), 'C')`,
     ),
     version: integer("version").notNull().default(1),
     createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
@@ -436,6 +443,7 @@ export const cards = pgTable(
     index("cards_team_hash_idx").on(t.teamId, t.bodyHash),
     index("cards_search_idx").using("gin", t.search),
     index("cards_tag_trgm_idx").using("gin", sql`${t.tag} gin_trgm_ops`),
+    index("cards_variant_idx").on(t.variantOf),
   ],
 );
 

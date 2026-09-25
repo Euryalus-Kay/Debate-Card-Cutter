@@ -17,6 +17,8 @@ export type AiTask =
   | "section_revise" // targeted rewrites (clarify / reword / condense / strengthen)
   | "section_alternatives"
   | "span_edit" // rewrite exactly the selected words, or reply to an @AI comment on them
+  | "file_segment" // which paragraphs of an unstyled file are tags, cites, card text, headings (never writes text)
+  | "card_label" // library labels for a card: side, argument type, position, role, one-line claim
   | "speech_fit" // whole-speech keep/condense/cut plan to fit the time limit
   | "speech_patch" // update an existing draft: add answers to new arguments, relink, minimal edits
   | "coverage_review" // what's still missing, strategic risks
@@ -102,6 +104,15 @@ export const REGISTRY: Record<AiTask, TaskConfig> = {
   span_edit: {
     primary: { model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 3000, firstChunkMs: 12000 },
     fallbacks: [{ model: MODELS.opus55, effort: "low", maxOutputTokens: 3000 }],
+  },
+  // Bulk library work on big files: cheapest model; outputs are labels only and are checked in code.
+  file_segment: {
+    primary: { model: MODELS.haiku45, maxOutputTokens: 4000, firstChunkMs: 30000 },
+    fallbacks: [{ model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 4000 }],
+  },
+  card_label: {
+    primary: { model: MODELS.haiku45, maxOutputTokens: 6000, firstChunkMs: 30000 },
+    fallbacks: [{ model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 6000 }],
   },
   section_alternatives: {
     primary: { model: MODELS.opus55, effort: "low", maxOutputTokens: 8000, firstChunkMs: 30000 },

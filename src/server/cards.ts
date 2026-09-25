@@ -185,3 +185,77 @@ export async function updateCard(teamId: string, id: string, userId: string, pat
   }
   await db().update(cards).set(next).where(and(eq(cards.id, id), eq(cards.teamId, teamId)));
 }
+
+/** Same evidence, same tag, same highlighting: nothing new to keep. */
+function sameCard(a: { tag: string; body: BodyBlock[] }, b: { tag: string; body: BodyBlock[] }): boolean {
+  const norm = (t: string) => t.replace(/\s+/g, " ").trim().toLowerCase();
+  // Spans as plain tuples: stored JSON doesn't keep key order.
+  const marks = (body: BodyBlock[]) =>
+    JSON.stringify(body.map((x) => (x.kind === "text" ? [x.highlight.map((h) => [h.start, h.end, h.color]), x.underline.map((u) => [u.start, u.end])] : null)));
+  return norm(a.tag) === norm(b.tag) && marks(a.body) === marks(b.body);
+}
+
+export interface BatchImportResult {
+  created: string[];
+  duplicates: number;
+  variants: number;
+}
+
+/**
+ * Import a file's cards in bulk (Phase B1): one lookup for all duplicates, inserts in batches. A card whose
+ * evidence the library already has is skipped when its tag and highlighting match, and kept as a variant
+ * of the existing card when they differ (another team's tag or highlighting of the same text).
+ */
+export async function importCardsBatch(args: {
+  teamId: string;
+  userId: string;
+  uploadId: string;
+  fileName: string;
+  labels: string[];
+  items: { blockIdx: number; tag: string; citation: Citation; body: BodyBlock[]; path: string[] }[];
+}): Promise<BatchImportResult> {
+  const withHash = await Promise.all(args.items.map(async (it) => ({ ...it, hash: await bodyHash(it.body) })));
+  const hashes = [...new Set(withHash.map((x) => x.hash))];
+  const existing = new Map<string, { id: string; tag: string; body: BodyBlock[] }[]>();
+  for (let i = 0; i < hashes.length; i += 500) {
+    const rows = await db()
+      .select({ id: cards.id, tag: cards.tag, body: cards.body, bodyHash: cards.bodyHash })
+      .from(cards)
+      .where(and(eq(cards.teamId, args.teamId), inArray(cards.bodyHash, hashes.slice(i, i + 500)), isNull(cards.deletedAt)));
+    for (const r of rows) existing.set(r.bodyHash, [...(existing.get(r.bodyHash) ?? []), { id: r.id, tag: r.tag, body: r.body as BodyBlock[] }]);
+  }
+  const out: BatchImportResult = { created: [], duplicates: 0, variants: 0 };
+  const rows: (typeof cards.$inferInsert)[] = [];
+  for (const it of withHash) {
+    const known = existing.get(it.hash) ?? [];
+    if (known.some((k) => sameCard(k, it))) {
+      out.duplicates++;
+      continue;
+    }
+    const id = newId("card");
+    const variantOf = known[0]?.id ?? null;
+    if (variantOf) out.variants++;
+    const issues = lintCard({ tag: it.tag, body: it.body, citation: it.citation });
+    rows.push({
+      id,
+      teamId: args.teamId,
+      tag: it.tag.slice(0, 2000),
+      shortCite: shortCite(it.citation),
+      citation: it.citation,
+      body: it.body,
+      origin: "imported",
+      verificationStatus: "imported",
+      verification: { status: "imported", issues },
+      bodyHash: it.hash,
+      labels: [...new Set([...args.labels, ...it.path.slice(0, 3)])].slice(0, 12),
+      importedFrom: { uploadId: args.uploadId, fileName: args.fileName, blockIdx: it.blockIdx, path: it.path },
+      plainText: verbatimText(it.body).slice(0, 100_000),
+      variantOf,
+      createdBy: args.userId,
+    });
+    existing.set(it.hash, [...known, { id, tag: it.tag, body: it.body }]);
+    out.created.push(id);
+  }
+  for (let i = 0; i < rows.length; i += 100) await db().insert(cards).values(rows.slice(i, i + 100));
+  return out;
+}

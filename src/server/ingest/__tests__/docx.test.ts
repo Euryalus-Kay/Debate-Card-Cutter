@@ -116,3 +116,34 @@ describe("real-world cite patterns (from Verbatim camp files)", () => {
     expect(citationFromImported("Levitz 19", "9-18-2019, Democracy Dies When Labor Unions Do, https://nymag.com/x", "").date).toMatchObject({ year: 2019, month: 9, day: 18 });
   });
 });
+
+describe("tags pasted without the Tag style (synthetic)", () => {
+  const p = (index: number, text: string, opts: { h?: 0 | 1 | 2 | 3 | 4; bold?: boolean; underline?: boolean } = {}): DocParagraph => ({
+    index,
+    headingLevel: opts.h ?? 0,
+    inTable: false,
+    text,
+    runs: [{ text, props: { bold: opts.bold, underline: opts.underline }, emphasis: false }],
+  });
+  const cite = "Rivera 22 — Professor of Economics, “An Invented Title,” Journal of Examples, 2022";
+  const body = "Invented card text about markets and firms that a debater underlined.";
+
+  it("splits a bold line above a citation into its own card in a styled file", () => {
+    const s = structureDocument([
+      p(0, "Growth is fragile", { h: 4 }),
+      p(1, cite),
+      p(2, body, { underline: true }),
+      p(3, "Small firms drive the gains", { bold: true }),
+      p(4, cite),
+      p(5, body, { underline: true }),
+    ]);
+    const cards = s.items.filter((x): x is ImportedCard => x.kind === "card");
+    expect(cards.map((c) => c.tag)).toEqual(["Growth is fragile", "Small firms drive the gains"]);
+    expect(cards[0].body).toHaveLength(1);
+  });
+
+  it("keeps a bold short cite on its own line inside the card", () => {
+    const s = structureDocument([p(0, "Growth is fragile", { h: 4 }), p(1, "Rivera 22", { bold: true }), p(2, cite), p(3, body, { underline: true })]);
+    expect(s.items.filter((x) => x.kind === "card")).toHaveLength(1);
+  });
+});

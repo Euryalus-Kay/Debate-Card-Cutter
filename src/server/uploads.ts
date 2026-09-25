@@ -118,7 +118,6 @@ export async function saveUpload(args: {
   if (!kind) throw new HttpError(415, "Unsupported file. Upload .docx, .pdf, or plain text. Legacy .doc files must be re-saved as .docx.");
   const result = await ingest(args.bytes, args.fileName, kind);
   const id = newId("upl");
-  const sha = await sha256Hex(args.bytes);
 
   let blobPath: string | null = null;
   if (process.env.BLOB_READ_WRITE_TOKEN) {
@@ -136,6 +135,26 @@ export async function saveUpload(args: {
     }
   }
 
+  await storeParsedUpload({ id, ...args, kind, result, blobPath });
+  return { id, fileName: args.fileName, kind, quality: result.quality, warnings: result.warnings, items: result.structure.items };
+}
+
+/** Save an upload row and its structured blocks (the file itself is already parsed, and archived or not). */
+export async function storeParsedUpload(args: {
+  id: string;
+  teamId: string;
+  userId: string;
+  roundId?: string | null;
+  purpose: "speech_doc" | "library_file" | "source_pdf" | "other";
+  fileName: string;
+  bytes: Uint8Array;
+  mime: string;
+  kind: UploadKind;
+  result: IngestResult;
+  blobPath: string | null;
+  attribution?: Record<string, unknown>;
+}): Promise<void> {
+  const { id, result, kind } = args;
   await db()
     .insert(uploads)
     .values({
@@ -146,8 +165,8 @@ export async function saveUpload(args: {
       fileName: args.fileName.slice(0, 300),
       mime: args.mime || kind,
       size: args.bytes.byteLength,
-      sha256: sha,
-      blobPath,
+      sha256: await sha256Hex(args.bytes),
+      blobPath: args.blobPath,
       status: "parsed",
       parseResult: { kind, quality: result.quality, warnings: result.warnings, plainText: result.plainText?.slice(0, 2_000_000) },
       attribution: args.attribution ?? {},
@@ -166,7 +185,6 @@ export async function saveUpload(args: {
     }));
     if (chunk.length) await db().insert(uploadBlocks).values(chunk);
   }
-  return { id, fileName: args.fileName, kind, quality: result.quality, warnings: result.warnings, items };
 }
 
 export async function uploadWithBlocks(uploadId: string) {
