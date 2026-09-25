@@ -14,6 +14,7 @@ import { TopBar, SpeechStepper } from "./top-bar";
 import { CoveragePanel } from "./coverage-panel";
 import { SpeechPanel } from "./speech-panel";
 import { FlowGrid } from "./flow-grid";
+import { ResearchDialog } from "./round-research";
 import { SidePanel } from "./side-panel";
 import { setRoundDoc } from "./editor/active-editor";
 
@@ -136,6 +137,7 @@ export function RoundWorkspace({ roundId }: { roundId: string }) {
           void patchRound({ aiOverride: { by: user.id, at: new Date().toISOString(), reason } } as Partial<RoundRecord>);
         }}
       />
+      {aiEnabled ? <ResearchDialog round={round} /> : null}
     </div>
   );
 }

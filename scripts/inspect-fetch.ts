@@ -14,5 +14,5 @@ if (which === "pdf") {
 } else {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, baseURL: "https://api.anthropic.com" });
   const res = await client.messages.create({ model: "claude-haiku-4-5", max_tokens: 100, tools: [{ type: "web_fetch_20250910", name: "web_fetch", max_uses: 1 } as never], messages: [{ role: "user", content: `Fetch ${process.argv[3]} and reply only with DONE.` }] });
-  for (const b of res.content as any[]) if (b.type === "web_fetch_tool_result") { const d = b.content?.content?.source?.data ?? ""; console.log("TITLE", b.content?.content?.title); console.log(d.slice(0, 2500)); console.log("..."); }
+  for (const b of res.content as unknown as { type: string; content?: { content?: { title?: string; source?: { data?: string } } } }[]) if (b.type === "web_fetch_tool_result") { const d = b.content?.content?.source?.data ?? ""; console.log("TITLE", b.content?.content?.title); console.log(d.slice(0, 2500)); console.log("..."); }
 }

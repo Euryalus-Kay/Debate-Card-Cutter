@@ -34,7 +34,7 @@ export function ArgLine({ arg, compact }: { arg: ArgUnit; compact?: boolean }) {
   );
 }
 
-export function CoveragePanel({ round, doc, graph, recorded, slots }: { round: RoundRecord; doc: Y.Doc | null; graph: RoundGraph | null; recorded: Set<SpeechId>; slots: Record<SpeechId, SlotRecord> | null }) {
+export function CoveragePanel({ round, graph, recorded, slots }: { round: RoundRecord; doc: Y.Doc | null; graph: RoundGraph | null; recorded: Set<SpeechId>; slots: Record<SpeechId, SlotRecord> | null }) {
   const ws = useWorkspace();
   const speech = ws.speech;
   const { sync: draftSync } = useDocSync(ws.draftId);

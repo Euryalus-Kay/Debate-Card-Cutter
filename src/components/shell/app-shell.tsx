@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useState } from "react";
 import { BookOpen, FlaskConical, LogOut, Settings, Swords, ChevronsUpDown, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { authClient } from "@/client/auth-client";
 import { cn, Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger, Tooltip } from "@/components/ui";
@@ -35,15 +35,24 @@ const NAV = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
+function setTeamCookie(id: string) {
+  document.cookie = `clash_team=${id}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
+}
+
 export function AppShell({ user, team, teams, children }: { user: ShellUser; team: ShellTeam; teams: ShellTeam[]; children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const inRound = /^\/rounds\/[^/]+/.test(pathname);
-  const [collapsed, setCollapsed] = useState(false);
-  useEffect(() => setCollapsed(inRound), [inRound]);
+  // The sidebar collapses on entering a round and expands on leaving; the user can toggle in between.
+  const [collapsed, setCollapsed] = useState(inRound);
+  const [wasInRound, setWasInRound] = useState(inRound);
+  if (wasInRound !== inRound) {
+    setWasInRound(inRound);
+    setCollapsed(inRound);
+  }
 
   function switchTeam(id: string) {
-    document.cookie = `clash_team=${id}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
+    setTeamCookie(id);
     router.refresh();
   }
 

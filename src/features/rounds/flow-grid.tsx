@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import type * as Y from "yjs";
 import { Plus } from "lucide-react";
-import { Badge, Button, cn, EmptyState, Input, Select } from "@/components/ui";
+import { Button, cn, EmptyState, Input, Select } from "@/components/ui";
 import { isCasePosition, POSITION_KIND_LABEL, type ArgUnit, type PositionKind, type RoundGraph } from "@/domain/flow";
 import { SPEECHES, type SpeechId } from "@/domain/format";
 import { upsertArg, upsertPosition } from "@/shared/round-doc";

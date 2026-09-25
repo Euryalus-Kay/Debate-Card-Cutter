@@ -65,7 +65,11 @@ function RateCalibration() {
   const settings = useSettings();
   const profile: RateProfile = settings.data?.rateProfile ?? presetProfile("fast");
   const [preset, setPreset] = useState<RatePresetId>(profile.preset);
-  useEffect(() => setPreset(profile.preset), [profile.preset]);
+  const [savedPreset, setSavedPreset] = useState(profile.preset);
+  if (savedPreset !== profile.preset) {
+    setSavedPreset(profile.preset);
+    setPreset(profile.preset);
+  }
   const [text, setText] = useState("");
   const [kind, setKind] = useState<"card" | "analytic">("card");
   const [running, setRunning] = useState(false);

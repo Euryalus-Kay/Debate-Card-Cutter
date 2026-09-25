@@ -303,10 +303,10 @@ export function UploadDialog({ open, onOpenChange, round, aiEnabled, defaultSpee
 }
 
 /** Read-only view of an uploaded document with per-card "not read" controls. */
-export function OpponentDocView({ upload, roundId, doc }: { upload: UploadRecord; roundId: string; doc: Y.Doc | null }) {
+export function OpponentDocView({ upload, doc }: { upload: UploadRecord; roundId?: string; doc: Y.Doc | null }) {
   const q = useQuery({ queryKey: ["upload", upload.id], queryFn: () => api<{ blocks: UploadBlock[] }>(`/api/uploads/${upload.id}`), staleTime: Infinity });
-  const args = useYDocValue(doc, (d) => readArgs(d).filter((a) => a.provenance.type === "document" && a.provenance.documentId === upload.id)) ?? [];
-  const byBlock = useMemo(() => new Map(args.map((a) => [(a.provenance as { blockId?: string }).blockId, a])), [args]);
+  const docArgs = useYDocValue(doc, (d) => readArgs(d).filter((a) => a.provenance.type === "document" && a.provenance.documentId === upload.id), [upload.id]);
+  const byBlock = useMemo(() => new Map((docArgs ?? []).map((a) => [(a.provenance as { blockId?: string }).blockId, a])), [docArgs]);
   if (q.isLoading) return <div className="flex justify-center p-6"><Spinner /></div>;
   if (q.error) return <p className="p-4 text-[13px] text-bad">{(q.error as Error).message}</p>;
   return (

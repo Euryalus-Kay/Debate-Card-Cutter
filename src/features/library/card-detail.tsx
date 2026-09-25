@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { ArrowLeft, Highlighter, Underline as UnderlineIcon, Type, Trash2, ExternalLink, AlertTriangle } from "lucide-react";
@@ -34,18 +35,21 @@ interface CardData {
 export function CardDetail({ cardId }: { cardId: string }) {
   const qc = useQueryClient();
   const rates = useRateProfile();
+  const router = useRouter();
   const q = useQuery({ queryKey: ["card", cardId], queryFn: () => api<{ card: CardData; revisions: { id: string; version: number; reason: string; createdAt: string }[]; source: { id: string; url: string | null; title: string; access: string } | null }>(`/api/cards/${cardId}`) });
   const card = q.data?.card;
   const [tag, setTag] = useState("");
   const [cite, setCite] = useState<Citation | null>(null);
   const [dirty, setDirty] = useState(false);
-  useEffect(() => {
-    if (card) {
-      setTag(card.tag);
-      setCite(card.citation);
-      setDirty(false);
-    }
-  }, [card]);
+  // Load the form from each new server version of the card.
+  const [loaded, setLoaded] = useState<string | null>(null);
+  const cardKey = card ? `${card.id}:${card.version}:${card.updatedAt}` : null;
+  if (card && cardKey !== loaded) {
+    setLoaded(cardKey);
+    setTag(card.tag);
+    setCite(card.citation);
+    setDirty(false);
+  }
 
   const content = useMemo(() => (card ? ({ type: "doc", content: [cardToPM({ tag: card.tag, shortCite: "", fullCite: "", body: card.body, verification: card.verificationStatus })] } as PMNodeJSON) : null), [card]);
   const editor = useEditor(
@@ -167,7 +171,7 @@ export function CardDetail({ cardId }: { cardId: string }) {
             onClick={async () => {
               if (!window.confirm("Move this card to the trash? (It can be recovered.)")) return;
               await api(`/api/cards/${cardId}`, { method: "DELETE" });
-              window.location.href = "/library";
+              router.push("/library");
             }}
           >
             <Trash2 className="size-3.5" /> Delete

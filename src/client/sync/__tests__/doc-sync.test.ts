@@ -9,7 +9,6 @@ import { DocSync } from "../doc-sync";
 import { resetDbForTests } from "../idb";
 
 let close: () => Promise<void>;
-let dbCounter = 0;
 
 beforeEach(async () => {
   ({ close } = await freshDb());
@@ -18,7 +17,6 @@ beforeEach(async () => {
   // Isolate IndexedDB between tests.
   (globalThis as { indexedDB: unknown }).indexedDB = new (await import("fake-indexeddb")).IDBFactory();
   resetDbForTests();
-  dbCounter++;
 });
 afterEach(async () => close());
 

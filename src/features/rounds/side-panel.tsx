@@ -28,7 +28,7 @@ export function SidePanel({ round, bundle, doc, graph, aiEnabled }: { round: Rou
         <ArgDetails round={round} doc={doc} graph={graph} />
       </TabsContent>
       <TabsContent value="evidence" className="flex min-h-0 flex-1 flex-col">
-        <EvidencePanel round={round} />
+        <EvidencePanel round={round} aiEnabled={aiEnabled} />
       </TabsContent>
       <TabsContent value="docs" className="flex min-h-0 flex-1 flex-col">
         <DocsPanel round={round} bundle={bundle} aiEnabled={aiEnabled} />

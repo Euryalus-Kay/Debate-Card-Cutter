@@ -21,7 +21,7 @@ const RELATION_LABEL: Record<string, string> = {
 };
 
 export function SectionView(props: ReactNodeViewProps) {
-  const { node, updateAttributes, editor, getPos } = props;
+  const { node, editor, getPos } = props;
   const ctx = useEditorRound();
   const ws = useWorkspace();
   const attrs = node.attrs as Record<string, unknown>;
@@ -99,7 +99,8 @@ export function SectionView(props: ReactNodeViewProps) {
                 <MenuItem onSelect={() => ctx.onSectionAi(id, "condense")}>Condense to fit budget</MenuItem>
                 <MenuItem onSelect={() => ctx.onSectionAi(id, "alternatives")}>Three different approaches</MenuItem>
                 <MenuSeparator />
-                <MenuItem onSelect={() => ctx.onSectionAi(id, "find_card")}>Find a better card for this warrant</MenuItem>
+                <MenuItem onSelect={() => ctx.onSectionAi(id, "find_card")}>Describe the card this section needs</MenuItem>
+                <MenuItem onSelect={() => ctx.onSectionResearch(id)}>Cut a new card from the web…</MenuItem>
               </MenuContent>
             </Menu>
           ) : null}

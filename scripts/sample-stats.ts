@@ -2,7 +2,6 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { parseDocx } from "@/server/ingest/docx";
 import { structureDocument, type ImportedCard } from "@/server/ingest/structure";
-import { shortCite } from "@/domain/citation";
 const dir = process.argv[2];
 let total = 0, withCite = 0, withYear = 0, withUrl = 0, withTitle = 0, emptyBody = 0;
 const misses: string[] = [];

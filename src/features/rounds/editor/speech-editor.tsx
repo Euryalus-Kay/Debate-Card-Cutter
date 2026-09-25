@@ -19,18 +19,21 @@ const blockedMessages: Record<BlockedReason, string> = {
 
 let lastBlockToast = 0;
 
+/** Throttled explanation when an edit is refused (locked section, verbatim card text). */
+function notifyBlocked(reason: BlockedReason) {
+  if (Date.now() - lastBlockToast > 2500) {
+    lastBlockToast = Date.now();
+    toast(blockedMessages[reason], "warn");
+  }
+}
+
 export function useSpeechEditor(doc: Y.Doc | null, editable: boolean) {
   const extensions = useMemo(() => {
     // Until a draft document exists, use a plain (non-collaborative) schema so the editor is valid.
     if (!doc) return editorExtensions({ collaborative: false });
     const base = editorExtensions({
       collaborative: true,
-      onBlocked: (reason) => {
-        if (Date.now() - lastBlockToast > 2500) {
-          lastBlockToast = Date.now();
-          toast(blockedMessages[reason], "warn");
-        }
-      },
+      onBlocked: notifyBlocked,
     }).map((ext) => {
       if (ext.name === "section") return Section.extend({ addNodeView: () => ReactNodeViewRenderer(SectionView) });
       if (ext.name === "card") return Card.extend({ addNodeView: () => ReactNodeViewRenderer(CardView) });

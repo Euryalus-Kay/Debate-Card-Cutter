@@ -278,7 +278,7 @@ function JobPanel({ jobId }: { jobId: string }) {
     queryFn: () => api<JobView>(`/api/research/jobs/${jobId}`),
     refetchInterval: (query) => (query.state.data && !RUNNING.has(query.state.data.job.status) ? false : 1500),
   });
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const running = q.data ? RUNNING.has(q.data.job.status) : true;
   useEffect(() => {
     if (!running) return;

@@ -16,6 +16,8 @@ import { readSlots, updateSlot, type SlotRecord } from "@/shared/round-doc";
 import { useRateProfile } from "@/client/use-settings";
 import type { RoundBundle, RoundRecord } from "./types";
 import { useWorkspace } from "./store";
+import { claimForSection, useRoundResearch } from "./round-research";
+import { findSectionNode } from "./proposals";
 import { EditorRoundCtx } from "./editor/context";
 import { EditorToolbar, SpeechEditorView, useSpeechEditor } from "./editor/speech-editor";
 import { useDraft } from "./draft-hooks";
@@ -162,6 +164,15 @@ function OurSpeechView({ round, bundle, doc, graph, speech, aiEnabled, userId }:
         partnerSections,
         aiEnabled,
         onSectionAi: (sectionId, action) => runSectionAi({ round, speech, draftId: ws.draftId!, editor, sectionId, action }),
+        onSectionResearch: (sectionId) => {
+          if (!editor) return;
+          const found = findSectionNode(editor, sectionId);
+          let heading = "";
+          found?.node.forEach((c) => {
+            if (!heading && c.type.name === "heading") heading = c.textContent.trim();
+          });
+          useRoundResearch.getState().open({ sectionId, draftId: ws.draftId, claim: claimForSection(editor, sectionId), context: `${round.ourSide === "aff" ? "Aff" : "Neg"} ${speech}${heading ? ` — ${heading}` : ""}` });
+        },
         onCardOpen: (cardId) => {
           if (cardId) window.open(`/library/cards/${cardId}`, "_blank");
         },
@@ -245,8 +256,14 @@ function OurSpeechView({ round, bundle, doc, graph, speech, aiEnabled, userId }:
 function OpponentSpeechView({ round, bundle, doc, speech, slots }: { round: RoundRecord; bundle: RoundBundle; doc: Y.Doc | null; speech: SpeechId; slots: Record<SpeechId, SlotRecord> | null }) {
   const uploads = bundle.uploads.filter((u) => u.attribution?.speech === speech);
   const slot = useYDocValue(doc, (d) => readSlots(d)[speech], [speech]) ?? slots?.[speech];
+  // Local edits until blur; reset when the shared notes (or the speech) change underneath.
+  const shared = `${speech}\u0000${slot?.notes ?? ""}`;
   const [notes, setNotes] = useState(slot?.notes ?? "");
-  useEffect(() => setNotes(slot?.notes ?? ""), [slot?.notes, speech]);
+  const [base, setBase] = useState(shared);
+  if (base !== shared) {
+    setBase(shared);
+    setNotes(slot?.notes ?? "");
+  }
   return (
     <div className="flex h-full flex-col overflow-y-auto">
       <div className="border-b border-line bg-elev px-4 py-3">

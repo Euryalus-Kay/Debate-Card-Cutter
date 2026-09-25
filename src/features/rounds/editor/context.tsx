@@ -13,6 +13,8 @@ export interface EditorRoundContext {
   partnerSections: Map<string, string>;
   aiEnabled: boolean;
   onSectionAi: (sectionId: string, action: string) => void;
+  /** open the "cut a new card" dialog for this section */
+  onSectionResearch: (sectionId: string) => void;
   onCardOpen: (cardId: string | null, instanceId: string) => void;
 }
 

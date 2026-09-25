@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Plus, Check, ChevronDown, ChevronRight, Library } from "lucide-react";
+import { Search, Plus, Check, ChevronDown, ChevronRight, Library, FlaskConical } from "lucide-react";
 import { api } from "@/client/api";
 import { Badge, Button, cn, EmptyState, Input, Spinner, Tooltip, toast } from "@/components/ui";
 import { useApp } from "@/components/shell/app-shell";
@@ -13,6 +13,7 @@ import { fullCite } from "@/domain/citation";
 import { useWorkspace } from "./store";
 import { cardNode, fetchCards } from "./proposals";
 import { getActiveEditor } from "./editor/active-editor";
+import { RoundResearchList, useRoundResearch } from "./round-research";
 import type { RoundRecord } from "./types";
 
 interface Hit {
@@ -43,7 +44,7 @@ export function VerificationBadge({ status }: { status: string }) {
   );
 }
 
-export function EvidencePanel({ round }: { round: RoundRecord }) {
+export function EvidencePanel({ round, aiEnabled }: { round: RoundRecord; aiEnabled: boolean }) {
   const { team } = useApp();
   const ws = useWorkspace();
   const [q, setQ] = useState("");
@@ -53,7 +54,6 @@ export function EvidencePanel({ round }: { round: RoundRecord }) {
     return () => clearTimeout(t);
   }, [q]);
   const res = useQuery({ queryKey: ["cards", team.id, debounced], queryFn: () => api<{ cards: Hit[] }>(`/api/cards?teamId=${team.id}&q=${encodeURIComponent(debounced)}&limit=40`) });
-  void round;
 
   async function insert(id: string) {
     const editor = ws.draftId ? getActiveEditor(ws.draftId) : null;
@@ -66,10 +66,23 @@ export function EvidencePanel({ round }: { round: RoundRecord }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      <RoundResearchList roundId={round.id} />
       <div className="border-b border-line p-2">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-faint" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search your cards (tag, author, text)…" className="pl-8" aria-label="Search cards" />
+        <div className="flex gap-1.5">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-faint" />
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search your cards (tag, author, text)…" className="pl-8" aria-label="Search cards" />
+          </div>
+          {aiEnabled ? (
+          <Tooltip content="Cut new cards from the web on this">
+            <Button
+              aria-label="Cut new cards from the web"
+              onClick={() => useRoundResearch.getState().open({ sectionId: null, draftId: ws.draftId, claim: q, context: `${round.ourSide === "aff" ? "Aff" : "Neg"} ${ws.speech ?? ""}`.trim() })}
+            >
+              <FlaskConical className="size-3.5" /> New
+            </Button>
+          </Tooltip>
+          ) : null}
         </div>
         {ws.basket.length ? (
           <div className="mt-2 flex items-center gap-2 text-xs">

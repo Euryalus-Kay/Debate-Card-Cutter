@@ -2,7 +2,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { parseDocx } from "@/server/ingest/docx";
-import { structureDocument, type ImportedCard, type ImportedItem } from "@/server/ingest/structure";
+import { structureDocument, type ImportedItem } from "@/server/ingest/structure";
 import { buildDocx, type ExportNode } from "@/server/export/docx-writer";
 
 const dir = `${process.env.HOME}/Projects/debate-backups/research-samples`;
