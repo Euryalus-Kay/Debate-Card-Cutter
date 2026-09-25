@@ -195,4 +195,4 @@ Each entry is marked **verified**, **partially verified**, or **unverified**.
 | 09-25 | Drafting quality, Gemini 3.8 Flash (low/medium) vs Opus 5.5 low | Gemini wins 17–33%; Claude judge 0% | verified (`draft-quality-run2.json`) |
 | 09-25 | Automatic trim/fill to time: 6 live drafts (2 fills, 2 trims, 2 already in range) and a padded 1AR (7:05 → 4:42) | all end within the limit | verified |
 | 09-25 | Unit/integration suite | 130 tests, 17 files | verified |
-| 09-25 | Production (after each deploy): smoke test 14/14; QA data removed; 0 users | pass (last: 07:05) | verified |
+| 09-25 | Production (after each deploy): smoke test 14/14; QA data removed; 0 users. Vercel holds only ANTHROPIC_API_KEY (no Gemini key) | pass (last: 09:43, commit 8e7bb5a) | verified |
