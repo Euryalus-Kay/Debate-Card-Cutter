@@ -178,7 +178,7 @@ export function renderStylesXml(opts: ExportOptions = {}): string {
     `<w:style w:type="character" w:default="1" w:styleId="DefaultParagraphFont"><w:name w:val="Default Paragraph Font"/><w:uiPriority w:val="1"/><w:semiHidden/><w:unhideWhenUsed/></w:style>` +
     `<w:style w:type="character" w:styleId="Style13ptBold"><w:name w:val="Style 13 pt Bold,Cite"/><w:basedOn w:val="DefaultParagraphFont"/><w:uiPriority w:val="1"/><w:qFormat/><w:rPr><w:b/><w:bCs/><w:sz w:val="26"/></w:rPr></w:style>` +
     `<w:style w:type="character" w:styleId="StyleUnderline"><w:name w:val="Style Underline,Underline"/><w:basedOn w:val="DefaultParagraphFont"/><w:uiPriority w:val="1"/><w:qFormat/><w:rPr><w:b/><w:bCs/><w:sz w:val="${sz}"/><w:u w:val="single"/></w:rPr></w:style>` +
-    `<w:style w:type="character" w:styleId="Emphasis"><w:name w:val="Emphasis"/><w:basedOn w:val="DefaultParagraphFont"/><w:uiPriority w:val="7"/><w:qFormat/><w:rPr><w:rFonts w:ascii="${f}" w:hAnsi="${f}"/><w:b/><w:iCs/><w:sz w:val="${sz}"/><w:u w:val="single"/><w:bdr w:val="single" w:sz="12" w:space="0" w:color="auto"/></w:rPr></w:style>` +
+    `<w:style w:type="character" w:styleId="Emphasis"><w:name w:val="Emphasis"/><w:basedOn w:val="DefaultParagraphFont"/><w:uiPriority w:val="7"/><w:qFormat/><w:rPr><w:rFonts w:ascii="${f}" w:hAnsi="${f}"/><w:b/><w:i w:val="0"/><w:iCs w:val="0"/><w:sz w:val="${sz}"/><w:u w:val="single"/></w:rPr></w:style>` +
     `</w:styles>`
   );
 }

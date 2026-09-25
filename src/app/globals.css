@@ -264,8 +264,6 @@ body {
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 2px;
-  outline: 1px solid color-mix(in srgb, var(--text) 55%, transparent);
-  outline-offset: -1px;
 }
 .speech-editor mark,
 .card-view mark {

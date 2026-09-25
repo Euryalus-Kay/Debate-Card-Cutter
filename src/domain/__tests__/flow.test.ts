@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeCoverage, detectConflicts, possiblyKickedPositions, unansweredByUs, type ArgUnit, type RoundGraph } from "../flow";
+import { checkKick, computeCoverage, detectConflicts, possiblyKickedPositions, unansweredByUs, type ArgUnit, type RoundGraph } from "../flow";
 import type { SpeechId } from "../format";
 
 // SYNTHETIC FIXTURE: a small aff round (we are aff) used only for tests.
@@ -113,16 +113,45 @@ describe("unansweredByUs", () => {
   });
 });
 
-describe("detectConflicts", () => {
-  it("flags a double turn and non-unique + link turn", () => {
+describe("detectConflicts (Snider Table K1)", () => {
+  const g = graph();
+  const planned = (roles: string[]): ArgUnit[] =>
+    roles.map((role, i) => arg({ id: `p${i}`, positionId: "ptx", speech: "2AC", side: "aff", text: role, role: role as ArgUnit["role"], delivery: "planned" }));
+
+  it("flags a double turn as an error", () => {
+    expect(detectConflicts(g, "aff", planned(["link_turn", "impact_turn"])).map((c) => c.code)).toContain("double_turn");
+  });
+
+  it("treats non-unique + link turn as the standard straight-turn package (no conflict)", () => {
+    const codes = detectConflicts(g, "aff", planned(["link_turn", "non_unique"])).map((c) => c.code);
+    expect(codes).not.toContain("double_turn");
+    expect(codes).not.toContain("link_turn_vs_defense");
+    expect(codes).not.toContain("link_turn_needs_nonunique");
+  });
+
+  it("warns that non-unique makes an impact turn kickable", () => {
+    expect(detectConflicts(g, "aff", planned(["impact_turn", "non_unique"])).map((c) => c.code)).toContain("impact_turn_vs_defense");
+  });
+
+  it("does not treat impact mitigation as undercutting an impact turn", () => {
+    expect(detectConflicts(g, "aff", planned(["impact_turn", "impact_mitigation"])).map((c) => c.code)).not.toContain("impact_turn_vs_defense");
+  });
+
+  it("reminds that a lone link turn needs non-uniqueness", () => {
+    expect(detectConflicts(g, "aff", planned(["link_turn"])).map((c) => c.code)).toContain("link_turn_needs_nonunique");
+  });
+});
+
+describe("checkKick", () => {
+  it("errors when the neg kicks a turned DA by conceding non-uniqueness", () => {
     const g = graph();
-    const planned: ArgUnit[] = [
-      arg({ id: "p1", positionId: "ptx", speech: "2AC", side: "aff", text: "Link turn: plan builds PC", role: "link_turn", offensive: true, delivery: "planned" }),
-      arg({ id: "p2", positionId: "ptx", speech: "2AC", side: "aff", text: "Impact turn: bill is bad", role: "impact_turn", offensive: true, delivery: "planned" }),
-      arg({ id: "p3", positionId: "ptx", speech: "2AC", side: "aff", text: "Non-unique", role: "uniqueness", delivery: "planned" }),
-    ];
-    const codes = detectConflicts(g, "aff", planned).map((c) => c.code);
-    expect(codes).toContain("double_turn");
-    expect(codes).toContain("nonunique_undercuts_link_turn");
+    g.args.push(
+      arg({ id: "t1", positionId: "ptx", speech: "2AC", side: "aff", text: "Plan builds PC", role: "link_turn" }),
+      arg({ id: "nu", positionId: "ptx", speech: "2AC", side: "aff", text: "Bill already dead", role: "non_unique" }),
+      arg({ id: "nil", positionId: "ptx", speech: "2AC", side: "aff", text: "Bill won't matter", role: "no_internal_link" }),
+    );
+    const bad = checkKick(g, "neg", "ptx", ["nu"]);
+    expect(bad[0].code).toBe("kick_concession_does_not_neutralize");
+    expect(checkKick(g, "neg", "ptx", ["nil"])).toEqual([]);
   });
 });

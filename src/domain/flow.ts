@@ -73,6 +73,12 @@ export type ArgRole =
   | "framework"
   | "theory"
   | "defense"
+  /** defensive answers typed precisely, because turn/kick logic depends on them */
+  | "non_unique"
+  | "no_link"
+  | "no_internal_link"
+  | "no_impact"
+  | "impact_mitigation"
   | "link_turn"
   | "impact_turn"
   | "impact_calc"
@@ -352,19 +358,38 @@ export function unansweredByUs(graph: RoundGraph, uptoExclusive: SpeechId, recor
 }
 
 // ---------------------------------------------------------------------------
-// Contradiction detection (deterministic layer; AI analysis sits on top)
+// Contradiction and kick logic (deterministic layer; AI analysis sits on top)
+//
+// Table K1 (Snider, The Code of the Debater ch. 22), docs/research/debate-domain.md §7:
+//   conceded answer      | neutralizes link turn? | neutralizes impact turn?
+//   no link              | no                     | yes
+//   won't happen / no IL | yes                    | yes
+//   non-unique           | NO (makes it better)   | yes
+//   no impact            | yes (mostly)           | no ("not bad" can still be good)
 // ---------------------------------------------------------------------------
 
+export type ConflictCode =
+  | "double_turn"
+  | "impact_turn_vs_defense"
+  | "link_turn_vs_defense"
+  | "link_turn_needs_nonunique"
+  | "kick_with_live_turns"
+  | "kick_concession_does_not_neutralize";
+
 export interface Conflict {
-  code: "double_turn" | "nonunique_undercuts_link_turn" | "impact_defense_vs_impact_turn" | "turn_and_concede";
+  code: ConflictCode;
+  severity: "error" | "warning" | "info";
   positionId: string;
   argIds: string[];
   message: string;
 }
 
+const NEUTRALIZES_LINK_TURN: ArgRole[] = ["no_internal_link", "no_impact"];
+const NEUTRALIZES_IMPACT_TURN: ArgRole[] = ["no_link", "no_internal_link", "non_unique"];
+
 /**
- * Checks one side's planned or delivered arguments for known incompatible
- * combinations on the same position.
+ * Check one side's arguments (planned or delivered) on each position for
+ * combinations the other side can exploit.
  */
 export function detectConflicts(graph: RoundGraph, side: Side, args: ArgUnit[] = graph.args): Conflict[] {
   const conflicts: Conflict[] = [];
@@ -377,34 +402,107 @@ export function detectConflicts(graph: RoundGraph, side: Side, args: ArgUnit[] =
   }
   for (const [positionId, list] of bySideByPos) {
     const name = posName.get(positionId) ?? "this position";
-    const linkTurns = list.filter((a) => a.role === "link_turn");
-    const impactTurns = list.filter((a) => a.role === "impact_turn");
-    const nonUnique = list.filter((a) => a.role === "uniqueness" && !a.offensive);
-    const impactDefense = list.filter((a) => a.role === "defense" && /impact|no war|no escalation|empirically/i.test(a.text));
+    const has = (roles: ArgRole[]) => list.filter((a) => roles.includes(a.role));
+    const linkTurns = has(["link_turn"]);
+    const impactTurns = has(["impact_turn"]);
     if (linkTurns.length && impactTurns.length) {
       conflicts.push({
         code: "double_turn",
+        severity: "error",
         positionId,
         argIds: [...linkTurns, ...impactTurns].map((a) => a.id),
-        message: `Double turn on ${name}: a link turn says the plan prevents the impact, and an impact turn says the impact is good. Together they say the plan prevents something good, which is offense for the other side. Pick one.`,
+        message: `Double turn on ${name}: the link turn says the plan prevents the impact, and the impact turn says the impact is good. Together they say the plan prevents something good. The other side can grant both. Keep one.`,
       });
     }
-    if (linkTurns.length && nonUnique.length) {
+    const itDefense = has(NEUTRALIZES_IMPACT_TURN);
+    if (impactTurns.length && itDefense.length) {
       conflicts.push({
-        code: "nonunique_undercuts_link_turn",
+        code: "impact_turn_vs_defense",
+        severity: "warning",
         positionId,
-        argIds: [...linkTurns, ...nonUnique].map((a) => a.id),
-        message: `On ${name}, non-uniqueness arguments weaken your link turn: if the impact happens anyway, preventing it is not unique offense. Decide whether the turn or the defense is your priority.`,
+        argIds: [...impactTurns, ...itDefense].map((a) => a.id),
+        message: `On ${name}, ${itDefense.map((a) => roleLabel(a.role)).join(" / ")} lets the other side concede that defense and make your impact turn irrelevant (if the event never happens, it being good doesn't matter).`,
       });
     }
-    if (impactTurns.length && impactDefense.length) {
+    const ltDefense = has(NEUTRALIZES_LINK_TURN);
+    if (linkTurns.length && ltDefense.length) {
       conflicts.push({
-        code: "impact_defense_vs_impact_turn",
+        code: "link_turn_vs_defense",
+        severity: "warning",
         positionId,
-        argIds: [...impactTurns, ...impactDefense].map((a) => a.id),
-        message: `On ${name}, impact defense (the impact won't happen) cuts against your impact turn (the impact is good). If you go for the turn, avoid relying on the defense.`,
+        argIds: [...linkTurns, ...ltDefense].map((a) => a.id),
+        message: `On ${name}, ${ltDefense.map((a) => roleLabel(a.role)).join(" / ")} lets the other side concede it and kick out of your link turn (no credit for solving something that won't happen or doesn't matter).`,
+      });
+    }
+    if (linkTurns.length && !has(["non_unique"]).length) {
+      conflicts.push({
+        code: "link_turn_needs_nonunique",
+        severity: "info",
+        positionId,
+        argIds: linkTurns.map((a) => a.id),
+        message: `Your link turn on ${name} is only offense if the impact is coming now (non-uniqueness). Pair it with a non-unique argument or show their uniqueness supports it.`,
       });
     }
   }
   return conflicts;
+}
+
+function roleLabel(r: ArgRole): string {
+  return (
+    {
+      non_unique: "non-uniqueness",
+      no_link: "no link",
+      no_internal_link: "no internal link",
+      no_impact: "no impact",
+      impact_mitigation: "impact mitigation",
+    } as Partial<Record<ArgRole, string>>
+  )[r] ?? r.replace(/_/g, " ");
+}
+
+/**
+ * Kicking a position that carries the other side's turns. Snider: "If you kick
+ * out of disadvantages with turns on them, you will lose." To kick safely you
+ * must concede an answer that neutralizes each turn (Table K1).
+ */
+export function checkKick(graph: RoundGraph, kicker: Side, positionId: string, concededArgIds: string[]): Conflict[] {
+  const out: Conflict[] = [];
+  const name = graph.positions.find((p) => p.id === positionId)?.name ?? "this position";
+  const opp = graph.args.filter((a) => a.positionId === positionId && a.side !== kicker && isLive(a));
+  const turns = opp.filter((a) => a.role === "link_turn" || a.role === "impact_turn");
+  if (!turns.length) return out;
+  const conceded = opp.filter((a) => concededArgIds.includes(a.id));
+  for (const t of turns) {
+    const neutral = t.role === "link_turn" ? NEUTRALIZES_LINK_TURN : NEUTRALIZES_IMPACT_TURN;
+    const ok = conceded.some((c) => neutral.includes(c.role));
+    if (!ok) {
+      const wrong = conceded.find((c) => (t.role === "link_turn" ? c.role === "non_unique" || c.role === "no_link" : c.role === "no_impact" || c.role === "impact_mitigation"));
+      out.push({
+        code: wrong ? "kick_concession_does_not_neutralize" : "kick_with_live_turns",
+        severity: "error",
+        positionId,
+        argIds: [t.id, ...(wrong ? [wrong.id] : [])],
+        message: wrong
+          ? `Conceding "${wrong.text}" (${roleLabel(wrong.role)}) does not take out their ${roleLabel(t.role)} on ${name}. The turn survives as their offense.`
+          : `Kicking ${name} leaves their ${roleLabel(t.role)} ("${t.text}") standing as offense. Concede ${t.role === "link_turn" ? "a no-internal-link or no-impact answer" : "a no-link, won't-happen, or non-unique answer"} explicitly, or answer the turn.`,
+      });
+    }
+  }
+  return out;
+}
+
+/** Kicked or dropped opponent positions that still carry our unanswered turns (live offense for us). */
+export function liveOffenseOnKickedPositions(graph: RoundGraph, ourSide: Side, target: SpeechId, recorded: Set<SpeechId>): { position: Position; turns: ArgUnit[] }[] {
+  const kicked = possiblyKickedPositions(graph, target, recorded).map((k) => k.position);
+  return kicked
+    .map((position) => ({
+      position,
+      turns: graph.args.filter((a) => a.positionId === position.id && a.side === ourSide && isLive(a) && (a.role === "link_turn" || a.role === "impact_turn")),
+    }))
+    .filter((x) => x.turns.length > 0);
+}
+
+/** 2NR: may only go for positions the block extended (REB-4). */
+export function positionsAvailableFor2NR(graph: RoundGraph): Position[] {
+  const inBlock = new Set(graph.args.filter((a) => a.side === "neg" && (a.speech === "2NC" || a.speech === "1NR") && isLive(a)).map((a) => a.positionId));
+  return graph.positions.filter((p) => inBlock.has(p.id));
 }

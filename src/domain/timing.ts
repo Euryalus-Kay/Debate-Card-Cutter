@@ -30,39 +30,42 @@ export type RatePresetId = "conversational" | "moderate" | "fast" | "very-fast";
  * These are deliberately conservative starting points; calibration replaces them.
  */
 export const RATE_PRESETS: Record<RatePresetId, SpeakingRates & { label: string; description: string }> = {
+  // Starting points only (docs/research/debate-domain.md §10.3). The one real
+  // measurement (Batterman 2021, elite college 1ACs) found a blended median of
+  // 276 wpm (10th–90th: 237–318). Per-content-type ratios are unmeasured priors.
   conversational: {
     label: "Conversational",
-    description: "Lay judges / traditional circuits",
-    cardWpm: 170,
+    description: "Lay judges (~140–170 wpm blended)",
+    cardWpm: 160,
     tagWpm: 150,
-    analyticWpm: 150,
+    analyticWpm: 145,
     perCardSeconds: 2.5,
     perTransitionSeconds: 1.5,
   },
   moderate: {
     label: "Moderate",
-    description: "Flow judges who prefer clarity",
-    cardWpm: 240,
+    description: "Flow judges who prefer clarity (~190–230 wpm)",
+    cardWpm: 230,
     tagWpm: 190,
-    analyticWpm: 185,
+    analyticWpm: 180,
     perCardSeconds: 2,
     perTransitionSeconds: 1.2,
   },
   fast: {
-    label: "Fast",
-    description: "Typical national-circuit varsity",
-    cardWpm: 310,
+    label: "Circuit fast",
+    description: "HS national-circuit varsity (~250–290 wpm)",
+    cardWpm: 300,
     tagWpm: 220,
-    analyticWpm: 215,
+    analyticWpm: 210,
     perCardSeconds: 1.5,
     perTransitionSeconds: 1,
   },
   "very-fast": {
-    label: "Very fast",
-    description: "Top-speed spreading",
-    cardWpm: 370,
-    tagWpm: 250,
-    analyticWpm: 240,
+    label: "Very fast (elite)",
+    description: "Top of measured range (~290–320 wpm)",
+    cardWpm: 340,
+    tagWpm: 240,
+    analyticWpm: 230,
     perCardSeconds: 1.2,
     perTransitionSeconds: 0.8,
   },

@@ -64,10 +64,14 @@ export type NewArgumentPolicy =
   /** judge/league allows new arguments in rebuttals */
   | "permissive";
 
+export type CxMode = "standard" | "open" | "either_speaker";
+
 export interface FormatDef {
   id: string;
   name: string;
   description: string;
+  /** standard: assigned asker/answerer; open: partners may help; either_speaker: NDT-style */
+  cxMode?: CxMode;
   constructiveSeconds: number;
   rebuttalSeconds: number;
   cxSeconds: number;
@@ -81,7 +85,7 @@ export const FORMATS: Record<string, FormatDef> = {
   "hs-standard": {
     id: "hs-standard",
     name: "High school (8-3-5)",
-    description: "NSDA and most high-school circuits: 8-minute constructives, 3-minute cross-examinations, 5-minute rebuttals.",
+    description: "NSDA and most high-school tournaments: 8-minute constructives, 3-minute cross-examinations, 5-minute rebuttals, 8 minutes of prep.",
     constructiveSeconds: 8 * 60,
     rebuttalSeconds: 5 * 60,
     cxSeconds: 3 * 60,
@@ -92,11 +96,22 @@ export const FORMATS: Record<string, FormatDef> = {
   "hs-10-prep": {
     id: "hs-10-prep",
     name: "High school, 10 min prep",
-    description: "8-3-5 with 10 minutes of prep per team (common at national-circuit HS tournaments).",
+    description: "8-3-5 with 10 minutes of prep per team (e.g. Glenbrooks 2026). Prep time is tournament-specific; check the invitation.",
     constructiveSeconds: 8 * 60,
     rebuttalSeconds: 5 * 60,
     cxSeconds: 3 * 60,
     prepSecondsPerTeam: 10 * 60,
+    newArgumentPolicy: "conventional",
+    cx: DEFAULT_CX,
+  },
+  "hs-5-prep": {
+    id: "hs-5-prep",
+    name: "High school, 5 min prep",
+    description: "8-3-5 with 5 minutes of prep per team (some state and league tournaments).",
+    constructiveSeconds: 8 * 60,
+    rebuttalSeconds: 5 * 60,
+    cxSeconds: 3 * 60,
+    prepSecondsPerTeam: 5 * 60,
     newArgumentPolicy: "conventional",
     cx: DEFAULT_CX,
   },
@@ -312,6 +327,11 @@ export function nextSpeechFor(side: Side, slots: SlotState[]): SpeechId | null {
   return null;
 }
 
-export function speakerForRole(role: SpeakerRole, roster: Partial<Record<SpeakerRole, string>>): string | undefined {
-  return roster[role];
+/**
+ * Who gives a speech. Defaults follow the conventional 1A/2A/1N/2N roles, but
+ * some leagues swap rebuttal order or use other assignments, so a round can
+ * override the speaker per speech.
+ */
+export function speakerFor(speech: SpeechId, roster: Partial<Record<SpeakerRole, string>>, overrides: Partial<Record<SpeechId, string>> = {}): string | undefined {
+  return overrides[speech] ?? roster[SPEECHES[speech].speaker];
 }

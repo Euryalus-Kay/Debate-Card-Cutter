@@ -64,7 +64,7 @@ describe("timing", () => {
 
   it("estimates with uncertainty ranges and budgets", () => {
     const p = presetProfile("fast");
-    const e = estimate({ cardWords: 310, tagWords: 0, analyticWords: 0, cards: 0, transitions: 0 }, p);
+    const e = estimate({ cardWords: 300, tagWords: 0, analyticWords: 0, cards: 0, transitions: 0 }, p);
     expect(e.seconds).toBeCloseTo(60, 5);
     expect(e.low).toBeLessThan(60);
     expect(e.high).toBeGreaterThan(60);
@@ -78,7 +78,7 @@ describe("timing", () => {
     // Speaker actually reads cards at ~250 wpm (slower than the fast preset's 310).
     const obs: CalibrationObservation[] = [100, 200, 300, 150, 250].map((w) => ({
       load: { cardWords: w, tagWords: 10, analyticWords: 20, cards: 1, transitions: 1 },
-      seconds: (w * 60) / 250 + (10 * 60) / 220 + (20 * 60) / 215 + 1.5 + 1,
+      seconds: (w * 60) / 250 + (10 * 60) / 220 + (20 * 60) / 210 + 1.5 + 1,
       source: "timed_reading",
       at: "2026-09-25T00:00:00Z",
     }));
