@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { createContext, useContext, useState } from "react";
 import { BookOpen, FlaskConical, LogOut, Settings, Swords, ChevronsUpDown, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { authClient } from "@/client/auth-client";
+import { flushAndStopAll } from "@/client/sync/hooks";
+import { clearAll, outboxCount } from "@/client/sync/idb";
 import { cn, Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger, Tooltip } from "@/components/ui";
 
 export interface ShellUser {
@@ -35,6 +37,18 @@ const NAV = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
+/** Remove this account's offline copies from the device (shared computers). */
+async function clearDeviceData() {
+  await clearAll();
+  try {
+    navigator.serviceWorker?.controller?.postMessage("clear");
+    for (const key of await caches.keys()) if (key.startsWith("clash-sw")) await caches.delete(key);
+    sessionStorage.clear();
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 function setTeamCookie(id: string) {
   document.cookie = `clash_team=${id}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
 }
@@ -57,6 +71,11 @@ export function AppShell({ user, team, teams, children }: { user: ShellUser; tea
   }
 
   async function signOut() {
+    // Send anything not yet saved; never silently discard edits made offline.
+    await flushAndStopAll();
+    const unsent = await outboxCount();
+    if (unsent > 0 && !window.confirm(`${unsent} change${unsent === 1 ? "" : "s"} haven't reached the server yet (are you offline?). Signing out deletes them from this device. Sign out anyway?`)) return;
+    await clearDeviceData();
     await authClient.signOut();
     router.replace("/login");
   }

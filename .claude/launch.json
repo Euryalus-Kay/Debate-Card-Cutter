@@ -4,8 +4,20 @@
     {
       "name": "clash-dev",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL; cd \"$HOME/Projects/Debate-Card-Cutter\" && exec npm run dev -- --port 3100"],
+      "runtimeArgs": [
+        "-c",
+        "unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL; cd \"$HOME/Projects/Debate-Card-Cutter\" && exec npm run dev -- --port 3100"
+      ],
       "port": 3100
+    },
+    {
+      "name": "clash-prod-local",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL; cd \"$HOME/Projects/Debate-Card-Cutter\" && npm run build && CLASH_LOCAL_PROD_TEST=1 exec npm run start -- --port 3200"
+      ],
+      "port": 3200
     }
   ]
 }

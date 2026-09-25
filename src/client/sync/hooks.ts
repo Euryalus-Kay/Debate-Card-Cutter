@@ -58,6 +58,16 @@ export async function flushDoc(docId: string): Promise<void> {
   if (hit) await hit.sync.flush().catch(() => {});
 }
 
+/** Send pending edits for every open document, then stop syncing (sign-out). */
+export async function flushAndStopAll(): Promise<void> {
+  await Promise.all([...registry.values()].map((r) => r.sync.flush().catch(() => {})));
+  for (const [id, r] of registry) {
+    if (r.stopTimer) clearTimeout(r.stopTimer);
+    r.sync.stop();
+    registry.delete(id);
+  }
+}
+
 /** All registered syncs (for a global "saved/offline" indicator). */
 export function allSyncs(): DocSync[] {
   return [...registry.values()].map((r) => r.sync);

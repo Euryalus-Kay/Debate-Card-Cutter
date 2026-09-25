@@ -139,3 +139,26 @@ export async function requestPersistentStorage(): Promise<boolean> {
   }
   return false;
 }
+
+/** Number of local changes not yet acknowledged by the server, across all documents. */
+export async function outboxCount(): Promise<number> {
+  const db = await openDb();
+  if (!db) return 0;
+  try {
+    return await req(db.transaction("outbox", "readonly").objectStore("outbox").count());
+  } catch {
+    return 0;
+  }
+}
+
+/** Delete everything stored on this device (sign-out on a shared computer). */
+export async function clearAll(): Promise<void> {
+  const db = await openDb();
+  db?.close();
+  dbPromise = null;
+  if (typeof indexedDB === "undefined") return;
+  await new Promise<void>((resolve) => {
+    const r = indexedDB.deleteDatabase(DB_NAME);
+    r.onsuccess = r.onerror = r.onblocked = () => resolve();
+  });
+}

@@ -1,7 +1,9 @@
 /**
  * DEV/TEST ONLY: sign in as a synthetic test user without typing credentials.
- * Disabled unless NODE_ENV !== "production", ENABLE_DEV_LOGIN=1, and the
- * request comes from localhost. Never available in deployed environments.
+ * Disabled unless ENABLE_DEV_LOGIN=1, the request comes from localhost, the
+ * app is not on Vercel, and either NODE_ENV !== "production" or the server was
+ * started for a local production-build test (CLASH_LOCAL_PROD_TEST=1, set only
+ * by the local launch config). Never available in deployed environments.
  */
 import { auth } from "@/server/auth";
 
@@ -14,7 +16,8 @@ const TEST_USERS: Record<string, { email: string; name: string }> = {
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const local = url.hostname === "localhost" || url.hostname === "127.0.0.1";
-  if (process.env.NODE_ENV === "production" || process.env.ENABLE_DEV_LOGIN !== "1" || !local || process.env.VERCEL) {
+  const devBuild = process.env.NODE_ENV !== "production" || process.env.CLASH_LOCAL_PROD_TEST === "1";
+  if (!devBuild || process.env.ENABLE_DEV_LOGIN !== "1" || !local || process.env.VERCEL) {
     return new Response("Not found", { status: 404 });
   }
   const who = TEST_USERS[url.searchParams.get("as") ?? "a"];

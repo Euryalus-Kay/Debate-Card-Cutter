@@ -10,6 +10,9 @@ export const metadata: Metadata = {
   title: { default: "Clash", template: "%s · Clash" },
   description: "Policy debate workspace: evidence, flows, and speech prep with your partner.",
   applicationName: "Clash",
+  manifest: "/manifest.webmanifest",
+  icons: { icon: "/icon.svg", apple: "/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "Clash", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
