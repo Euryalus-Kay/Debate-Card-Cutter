@@ -54,7 +54,15 @@ export function validateDraft(out: SpeechDraftOutput, ctx: RoundContext, speech:
   const droppedTargets: string[] = [];
   const droppedCards: string[] = [];
   const sectionSeconds: Record<string, number> = {};
-  const sections = out.sections.map((s) => {
+  // Models occasionally reuse a ref; make refs unique (children keep pointing at the first).
+  const seenRefs = new Set<string>();
+  const uniq = out.sections.map((s, i) => {
+    let ref = s.ref || `s${i}`;
+    while (seenRefs.has(ref)) ref = `${ref}_${i}`;
+    seenRefs.add(ref);
+    return { ...s, ref, parentRef: s.parentRef === ref ? "" : s.parentRef };
+  });
+  const sections = uniq.map((s) => {
     const targets = s.targets.filter((t) => {
       const ok = argIds.has(t);
       if (!ok) droppedTargets.push(t);

@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type * as Y from "yjs";
 import { FileText, Upload, ClipboardPaste, AlertTriangle, GitBranchPlus, EyeOff, Eye } from "lucide-react";
 import { api } from "@/client/api";
+import { runOp } from "@/client/ai";
 import { useYDocValue } from "@/client/sync/hooks";
 import { Badge, Button, cn, Dialog, EmptyState, Field, Select, Spinner, Textarea, Tooltip, toast } from "@/components/ui";
 import { CardBodyView } from "@/components/card-view";
@@ -49,7 +50,7 @@ export function DocsPanel({ round, bundle, aiEnabled }: { round: RoundRecord; bu
             <div key={s} className="mb-3">
               <div className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-faint">{s}</div>
               {bySpeech.get(s)!.map((u) => (
-                <UploadRow key={u.id} u={u} roundId={round.id} onOpen={() => ws.set({ speech: s, center: "speech" })} />
+                <UploadRow key={u.id} u={u} roundId={round.id} aiEnabled={aiEnabled} onOpen={() => ws.set({ speech: s, center: "speech" })} />
               ))}
             </div>
           ))
@@ -60,9 +61,22 @@ export function DocsPanel({ round, bundle, aiEnabled }: { round: RoundRecord; bu
   );
 }
 
-function UploadRow({ u, roundId, onOpen }: { u: UploadRecord; roundId: string; onOpen: () => void }) {
+function UploadRow({ u, roundId, onOpen, aiEnabled }: { u: UploadRecord; roundId: string; onOpen: () => void; aiEnabled: boolean }) {
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
+  const [linking, setLinking] = useState(false);
+  async function linkWithAi() {
+    if (!u.attribution?.speech) return;
+    setLinking(true);
+    try {
+      const r = (await runOp({ kind: "interpret_flow", roundId, speech: u.attribution.speech }, () => {})) as { argsUpdated: number; linksAdded: number; notes: string[] };
+      toast(`AI suggested ${r.linksAdded} link${r.linksAdded === 1 ? "" : "s"} and read ${r.argsUpdated} argument${r.argsUpdated === 1 ? "" : "s"}. Suggestions are marked for you to confirm on the flow.`, "ok");
+    } catch (e) {
+      toast((e as Error).message, "bad");
+    } finally {
+      setLinking(false);
+    }
+  }
   const q = u.parseResult?.quality;
   const warnings = u.parseResult?.warnings ?? [];
   async function addToFlow() {
@@ -99,7 +113,16 @@ function UploadRow({ u, roundId, onOpen }: { u: UploadRecord; roundId: string; o
         ) : null}
         <span className="ml-auto">
           {u.attribution?.flowedAt ? (
-            <Badge tone="ok">on flow</Badge>
+            <span className="flex items-center gap-1">
+              <Badge tone="ok">on flow</Badge>
+              {aiEnabled ? (
+                <Tooltip content="Ask AI to identify each argument's role and which earlier arguments it answers. Results are suggestions you confirm.">
+                  <Button size="xs" onClick={linkWithAi} loading={linking}>
+                    Link with AI
+                  </Button>
+                </Tooltip>
+              ) : null}
+            </span>
           ) : (
             <Button size="xs" onClick={addToFlow} loading={busy}>
               <GitBranchPlus className="size-3" /> Add to flow

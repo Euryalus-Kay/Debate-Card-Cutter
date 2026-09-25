@@ -124,7 +124,7 @@ function DraftProposal({ p, busy, setBusy, teamId, markOp, upd }: { p: Extract<P
       ) : null}
       <div className="space-y-1">
         {top.map((s, i) => (
-          <label key={s.ref ?? `p${i}`} className="flex items-start gap-2 rounded-md px-1 py-0.5 hover:bg-hover">
+          <label key={`${s.ref ?? "p"}-${i}`} className="flex items-start gap-2 rounded-md px-1 py-0.5 hover:bg-hover">
             <input type="checkbox" className="mt-0.5" checked={!skip.has(s.ref!)} onChange={(e) => setSkip((prev) => { const n = new Set(prev); if (e.target.checked) n.delete(s.ref!); else n.add(s.ref!); return n; })} disabled={p.status !== "ready"} />
             <span className="min-w-0 flex-1">
               <span className="font-medium">{s.title}</span>
@@ -236,7 +236,7 @@ function SectionProposal({ p, busy, setBusy, teamId, markOp, upd }: { p: Extract
         </p>
       ) : null}
       <RunInfo run={p.result?.run} />
-      {stale ? (
+      {stale && p.status !== "applied" && p.status !== "dismissed" ? (
         <div className="mt-2 rounded-md bg-warn-soft px-2 py-1.5 text-xs text-warn">
           The section changed after you asked (you or your partner edited it). Applying would replace those edits.
           <div className="mt-1 flex gap-1.5">

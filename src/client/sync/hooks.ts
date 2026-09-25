@@ -82,7 +82,7 @@ export function useDocSync(docId: string | null | undefined): { sync: DocSync | 
  */
 export function useYDocValue<T>(doc: Y.Doc | null | undefined, selector: (doc: Y.Doc) => T, deps: unknown[] = []): T | null {
   const versionRef = useRef(0);
-  const cacheRef = useRef<{ version: number; value: T } | null>(null);
+  const cacheRef = useRef<{ doc: Y.Doc; version: number; deps: unknown[]; value: T } | null>(null);
   const subscribe = useMemo(
     () => (cb: () => void) => {
       if (!doc) return () => {};
@@ -99,9 +99,11 @@ export function useYDocValue<T>(doc: Y.Doc | null | undefined, selector: (doc: Y
   const version = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   return useMemo(() => {
     if (!doc) return null;
-    if (cacheRef.current && cacheRef.current.version === version) return cacheRef.current.value;
+    const c = cacheRef.current;
+    // Cache is valid only for the same document, version, and selector inputs.
+    if (c && c.doc === doc && c.version === version && c.deps.length === deps.length && c.deps.every((d, i) => Object.is(d, deps[i]))) return c.value;
     const value = selector(doc);
-    cacheRef.current = { version, value };
+    cacheRef.current = { doc, version, deps, value };
     return value;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc, version, ...deps]);

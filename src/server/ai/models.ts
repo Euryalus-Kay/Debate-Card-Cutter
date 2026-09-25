@@ -53,9 +53,11 @@ export const MODELS = {
  * labeling on Sonnet 5. Every task has a fallback for refusals and outages.
  */
 export const REGISTRY: Record<AiTask, TaskConfig> = {
+  // Live run 2026-09-25: Sonnet 5 (effort medium) produced no output within 30 s on the 2NC; Opus 5.5 low
+  // finished in 18 s (first output 2.4 s) with accurate links.
   flow_interpret: {
-    primary: { model: MODELS.sonnet5, effort: "medium", maxOutputTokens: 16000, firstChunkMs: 30000 },
-    fallbacks: [{ model: MODELS.opus55, effort: "low", maxOutputTokens: 16000 }],
+    primary: { model: MODELS.opus55, effort: "low", maxOutputTokens: 16000, firstChunkMs: 30000 },
+    fallbacks: [{ model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 16000 }],
   },
   // Live benchmark 2026-09-25 (docs/evals/results/draft-latency-2ac-run1.json): Opus 5.5 at low
   // effort had the fastest first output (3.2 s) and completion (46 s), fit the time limit, and got

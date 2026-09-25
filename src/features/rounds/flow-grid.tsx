@@ -61,11 +61,7 @@ export function FlowGrid({ round, doc, graph }: { round: RoundRecord; doc: Y.Doc
             <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-faint">{group.title}</div>
             {group.list.map((p) => (
               <div key={p.id} className="mb-3 overflow-hidden rounded-xl border border-line bg-elev">
-                <div className="flex items-center gap-2 border-b border-line px-3 py-2">
-                  <span className="text-[13px] font-semibold">{p.name}</span>
-                  <Badge tone={p.side === "aff" ? "aff" : "neg"}>{POSITION_KIND_LABEL[p.kind]}</Badge>
-                  <span className="text-[11px] text-faint">introduced in {p.introducedIn}</span>
-                </div>
+                <PositionHeader doc={doc} position={p} />
                 <div className="grid" style={{ gridTemplateColumns: `repeat(${COLUMNS.length}, minmax(0, 1fr))` }}>
                   {COLUMNS.map((col) => {
                     const args = graph.args
@@ -88,6 +84,52 @@ export function FlowGrid({ round, doc, graph }: { round: RoundRecord; doc: Y.Doc
           </div>
         ) : null,
       )}
+    </div>
+  );
+}
+
+function PositionHeader({ doc, position: p }: { doc: Y.Doc; position: import("@/domain/flow").Position }) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(p.name);
+  if (editing)
+    return (
+      <form
+        className="flex items-center gap-2 border-b border-line px-3 py-1.5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          doc.transact(() => upsertPosition(doc, { ...p, name: name.trim() || p.name }));
+          setEditing(false);
+        }}
+      >
+        <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} className="h-7 max-w-80 text-[13px]" />
+        <Button size="xs" type="submit" variant="primary">
+          Save
+        </Button>
+        <Button size="xs" type="button" variant="ghost" onClick={() => setEditing(false)}>
+          Cancel
+        </Button>
+      </form>
+    );
+  return (
+    <div className="flex items-center gap-2 border-b border-line px-3 py-2">
+      <button className="text-[13px] font-semibold hover:underline" onClick={() => (setName(p.name), setEditing(true))} title="Rename position">
+        {p.name}
+      </button>
+      <Select
+        value={p.kind}
+        onChange={(e) => doc.transact(() => upsertPosition(doc, { ...p, kind: e.target.value as PositionKind }))}
+        className={cn("h-6 w-auto border-transparent px-1.5 text-[11.5px] font-medium", p.side === "aff" ? "text-aff" : "text-neg")}
+        aria-label="Position type"
+      >
+        {(Object.keys(POSITION_KIND_LABEL) as PositionKind[]).map((k) => (
+          <option key={k} value={k}>
+            {POSITION_KIND_LABEL[k]}
+          </option>
+        ))}
+      </Select>
+      <span className="text-[11px] text-faint">
+        {p.side.toUpperCase()} · introduced in {p.introducedIn}
+      </span>
     </div>
   );
 }
