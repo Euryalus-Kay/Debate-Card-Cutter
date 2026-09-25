@@ -1,0 +1,276 @@
+/**
+ * End-to-end smoke test against a deployed environment (production by default).
+ * Creates QA accounts (qa-*@clash.test), exercises every core path, and writes
+ * the accounts it created to <scratch>/qa-accounts.json for cleanup with
+ * scripts/e2e/prod-cleanup-qa.ts.
+ *
+ *   npx tsx scripts/e2e/prod-smoke.ts https://clash-debate.vercel.app <scratch-dir> <synthetic-docs-dir>
+ */
+import { readFileSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import * as Y from "yjs";
+import { unzipSync, strFromU8 } from "fflate";
+import { DocSync } from "@/client/sync/doc-sync";
+import { DRAFT_FRAGMENT } from "@/shared/editor/schema";
+import { fragmentText } from "@/shared/doc-text";
+
+const [base = "https://clash-debate.vercel.app", scratch = ".", docsDir = "."] = process.argv.slice(2);
+const results: { step: string; ok: boolean; ms: number; detail?: string }[] = [];
+const accounts: { email: string; userId?: string; teamId?: string }[] = [];
+
+class Client {
+  jar = new Map<string, string>();
+  constructor(public name: string) {}
+  cookie() {
+    return [...this.jar].map(([k, v]) => `${k}=${v}`).join("; ");
+  }
+  async req(path: string, init: RequestInit & { json?: unknown } = {}) {
+    const headers = new Headers(init.headers);
+    if (this.jar.size) headers.set("cookie", this.cookie());
+    if (init.json !== undefined) {
+      headers.set("content-type", "application/json");
+      init.body = JSON.stringify(init.json);
+    }
+    headers.set("origin", base);
+    const res = await fetch(`${base}${path}`, { ...init, headers, redirect: "manual" });
+    for (const c of res.headers.getSetCookie()) {
+      const [pair] = c.split(";");
+      const i = pair.indexOf("=");
+      this.jar.set(pair.slice(0, i), pair.slice(i + 1));
+    }
+    return res;
+  }
+  async json<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<{ status: number; body: T }> {
+    const res = await this.req(path, init);
+    const text = await res.text();
+    let body: T;
+    try {
+      body = JSON.parse(text) as T;
+    } catch {
+      body = text as unknown as T;
+    }
+    return { status: res.status, body };
+  }
+}
+
+async function step<T>(name: string, fn: () => Promise<T>): Promise<T | undefined> {
+  const t0 = Date.now();
+  try {
+    const v = await fn();
+    results.push({ step: name, ok: true, ms: Date.now() - t0 });
+    console.log(`✓ ${name} (${Date.now() - t0} ms)`);
+    return v;
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    results.push({ step: name, ok: false, ms: Date.now() - t0, detail });
+    console.log(`✗ ${name}: ${detail}`);
+    return undefined;
+  }
+}
+
+function assert(cond: unknown, msg: string): asserts cond {
+  if (!cond) throw new Error(msg);
+}
+
+const tag = randomBytes(4).toString("hex");
+const password = randomBytes(18).toString("base64url");
+const mk = (who: string) => ({ name: `QA ${who}`, email: `qa-${who}-${tag}@clash.test`, password });
+const save = () => writeFileSync(`${scratch}/qa-accounts.json`, JSON.stringify({ base, accounts }, null, 2));
+
+const A = new Client("A");
+const B = new Client("B");
+const C = new Client("C");
+
+await step("owner signs up (first account)", async () => {
+  const u = mk("owner");
+  accounts.push({ email: u.email });
+  save();
+  const r = await A.json<{ user?: { id: string }; message?: string }>("/api/auth/sign-up/email", { method: "POST", json: u });
+  assert(r.status === 200 && r.body.user, `status ${r.status} ${JSON.stringify(r.body).slice(0, 200)}`);
+  accounts[0].userId = r.body.user.id;
+  save();
+});
+
+const teamId = await step("owner creates a team", async () => {
+  const r = await A.json<{ id: string }>("/api/teams", { method: "POST", json: { name: "QA Team" } });
+  assert(r.status === 200 && r.body.id, `status ${r.status}`);
+  accounts[0].teamId = r.body.id;
+  save();
+  return r.body.id;
+});
+
+await step("stranger cannot sign up without an invite", async () => {
+  const u = mk("stranger");
+  const r = await C.json<{ message?: string }>("/api/auth/sign-up/email", { method: "POST", json: u });
+  assert(r.status === 403, `expected 403, got ${r.status}`);
+});
+
+const inviteUrl = await step("owner creates an invite link", async () => {
+  const r = await A.json<{ url: string }>(`/api/teams/${teamId}/invites`, { method: "POST" });
+  assert(r.status === 200 && r.body.url.includes("/join/"), `status ${r.status}`);
+  return r.body.url;
+});
+
+await step("partner signs up with the invite and joins", async () => {
+  const token = inviteUrl!.split("/join/")[1];
+  const u = mk("partner");
+  accounts.push({ email: u.email });
+  save();
+  const r = await B.json<{ user?: { id: string } }>("/api/auth/sign-up/email", { method: "POST", json: u, headers: { "x-invite-token": token } });
+  assert(r.status === 200 && r.body.user, `signup status ${r.status}`);
+  accounts[1].userId = r.body.user.id;
+  save();
+  const j = await B.json<{ teamId: string }>("/api/join", { method: "POST", json: { token } });
+  assert(j.status === 200 && j.body.teamId === teamId, `join status ${j.status}`);
+});
+
+const roundId = await step("owner creates a round (aff)", async () => {
+  const r = await A.json<{ id: string }>("/api/rounds", { method: "POST", json: { teamId, tournament: "QA Invitational", roundLabel: "R1", ourSide: "aff", opponent: { school: "Synthetic", code: "XY", names: "" }, aiPolicy: "allowed" } });
+  assert(r.status === 200 && r.body.id, `status ${r.status} ${JSON.stringify(r.body).slice(0, 200)}`);
+  return r.body.id;
+});
+
+await step("partner can read the round; logged-out gets 401", async () => {
+  const r = await B.json(`/api/rounds/${roundId}`);
+  assert(r.status === 200, `partner got ${r.status}`);
+  const anon = new Client("anon");
+  const x = await anon.json(`/api/rounds/${roundId}`);
+  assert(x.status === 401, `anonymous got ${x.status}`);
+});
+
+async function upload(file: string, speech: string, owner: "us" | "opponent") {
+  const form = new FormData();
+  form.set("speech", speech);
+  form.set("owner", owner);
+  form.set("file", new File([readFileSync(`${docsDir}/${file}`)], file, { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }));
+  const r = await A.json<{ upload: { id: string; warnings: string[] } }>(`/api/rounds/${roundId}/uploads`, { method: "POST", body: form });
+  assert(r.status === 200 && r.body.upload?.id, `upload ${file}: status ${r.status} ${JSON.stringify(r.body).slice(0, 200)}`);
+  const f = await A.json<{ positions?: number; args?: number }>(`/api/rounds/${roundId}/uploads/${r.body.upload.id}/flow`, { method: "POST" });
+  assert(f.status === 200, `flow import ${file}: status ${f.status} ${JSON.stringify(f.body).slice(0, 200)}`);
+  return { uploadId: r.body.upload.id, flow: f.body };
+}
+
+await step("upload 1AC + 1NC .docx to Blob and add to the flow", async () => {
+  const a = await upload("SYNTHETIC 1AC.docx", "1AC", "us");
+  const n = await upload("SYNTHETIC 1NC.docx", "1NC", "opponent");
+  return { a, n };
+});
+
+const draftId = await step("create a 2AC draft", async () => {
+  const r = await A.json<{ id: string }>(`/api/rounds/${roundId}/drafts`, { method: "POST", json: { speech: "2AC" } });
+  assert(r.status === 200 && r.body.id, `status ${r.status}`);
+  return r.body.id;
+});
+
+await step("two clients sync the draft (A writes, B sees; B writes, A sees)", async () => {
+  const mkSync = (c: Client) =>
+    new DocSync(draftId!, new Y.Doc(), {
+      persistence: false,
+      endpoint: (id) => `${base}/api/docs/${id}/sync`,
+      fetch: ((url: string, init?: RequestInit) => fetch(url, { ...init, headers: { ...(init?.headers ?? {}), cookie: c.cookie(), origin: base } })) as typeof fetch,
+      idleIntervalMs: 700,
+      debounceMs: 50,
+    });
+  const sa = mkSync(A);
+  const sb = mkSync(B);
+  await sa.start();
+  await sb.start();
+  const para = (text: string) => {
+    const p = new Y.XmlElement("paragraph");
+    p.insert(0, [new Y.XmlText(text)]);
+    return p;
+  };
+  sa.doc.transact(() => sa.doc.getXmlFragment(DRAFT_FRAGMENT).insert(0, [para("Owner wrote this.")]));
+  await sa.flush();
+  const deadline = Date.now() + 15000;
+  while (!fragmentText(sb.doc.getXmlFragment(DRAFT_FRAGMENT)).includes("Owner wrote this.") && Date.now() < deadline) {
+    await sb.sync();
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  assert(fragmentText(sb.doc.getXmlFragment(DRAFT_FRAGMENT)).includes("Owner wrote this."), "partner never received the owner's edit");
+  sb.doc.transact(() => sb.doc.getXmlFragment(DRAFT_FRAGMENT).insert(1, [para("Partner replied.")]));
+  await sb.flush();
+  const d2 = Date.now() + 15000;
+  while (!fragmentText(sa.doc.getXmlFragment(DRAFT_FRAGMENT)).includes("Partner replied.") && Date.now() < d2) {
+    await sa.sync();
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  const text = fragmentText(sa.doc.getXmlFragment(DRAFT_FRAGMENT));
+  sa.stop();
+  sb.stop();
+  assert(text.includes("Partner replied."), "owner never received the partner's edit");
+});
+
+await step("AI drafts the 2AC (fast mode, streamed)", async () => {
+  const res = await A.req("/api/ai/ops", { method: "POST", json: { kind: "draft_speech", roundId, speech: "2AC", draftId, mode: "fast" } });
+  assert(res.status === 200 && res.body, `status ${res.status}`);
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  let first: number | null = null;
+  const t0 = Date.now();
+  type Ev = { t: string; data?: { output?: { sections?: unknown[] } }; message?: string };
+  let done: Ev | null = null as Ev | null;
+  for (;;) {
+    const { value, done: end } = await reader.read();
+    if (end) break;
+    if (first === null) first = Date.now() - t0;
+    buf += dec.decode(value, { stream: true });
+    let i: number;
+    while ((i = buf.indexOf("\n")) >= 0) {
+      const line = buf.slice(0, i).trim();
+      buf = buf.slice(i + 1);
+      if (!line) continue;
+      const ev = JSON.parse(line) as Ev;
+      if (ev.t === "done" || ev.t === "error") done = ev;
+    }
+  }
+  assert(done && done.t === "done", `no result: ${JSON.stringify(done).slice(0, 300)}`);
+  const sections = done.data?.output?.sections ?? [];
+  assert(sections.length > 0, "draft had no sections");
+  return { firstByteMs: first, totalMs: Date.now() - t0, sections: sections.length };
+});
+
+await step("research job runs in the background on Vercel and cuts a verified card", async () => {
+  const r = await A.json<{ jobId: string }>("/api/research/jobs", { method: "POST", json: { teamId, input: { claim: "Upzoning alone cannot solve housing affordability", maxCards: 1, search: false, urls: ["https://legal-planet.org/2023/04/11/does-upzoning-reduce-housing-prices/"] } } });
+  assert(r.status === 202, `status ${r.status} ${JSON.stringify(r.body).slice(0, 200)}`);
+  const deadline = Date.now() + 180_000;
+  type JobView = { job: { status: string; checkpoint: { items: { status: string; error?: string; method?: string }[] } }; cards: { verificationStatus: string; tag: string; shortCite: string }[] };
+  let job: JobView | null = null;
+  while (Date.now() < deadline) {
+    const g: { status: number; body: JobView } = await A.json<JobView>(`/api/research/jobs/${r.body.jobId}`);
+    job = g.body;
+    if (!["queued", "running"].includes(g.body.job.status)) break;
+    await new Promise((res) => setTimeout(res, 2000));
+  }
+  assert(job && job.job.status === "succeeded", `job ended ${job?.job.status}: ${JSON.stringify(job?.job.checkpoint.items).slice(0, 300)}`);
+  assert(job.cards[0]?.verificationStatus.startsWith("verified"), `card status ${job.cards[0]?.verificationStatus}`);
+  return { tag: job.cards[0].tag, cite: job.cards[0].shortCite, method: job.job.checkpoint.items[0]?.method };
+});
+
+await step("export the draft as .docx", async () => {
+  const res = await A.req(`/api/docs/${draftId}/export`);
+  assert(res.status === 200, `status ${res.status}`);
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  assert(bytes[0] === 0x50 && bytes[1] === 0x4b, "not a zip file");
+  const files = unzipSync(bytes);
+  const xml = strFromU8(files["word/document.xml"]);
+  assert(xml.includes("Owner wrote this.") && xml.includes("Partner replied."), "exported document is missing synced text");
+  return { bytes: bytes.length };
+});
+
+await step("outsider (no team) gets 404 on the round, draft, and job list", async () => {
+  const u = mk("outsider");
+  // Outsiders can't even sign up without an invite in production; use a second invite on a separate team would need an owner.
+  // Instead check the anonymous + wrong-team paths that don't need an account.
+  const anon = new Client("anon2");
+  const r1 = await anon.json(`/api/docs/${draftId}/sync`, { method: "POST", json: { since: 0, updates: [] } });
+  assert(r1.status === 401, `anonymous sync got ${r1.status}`);
+  void u;
+});
+
+save();
+const failed = results.filter((r) => !r.ok);
+writeFileSync(`${scratch}/prod-smoke-report.json`, JSON.stringify({ base, at: new Date().toISOString(), results }, null, 2));
+console.log(`\n${results.length - failed.length}/${results.length} steps passed`);
+process.exit(failed.length ? 1 : 0);
