@@ -13,6 +13,7 @@ import type { SpeechDraftOutput, SectionRevisionOutput, AlternativesOutput, FitP
 import type { PatchEditInfo, PatchOutput } from "@/server/ai/ops";
 import type { RoundGraph } from "@/domain/flow";
 import type { SpeechCheck } from "@/domain/speech-checks";
+import type { Progress } from "@/domain/progress";
 import { alreadyAnswered, basisOf, patchSections, patchSectionId, placeAnswer, type PatchSection, type Placement } from "@/domain/patch";
 
 export interface Validation {
@@ -40,6 +41,8 @@ export type Proposal =
       result: { output: SpeechDraftOutput; validation: Validation; run: RunMeta; contextRefs: { draftHash: string | null } } | null;
       error: string | null;
       startedAt: number;
+      /** stage, parts done, and time left while it runs */
+      progress?: Progress | null;
       baseDraftHash: string | null;
       /** progress after the plan streams in (e.g. trimming to time) */
       note?: string | null;
@@ -57,6 +60,8 @@ export type Proposal =
       result: { output: SectionRevisionOutput | AlternativesOutput; baseHash: string; estimatedSeconds?: number; previousSeconds?: number; run: RunMeta } | null;
       error: string | null;
       startedAt: number;
+      /** stage, parts done, and time left while it runs */
+      progress?: Progress | null;
     }
   | {
       id: string;
@@ -69,6 +74,8 @@ export type Proposal =
       result: FitResult | null;
       error: string | null;
       startedAt: number;
+      /** stage, parts done, and time left while it runs */
+      progress?: Progress | null;
       /** per-section outcome after applying */
       outcomes?: Record<string, ApplyResult>;
     }
@@ -83,6 +90,8 @@ export type Proposal =
       result: PatchResult | null;
       error: string | null;
       startedAt: number;
+      /** stage, parts done, and time left while it runs */
+      progress?: Progress | null;
       /** progress while the update is planned */
       note?: string | null;
       /** started automatically by live pre-drafting */

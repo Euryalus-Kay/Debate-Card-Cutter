@@ -19,6 +19,7 @@ import type { RoundRecord } from "./types";
 import { getActiveEditor, getRoundDoc } from "./editor/active-editor";
 import { saveVersionBeforeAi } from "./history-dialog";
 import { startFitOp } from "./ai-actions";
+import { AiProgress } from "./ai-progress";
 
 interface OpRow {
   id: string;
@@ -168,7 +169,8 @@ function DraftProposal({ p, busy, setBusy, teamId, markOp, upd }: { p: Extract<P
   }
   return (
     <div className="text-[12.5px]">
-      {out?.strategy?.summary ? <p className="mb-2 text-fg">{out.strategy.summary}</p> : p.status === "running" ? <Thinking since={p.startedAt} label="Planning the speech" /> : null}
+      {p.status === "running" ? <AiProgress progress={p.progress} since={p.startedAt} label="Planning the speech" className="mb-2" /> : null}
+      {out?.strategy?.summary ? <p className="mb-2 text-fg">{out.strategy.summary}</p> : null}
       {out?.strategy?.choices?.length ? (
         <ul className="mb-2 list-disc space-y-0.5 pl-4 text-muted">
           {out.strategy.choices.map((c, i) => (
@@ -188,7 +190,6 @@ function DraftProposal({ p, busy, setBusy, teamId, markOp, upd }: { p: Extract<P
           </label>
         ))}
       </div>
-      {p.status === "running" && p.note ? <p className="mt-2 animate-pulse-soft text-xs text-muted">{p.note}…</p> : null}
       {v ? (
         <div className="mt-2 space-y-1">
           {v.lengthAdjust ? (
@@ -229,20 +230,6 @@ function DraftProposal({ p, busy, setBusy, teamId, markOp, upd }: { p: Extract<P
         </div>
       ) : null}
     </div>
-  );
-}
-
-function Thinking({ since, label }: { since: number; label: string }) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
-  const s = Math.max(0, Math.round((now - since) / 1000));
-  return (
-    <p className="animate-pulse-soft text-muted">
-      {label}… {s}s{s > 20 ? " (deep reasoning takes longer before text appears)" : ""}
-    </p>
   );
 }
 
@@ -354,7 +341,7 @@ const OUTCOME: Record<ApplyResult, { label: string; tone: "ok" | "warn" | "bad" 
 
 function FitProposal({ p, busy, setBusy, teamId, markOp, upd }: { p: Extract<Proposal, { kind: "fit" }>; busy: boolean; setBusy: (b: boolean) => void; teamId: string; markOp: (f: "applied" | "dismissed") => Promise<void>; upd: Upd }) {
   const r = p.result;
-  if (p.status === "running") return <Thinking since={p.startedAt} label="Planning what to keep, condense, and cut" />;
+  if (p.status === "running") return <AiProgress progress={p.progress} since={p.startedAt} label="Planning what to keep, condense, and cut" />;
   if (!r) return null;
   // Apply in document order (parents before their subsections) so hashes stay valid.
   const order = Object.keys(r.titles);
@@ -495,8 +482,8 @@ function PatchProposal({ p, busy, setBusy, teamId, markOp, upd, round }: { p: Ex
   };
   if (p.status === "running" || !r) {
     return p.status === "running" ? (
-      <div className="text-[12.5px]">
-        <Thinking since={p.startedAt} label={p.note ?? "Reading what changed"} />
+      <div className="space-y-1 text-[12.5px]">
+        <AiProgress progress={p.progress} since={p.startedAt} label={p.note ?? "Reading what changed"} />
         {(partial?.adds ?? []).filter((a) => a?.title).map((a, i) => (
           <div key={`${a!.ref ?? i}`} className="truncate text-muted">
             + {a!.title}

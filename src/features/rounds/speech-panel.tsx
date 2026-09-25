@@ -18,7 +18,8 @@ import type { RoundBundle, RoundRecord } from "./types";
 import { useWorkspace } from "./store";
 import { HeardPad } from "./heard-pad";
 import { claimForSection, useRoundResearch } from "./round-research";
-import { findSectionNode } from "./proposals";
+import { findSectionNode, useProposals } from "./proposals";
+import { AiProgress } from "./ai-progress";
 import { HistoryDialog } from "./history-dialog";
 import { speechSpeaker, useTeamMembers } from "./speakers";
 import { EditorRoundCtx } from "./editor/context";
@@ -96,6 +97,8 @@ function OurSpeechView({ round, bundle, doc, graph, speech, aiEnabled, userId }:
   const deduction = round.settings?.prepOverage === "deduct" && overSec > 0 && nextOurs === speech ? Math.round(overSec) : 0;
   const limit = speechSeconds(fmt, speech) - deduction;
   const partnerSections = useMemo(() => new Map((snapshot?.others ?? []).filter((o) => o.state.section).map((o) => [o.state.section!, o.state.name ?? "Partner"])), [snapshot?.others]);
+  // The AI job working on this draft right now, shown next to "Build / revise".
+  const working = useProposals((s) => s.proposals.find((p) => p.draftId === ws.draftId && p.status === "running" && (p.kind === "draft" || p.kind === "patch" || p.kind === "fit")));
 
   useEffect(() => {
     draftSync?.setPresence({ section: ws.selectedSectionId ?? undefined, activity: "editing", name: user.name });
@@ -225,6 +228,11 @@ function OurSpeechView({ round, bundle, doc, graph, speech, aiEnabled, userId }:
             </MenuContent>
           </Menu>
           <div className="ml-auto flex items-center gap-1.5">
+            {working ? (
+              <button className="flex max-w-56 items-center rounded-md px-1.5 py-1 hover:bg-hover" onClick={() => ws.set({ right: "ai" })} aria-label="Show AI progress">
+                <AiProgress compact progress={working.progress} since={working.startedAt} label={working.kind === "fit" ? "Fitting" : working.kind === "patch" ? "Updating" : "Drafting"} />
+              </button>
+            ) : null}
             {aiEnabled ? (
               <Button size="sm" variant="primary" onClick={() => setGenOpen(true)}>
                 <Sparkles className="size-3.5" /> Build / revise

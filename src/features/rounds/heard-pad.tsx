@@ -105,6 +105,7 @@ export function HeardPad({
       const result = (await runOp({ kind: "extract_flow", roundId, speech, mode: "fast" }, (e) => {
         if (e.t === "op") opId = e.id;
         if (e.t === "status") setStatus(e.data);
+        if (e.t === "progress") setStatus(e.data.stage);
       })) as Partial<HeardApplyResult> & { fallback?: number };
       setLast({
         text: summarize(result, true),

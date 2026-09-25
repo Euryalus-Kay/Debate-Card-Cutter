@@ -33,6 +33,7 @@ export const SpeechDraftSchema = z.object({
     choices: z.array(z.string()).describe("key strategic choices, e.g. 'go for the DA, kick the CP by conceding the solvency deficit'"),
     risks: z.array(z.string()).describe("what could lose this speech or the round, and how the draft handles it"),
   }),
+  outline: z.array(z.string()).describe("Before writing any section: the title of every section you will write, in speaking order (positions and the answers under them)"),
   sections: z.array(DraftSectionSchema),
   omitted: z.array(z.object({ targets: z.array(z.string()), reason: z.string() })).describe("arguments you deliberately did not answer and why"),
   questions: z.array(z.string()).describe("things the debaters should confirm (unclear record, missing evidence, judge preference)"),

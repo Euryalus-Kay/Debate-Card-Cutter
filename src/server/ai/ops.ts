@@ -21,6 +21,8 @@ import { draftTargetsFromDraft } from "./draft-targets";
 import { checkSections, checkSpeech, type CheckSection, type SpeechCheck } from "@/domain/speech-checks";
 import { GLOBAL_RULES, SPEECH_RULES } from "./speech-rules";
 import { runStructured, type RunResult } from "./run";
+import { draftProgress, extractProgress, fitProgress, patchProgress, taskTiming } from "./progress";
+import type { Progress } from "@/domain/progress";
 import { MODELS } from "./models";
 import { AlternativesSchema, FitPlanSchema, TopUpSchema, FlowExtractSchema, type FlowExtractOutput, FlowInterpretSchema, PatchPlanSchema, type PatchPlanOutput, SectionRevisionSchema, SpeechDraftSchema, type AlternativesOutput, type FitPlanOutput, type FlowInterpretOutput, type SectionRevisionOutput, type SpeechDraftOutput } from "./schemas";
 import { alreadyAnswered, argBasisHash, changedShare, changeSet, isUpToDate, patchSections, placeAnswer, type ChangeSet, type Placement } from "@/domain/patch";
@@ -148,6 +150,8 @@ export interface DraftSpeechInput {
   onPartial?: (p: unknown) => void;
   /** short progress notes after the plan is written (e.g. trimming to time) */
   onStatus?: (s: string) => void;
+  /** stage, parts done, and time left (A4) */
+  onProgress?: (p: Progress) => void;
   abortSignal?: AbortSignal;
   /** benchmark override of the model chain */
   models?: import("./models").ModelSpec[];
@@ -156,6 +160,9 @@ export interface DraftSpeechInput {
 }
 
 export async function draftSpeech(input: DraftSpeechInput) {
+  const task = input.mode === "deep" ? "speech_draft" : "speech_draft_fast";
+  const progress = input.onProgress ? draftProgress(input.onProgress, await taskTiming(task), await taskTiming("section_revise")) : null;
+  progress?.start();
   const round = await roundFor(input.roundId);
   const ctx = await buildRoundContext(input.roundId, { speech: input.speech, draftId: input.draftId, cardIds: input.cardIds, evidenceMode: input.evidenceMode, instructions: input.instructions, rates: input.rates ?? presetProfile("fast") });
   const rates = ctx.rates; // capped when the judge limits speed
@@ -170,11 +177,17 @@ ${input.instructions.trim() ? `Team instructions: ${input.instructions.trim()}` 
 ${lockedNote}
 ${ctx.draft && ctx.draft.items.length ? "There is already a draft. Build the complete speech; where an existing section already answers something well, you may keep its approach, but output the full plan." : ""}
 
-Output a complete, deliverable speech plan: top-level position sections (kind "position", or "overview") containing response/extension sections (parentRef = the position's ref). Every response targets the actual flow ids it answers. Use "omitted" for anything you deliberately leave unanswered, with the reason. Put anything uncertain in "questions".`;
-  const res = await runStructured({ task: input.mode === "deep" ? "speech_draft" : "speech_draft_fast", system, context: ctx.text, prompt, schema: SpeechDraftSchema, onPartial: input.onPartial, abortSignal: input.abortSignal, teamId: input.teamId, models: input.models });
+Output a complete, deliverable speech plan: first the outline (every section title, in order), then top-level position sections (kind "position", or "overview") containing response/extension sections (parentRef = the position's ref). Every response targets the actual flow ids it answers. Use "omitted" for anything you deliberately leave unanswered, with the reason. Put anything uncertain in "questions".`;
+  const onPartial = (p: unknown) => {
+    progress?.partial(p as Parameters<NonNullable<typeof progress>["partial"]>[0]);
+    input.onPartial?.(p);
+  };
+  const res = await runStructured({ task, system, context: ctx.text, prompt, schema: SpeechDraftSchema, onPartial, abortSignal: input.abortSignal, teamId: input.teamId, models: input.models });
+  progress?.checking(res.output.sections.length);
   let { output, validation } = validateDraft(res.output, ctx, input.speech, round.ourSide, rates);
   if (!input.noLengthFix) {
-    const fixed = await fitDraftLength(output, validation, ctx, input, round.ourSide, system);
+    const onStatus = input.onStatus;
+    const fixed = await fitDraftLength(output, validation, ctx, { ...input, onStatus: (st) => (onStatus?.(st), progress?.fitting(st, output.sections.length)) }, round.ourSide, system);
     if (fixed) ({ output, validation } = fixed);
   }
   return { output, validation, run: meta(res), contextRefs: { ...ctx.refs, draftHash: ctx.draftJson ? sectionContentHash(ctx.draftJson) : null }, cards: summarizeCards(ctx) };
@@ -384,6 +397,7 @@ export interface FitInput {
   rates?: RateProfile | null;
   teamId: string;
   onPartial?: (p: unknown) => void;
+  onProgress?: (p: Progress) => void;
   abortSignal?: AbortSignal;
 }
 
@@ -513,7 +527,13 @@ DRAFT (seconds are estimates at this speaker's measured rate):
 ${renderForFit(ctx.draft.items, rates, ctx.graph).join("\n")}
 
 Return one plan entry for every section id above.`;
-  const res = await runStructured({ task: "speech_fit", system, context: ctx.text, prompt, schema: FitPlanSchema, onPartial: input.onPartial, abortSignal: input.abortSignal, teamId: input.teamId });
+  const progress = input.onProgress ? fitProgress(input.onProgress, await taskTiming("speech_fit"), sections.length) : null;
+  progress?.start();
+  const onPartial = (p: unknown) => {
+    progress?.partial(p as { plan?: unknown[] });
+    input.onPartial?.(p);
+  };
+  const res = await runStructured({ task: "speech_fit", system, context: ctx.text, prompt, schema: FitPlanSchema, onPartial, abortSignal: input.abortSignal, teamId: input.teamId });
 
   // Validate: known sections only; locked sections stay; condensed sections keep only their own cards.
   const byId = new Map(sections.map((s) => [s.id, s]));
@@ -549,7 +569,10 @@ Return one plan entry for every section id above.`;
   // Models write fewer words than a fast speaker needs for a given number of seconds. For expanded
   // sections, compute the exact analytic word count from the measured rate and have short ones
   // rewritten to that length in one batched call.
-  if (fill) await topUpExpanded(plan, sections, ctx, rates, input);
+  if (fill) {
+    progress?.stage("Writing the expanded sections to length", 0.92, (await taskTiming("section_revise")).totalMs);
+    await topUpExpanded(plan, sections, ctx, rates, input);
+  }
 
   // Sections inside a cut section are cut with it.
   const cut = new Set(plan.filter((e) => e.action === "cut").map((e) => e.sectionId));
@@ -620,6 +643,7 @@ export interface PatchInput {
   teamId: string;
   onPartial?: (p: unknown) => void;
   onStatus?: (s: string) => void;
+  onProgress?: (p: Progress) => void;
   abortSignal?: AbortSignal;
   /** benchmark override of the model chain */
   models?: import("./models").ModelSpec[];
@@ -750,6 +774,8 @@ export async function patchSpeech(input: PatchInput) {
   }
   const n = cs.unanswered.length;
   input.onStatus?.(n ? `Answering ${n} new argument${n === 1 ? "" : "s"}` : instructions ? "Working in your instruction" : "Updating changed answers");
+  const progress = input.onProgress ? patchProgress(input.onProgress, await taskTiming("speech_patch"), n) : null;
+  progress?.start();
 
   const system = `${SYSTEM_BASE}\n\nSPEECH BEING PREPARED\n${SPEECH_RULES[input.speech]}\n\n${PATCH_TASK}`;
   const prompt = `Update the ${input.speech} for the ${round.ourSide.toUpperCase()}.
@@ -787,8 +813,13 @@ Return only the changes: adds, retargets, edits. Leave everything else out.`;
     notAddressed: [],
     questions: [],
   });
-  const res = await runStructured({ task: "speech_patch", system, context: ctx.text, prompt, schema: PatchPlanSchema, onPartial: input.onPartial, abortSignal: input.abortSignal, teamId: input.teamId, models: input.models, fake });
+  const onPartial = (p: unknown) => {
+    progress?.partial(p as Parameters<NonNullable<typeof progress>["partial"]>[0]);
+    input.onPartial?.(p);
+  };
+  const res = await runStructured({ task: "speech_patch", system, context: ctx.text, prompt, schema: PatchPlanSchema, onPartial, abortSignal: input.abortSignal, teamId: input.teamId, models: input.models, fake });
   input.onStatus?.("Checking the update");
+  progress?.checking();
   return { ...base, upToDate: false, ...validatePatch(res.output, ctx, cs, json, input.speech, instructions, previousSeconds), run: meta(res) };
 }
 
@@ -1038,6 +1069,7 @@ export interface ExtractInput {
   models?: import("./models").ModelSpec[];
   /** most lines handled per run (the rest wait for the next run) */
   maxLines?: number;
+  onProgress?: (p: Progress) => void;
 }
 
 const FLOW_EXTRACT_SYSTEM = `You flow a high school policy debate round. A debater typed these lines while listening to a speech (fast, full of shorthand: uq = uniqueness, LT = link turn, NU = non-unique, condo = conditionality, perm, T, K, CP, DA, b/c = because). Transcript lines may come from speech-to-text and contain errors.
@@ -1146,7 +1178,14 @@ Return one entry for every numbered line.`;
     };
   };
 
-  const res = await runStructured({ task: "flow_extract", system: FLOW_EXTRACT_SYSTEM, prompt, schema: FlowExtractSchema, onPartial: input.onPartial, abortSignal: input.abortSignal, teamId: input.teamId, models: input.models, fake });
+  const progress = input.onProgress ? extractProgress(input.onProgress, await taskTiming("flow_extract"), lines.length) : null;
+  progress?.start();
+  const onPartial = (p: unknown) => {
+    progress?.partial(p as { lines?: unknown[] });
+    input.onPartial?.(p);
+  };
+  const res = await runStructured({ task: "flow_extract", system: FLOW_EXTRACT_SYSTEM, prompt, schema: FlowExtractSchema, onPartial, abortSignal: input.abortSignal, teamId: input.teamId, models: input.models, fake });
+  progress?.stage("Putting it on the flow");
   const checked = validateExtraction({ lines, positions, existing, ours: new Set(theirs.map((a) => a.id)) }, res.output as FlowExtractOutput);
 
   // Lines the AI missed or that failed the checks still reach the flow, via the no-AI parser, marked uncertain.

@@ -128,6 +128,7 @@ describe("section ownership", () => {
 describe("sectionNodes", () => {
   const out = (sections: Partial<SpeechDraftOutput["sections"][number]>[]): SpeechDraftOutput => ({
     strategy: { summary: "", choices: [], risks: [] },
+    outline: [],
     omitted: [],
     questions: [],
     sections: sections.map((s, i) => ({ ref: `s${i}`, parentRef: "", kind: "response", title: `S${i}`, relation: "answers", targets: [], crossApplyFrom: "", role: "", analytic: "Text.", cardIds: [], needsEvidence: "", budgetSeconds: 20, priority: 2, ...s })),

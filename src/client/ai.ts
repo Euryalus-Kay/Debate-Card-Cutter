@@ -1,8 +1,9 @@
 "use client";
 
+import type { Progress } from "@/domain/progress";
 import { api, ApiError } from "./api";
 
-export type OpEvent = { t: "op"; id: string } | { t: "partial"; data: unknown } | { t: "status"; data: string } | { t: "done"; data: unknown } | { t: "error"; message: string };
+export type OpEvent = { t: "op"; id: string } | { t: "partial"; data: unknown } | { t: "status"; data: string } | { t: "progress"; data: Progress } | { t: "done"; data: unknown } | { t: "error"; message: string };
 
 /**
  * Start an AI operation and stream events. If the stream drops (network,

@@ -38,9 +38,10 @@ export async function startDraftOp(args: { round: RoundRecord; speech: SpeechId;
         if (e.t === "op") store.update(pid, { opId: e.id });
         if (e.t === "partial") useProposals.getState().update(pid, { partial: e.data as never });
         if (e.t === "status") useProposals.getState().update(pid, { note: e.data });
+        if (e.t === "progress") useProposals.getState().update(pid, { progress: { ...e.data, at: Date.now() } });
       },
     );
-    useProposals.getState().update(pid, { status: "ready", result: result as never, note: null });
+    useProposals.getState().update(pid, { status: "ready", result: result as never, note: null, progress: null });
   } catch (e) {
     useProposals.getState().update(pid, { status: "failed", error: (e as Error).message });
     toast((e as Error).message, "bad");
@@ -59,8 +60,9 @@ export async function startFitOp(args: { round: RoundRecord; speech: SpeechId; d
     const result = await runOp({ kind: "fit_speech", roundId: args.round.id, speech: args.speech, draftId: args.draftId, instructions: args.instructions ?? "", mode: "fast" }, (e) => {
       if (e.t === "op") store.update(pid, { opId: e.id });
       if (e.t === "partial") useProposals.getState().update(pid, { partial: e.data });
+      if (e.t === "progress") useProposals.getState().update(pid, { progress: { ...e.data, at: Date.now() } });
     });
-    useProposals.getState().update(pid, { status: "ready", result: result as never });
+    useProposals.getState().update(pid, { status: "ready", result: result as never, progress: null });
   } catch (e) {
     useProposals.getState().update(pid, { status: "failed", error: (e as Error).message });
     toast((e as Error).message, "bad");
@@ -86,9 +88,10 @@ export async function startPatchOp(args: { round: RoundRecord; speech: SpeechId;
         if (e.t === "op") store.update(pid, { opId: e.id });
         if (e.t === "partial") useProposals.getState().update(pid, { partial: e.data });
         if (e.t === "status") useProposals.getState().update(pid, { note: e.data });
+        if (e.t === "progress") useProposals.getState().update(pid, { progress: { ...e.data, at: Date.now() } });
       },
     )) as PatchResult;
-    useProposals.getState().update(pid, { status: args.auto && result.upToDate ? "dismissed" : "ready", result, note: null });
+    useProposals.getState().update(pid, { status: args.auto && result.upToDate ? "dismissed" : "ready", result, note: null, progress: null });
     useProposals.getState().supersede(args.draftId, pid);
     return result;
   } catch (e) {

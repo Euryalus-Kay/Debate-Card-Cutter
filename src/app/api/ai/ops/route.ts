@@ -101,6 +101,7 @@ export const POST = handle(async (req: Request) => {
     sink.push?.({ t: "partial", data: p });
     void persistPartial();
   };
+  const onProgress = (p: unknown) => sink.push?.({ t: "progress", data: p });
 
   const work = (async () => {
     try {
@@ -118,6 +119,7 @@ export const POST = handle(async (req: Request) => {
           teamId,
           onPartial,
           onStatus: (s) => sink.push?.({ t: "status", data: s }),
+          onProgress,
           abortSignal: abort.signal,
         });
       } else if (input.kind === "revise_section") {
@@ -147,6 +149,7 @@ export const POST = handle(async (req: Request) => {
           rates,
           teamId,
           onPartial,
+          onProgress,
           abortSignal: abort.signal,
         });
       } else if (input.kind === "patch_speech") {
@@ -162,10 +165,11 @@ export const POST = handle(async (req: Request) => {
           teamId,
           onPartial,
           onStatus: (s) => sink.push?.({ t: "status", data: s }),
+          onProgress,
           abortSignal: abort.signal,
         });
       } else if (input.kind === "extract_flow") {
-        result = await extractFlow({ roundId: input.roundId, speech: input.speech as SpeechId, teamId, userId: u.id, onPartial, onStatus: (s) => sink.push?.({ t: "status", data: s }), abortSignal: abort.signal });
+        result = await extractFlow({ roundId: input.roundId, speech: input.speech as SpeechId, teamId, userId: u.id, onPartial, onStatus: (s) => sink.push?.({ t: "status", data: s }), onProgress, abortSignal: abort.signal });
       } else {
         result = await interpretFlow({ roundId: input.roundId, speech: input.speech as SpeechId, teamId, userId: u.id, onPartial, abortSignal: abort.signal });
       }
