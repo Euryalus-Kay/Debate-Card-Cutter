@@ -198,6 +198,10 @@ ${lockedNote}
 ${ctx.draft && ctx.draft.items.length ? "There is already a draft. Build the complete speech; where an existing section already answers something well, you may keep its approach, but output the full plan." : ""}
 
 Output a complete, deliverable speech plan: first the outline (every section title, in order), then top-level position sections (kind "position", or "overview") containing response/extension sections (parentRef = the position's ref). Every response targets the actual flow ids it answers. Use "omitted" for anything you deliberately leave unanswered, with the reason. Put anything uncertain in "questions".`;
+  // About how many sections the speech needs (a position section plus one answer per item it must answer),
+  // for "section k of n" when the model's outline lists only the positions.
+  const items = ctx.coverage?.items.filter((i) => i.status === "unanswered" || i.status === "uncertain") ?? [];
+  progress?.expect(items.length + new Set(items.map((i) => i.arg.positionId)).size);
   const onPartial = (p: unknown) => {
     progress?.partial(p as Parameters<NonNullable<typeof progress>["partial"]>[0]);
     input.onPartial?.(p);
@@ -260,7 +264,7 @@ async function lengthPass(output: SpeechDraftOutput, validation: Validation, ctx
   const byRef = new Map(output.sections.map((s) => [s.ref, s]));
   const argText = new Map(ctx.graph.args.map((a) => [a.id, `${a.speech} "${a.text.slice(0, 120)}"`]));
   const cardText = new Map(ctx.cards.map((c) => [c.id, `${c.tag} (${c.shortCite})`]));
-  const blocks = [...targets].map(([ref, words]) => {
+  const block = ([ref, words]: [string, number]) => {
     const s = byRef.get(ref)!;
     return `<section id="${ref}" target_words="${words}">
 # ${s.title}
@@ -268,8 +272,8 @@ ${s.targets.length ? `Answers: ${s.targets.map((t) => argText.get(t) ?? t).join(
 ${s.analytic}
 Cards read in this section: ${s.cardIds.map((c) => cardText.get(c) ?? c).join("; ") || "none"}
 </section>`;
-  });
-  const prompt =
+  };
+  const promptFor = (blocks: string[]) =>
     mode === "trim"
       ? `This speech runs over its time limit. Shorten each section's analytic text to the stated number of words: as close as you can, never more. Keep the central warrant, the signposting, and what the section does strategically; cut repetition, throat-clearing, restated tags, and secondary points first. Do not add arguments, claims about what the other team said, or references to evidence not listed for that section.
 
@@ -281,22 +285,32 @@ Return every section above, using its id as sectionId, with its full shortened t
 ${blocks.join("\n\n")}
 
 Return every section above, using its id as sectionId, with its full rewritten text.`;
+  // Rewrites stream one section after another, so a long list is split into up to three batches run at once
+  // (about a third of the wait, mid-round); each batch is a few sections.
+  const entries = [...targets];
+  const batches = Math.min(3, Math.ceil(entries.length / 3));
+  const groups = Array.from({ length: batches }, (_, b) => entries.filter((_e, i) => i % batches === b));
   try {
-    const res = await runStructured({
-      task: "section_revise",
-      system,
-      // Trimming only needs the sections; filling needs the round to add real depth.
-      context: mode === "grow" ? ctx.text : undefined,
-      prompt,
-      schema: TopUpSchema,
-      abortSignal: input.abortSignal,
-      teamId: input.teamId,
-      models: [
-        { model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 12000, firstChunkMs: 30000 },
-        { model: MODELS.opus55, effort: "low", maxOutputTokens: 12000 },
-      ],
-      fake: () => ({ sections: [] }),
-    });
+    const results = await Promise.all(
+      groups.map((g) =>
+        runStructured({
+          task: "section_revise",
+          system,
+          // Trimming only needs the sections; filling needs the round to add real depth.
+          context: mode === "grow" ? ctx.text : undefined,
+          prompt: promptFor(g.map(block)),
+          schema: TopUpSchema,
+          abortSignal: input.abortSignal,
+          teamId: input.teamId,
+          models: [
+            { model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 8000, firstChunkMs: 30000 },
+            { model: MODELS.opus55, effort: "low", maxOutputTokens: 8000 },
+          ],
+          fake: () => ({ sections: [] }),
+        }),
+      ),
+    );
+    const res = { output: { sections: results.flatMap((r) => r.output.sections) } };
     const rewrites = res.output.sections
       .filter((r) => targets.has(r.sectionId) && byRef.has(r.sectionId) && r.analytic.trim())
       .map((r) => ({ id: r.sectionId, have: countWords(byRef.get(r.sectionId)!.analytic), got: countWords(r.analytic), want: targets.get(r.sectionId)!, priority: byRef.get(r.sectionId)!.priority, text: r.analytic.trim() }));

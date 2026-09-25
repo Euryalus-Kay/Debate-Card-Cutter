@@ -85,10 +85,15 @@ export function draftProgress(emitRaw: Emit, timing: Timing, fitTiming: Timing) 
   const t0 = Date.now();
   let writingSince: number | null = null;
   let planned = 0;
+  let expected = 0;
   const writingMs = Math.max(5_000, timing.totalMs - timing.ttftMs);
   return {
     start() {
       emit({ stage: "Reading the round", done: 0, total: null, etaMs: timing.totalMs, fraction: 0.02 });
+    },
+    /** how many sections the speech will likely need, from what it must answer */
+    expect(n: number) {
+      expected = n;
     },
     partial(p: Streamed) {
       const outline = (p.outline ?? []).filter((x): x is string => !!x);
@@ -101,7 +106,8 @@ export function draftProgress(emitRaw: Emit, timing: Timing, fitTiming: Timing) 
         return;
       }
       writingSince ??= now;
-      const total = Math.max(planned, outline.length, sections.length);
+      // The outline sometimes lists only the positions; what the speech must answer is a floor on the count.
+      const total = Math.max(planned, outline.length, expected, sections.length);
       const done = sections.length - 1;
       const title = sections[sections.length - 1]?.title?.trim();
       const eta = remainingMs({ done, total, since: writingSince, now, typicalWritingMs: writingMs });
