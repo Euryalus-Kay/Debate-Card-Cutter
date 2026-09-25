@@ -5,33 +5,11 @@
  */
 
 import { z } from "zod";
+import { ARG_ROLES } from "@/domain/flow";
 
 export const SECTION_KINDS = ["overview", "position", "response", "extension", "impact_calc", "judge_instruction"] as const;
 export const RELATIONS = ["answers", "group", "cross_apply", "extend", "new", "none"] as const;
-export const ROLES = [
-  "",
-  "uniqueness",
-  "link",
-  "internal_link",
-  "impact",
-  "solvency",
-  "perm",
-  "theory",
-  "non_unique",
-  "no_link",
-  "no_internal_link",
-  "no_impact",
-  "impact_mitigation",
-  "link_turn",
-  "impact_turn",
-  "impact_calc",
-  "framework",
-  "alternative",
-  "counter_interpretation",
-  "we_meet",
-  "defense",
-  "other",
-] as const;
+export const ROLES = ["", ...ARG_ROLES] as const;
 
 export const DraftSectionSchema = z.object({
   ref: z.string().describe("Your local id for this section, e.g. s1, s2"),
@@ -131,3 +109,31 @@ export const FlowInterpretSchema = z.object({
   notes: z.array(z.string()),
 });
 export type FlowInterpretOutput = z.infer<typeof FlowInterpretSchema>;
+
+/** Reading typed notes or transcript lines onto the flow. Every argument must quote its own line. */
+export const FlowExtractSchema = z.object({
+  lines: z.array(
+    z.object({
+      line: z.number().describe("the input line number"),
+      action: z.enum(["create", "same_as", "not_argument"]).describe("create = new argument(s); same_as = repeats an argument already on the flow; not_argument = roadmap, header, filler, question"),
+      category: z.string().describe("for not_argument: header, roadmap, filler, question, or other; else empty"),
+      sameAs: z.string().describe("for same_as: the id of the existing argument; else empty"),
+      args: z.array(
+        z.object({
+          quote: z.string().describe("the exact words from this line that this argument is (copied, not reworded)"),
+          text: z.string().describe("the argument as a short flow entry; stay close to the line's words, expanding only shorthand"),
+          warrant: z.string().describe("the reason given on the line, if any; else empty"),
+          role: z.enum(ARG_ROLES),
+          evidence: z.enum(["card", "analytic"]).describe("card if the line names an author/cite or evidence; else analytic"),
+          label: z.string().describe("the number or letter the debater typed (\"3\", \"B\"), else empty"),
+          positionId: z.string().describe("id of the existing position it belongs to, else empty"),
+          newPositionName: z.string().describe("if it starts a new position: its name, else empty"),
+          newPositionKind: z.string().describe("for a new position: advantage, solvency, da, cp, k, t, theory, framework, case_other, or other; else empty"),
+          answers: z.array(z.string()).describe("ids of OUR arguments this responds to"),
+          confidence: z.number().describe("0–1: how sure you are of this reading"),
+        }),
+      ),
+    }),
+  ),
+});
+export type FlowExtractOutput = z.infer<typeof FlowExtractSchema>;

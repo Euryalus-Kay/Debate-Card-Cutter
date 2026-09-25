@@ -7,11 +7,11 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { rounds } from "@/server/db/schema";
-import { applyServerChange } from "@/server/docs/store";
+import { applyServerChange, loadDoc } from "@/server/docs/store";
 import { upsertArg, upsertRelation } from "@/shared/round-doc";
 import { readArgs, readRelations } from "@/shared/round-doc";
 import { computeCoverage, positionsAvailableFor2NR, type DraftTarget } from "@/domain/flow";
-import { isRebuttal, SPEECHES, speechesToAnswer as speechesToAnswerFor, type SpeechId } from "@/domain/format";
+import { isBefore, isRebuttal, SPEECHES, speechesToAnswer as speechesToAnswerFor, type SpeechId } from "@/domain/format";
 import { addLoads, countWords, estimateSeconds, presetProfile, type RateProfile } from "@/domain/timing";
 import { cardLoad } from "@/domain/card";
 import { acceptRewrites, allocateWordChange } from "@/domain/length-plan";
@@ -20,8 +20,15 @@ import { buildRoundContext, renderDraft, type RoundContext } from "./context";
 import { GLOBAL_RULES, SPEECH_RULES } from "./speech-rules";
 import { runStructured, type RunResult } from "./run";
 import { MODELS } from "./models";
-import { AlternativesSchema, FitPlanSchema, TopUpSchema, FlowInterpretSchema, SectionRevisionSchema, SpeechDraftSchema, type AlternativesOutput, type FitPlanOutput, type FlowInterpretOutput, type SectionRevisionOutput, type SpeechDraftOutput } from "./schemas";
+import { AlternativesSchema, FitPlanSchema, TopUpSchema, FlowExtractSchema, type FlowExtractOutput, FlowInterpretSchema, SectionRevisionSchema, SpeechDraftSchema, type AlternativesOutput, type FitPlanOutput, type FlowInterpretOutput, type SectionRevisionOutput, type SpeechDraftOutput } from "./schemas";
 import { newId } from "@/server/ids";
+import { heardLines, readGraph, type HeardLine } from "@/shared/round-doc";
+import { applyHeard, parsedToValidated, type HeardApplyResult } from "@/shared/heard-apply";
+import { parseHeard } from "@/domain/heard-parse";
+import { validateExtraction, type ExtractLine } from "@/domain/flow-extract";
+import { uploadBlocks, uploads } from "@/server/db/schema";
+import { and, sql } from "drizzle-orm";
+
 
 export const SYSTEM_BASE = `You are an expert high school policy debate coach and strategist helping two debaters prepare speeches during and before rounds. You reason about the specific round in front of you: the actual arguments on the flow, the actual evidence provided, and the actual speech being prepared.
 
@@ -654,4 +661,151 @@ TASK: FLOWING. You interpret arguments that were extracted from speech documents
     { userId: input.userId, origin: `ai:${opId}` },
   );
   return { kind: "interpretation" as const, argsUpdated, linksAdded, notes: out.notes, merges: out.positionMerges, run: meta(res) };
+}
+
+// ---------------------------------------------------------------------------
+// Flow extraction (A1): typed notes / transcript lines → flow arguments.
+// ---------------------------------------------------------------------------
+
+export interface ExtractInput {
+  roundId: string;
+  speech: SpeechId;
+  teamId: string;
+  userId: string;
+  onPartial?: (p: unknown) => void;
+  onStatus?: (s: string) => void;
+  abortSignal?: AbortSignal;
+  /** benchmark override of the model chain */
+  models?: import("./models").ModelSpec[];
+  /** most lines handled per run (the rest wait for the next run) */
+  maxLines?: number;
+}
+
+const FLOW_EXTRACT_SYSTEM = `You flow a high school policy debate round. A debater typed these lines while listening to a speech (fast, full of shorthand: uq = uniqueness, LT = link turn, NU = non-unique, condo = conditionality, perm, T, K, CP, DA, b/c = because). Transcript lines may come from speech-to-text and contain errors.
+
+For EVERY numbered line decide:
+- create: the line states one or more arguments the speaker made. Split a line into at most 3 arguments only when it clearly holds separate arguments.
+- same_as: the line repeats an argument already listed under THIS SPEECH'S ARGUMENTS (give its id).
+- not_argument: a header naming a position ("Politics DA", "Case"), a roadmap, filler, or a question to self.
+
+Rules:
+- "quote" must be copied exactly from the line (a contiguous piece of it). Never add claims, authors, numbers, or reasons that aren't on the line. "text" stays close to the line's words; you may only expand shorthand.
+- Keep the debater's label (the typed number or letter) in "label".
+- Put each argument on the position it belongs to: the header above it, an existing position id, or a new position (name and kind).
+- "answers": ids of the OTHER team's arguments (listed below) that this argument responds to, only when the line makes it clear (their numbering, "no link", the same subject). Leave it empty otherwise.
+- evidence = "card" when the line names an author or cite (e.g. "Lee 26") or says card/ev; otherwise "analytic".
+- confidence: how sure you are that you read the line correctly (0–1).`;
+
+export async function extractFlow(input: ExtractInput) {
+  const round = await roundFor(input.roundId);
+  const { doc } = await loadDoc(round.stateDocId);
+  const speech = input.speech;
+  const side = SPEECHES[speech].side;
+  const all = heardLines(doc, speech);
+  const pending = all.filter((l) => l.status !== "flowed").slice(0, input.maxLines ?? 40);
+  const empty = { kind: "flow_extract" as const, speech, created: [] as string[], aliased: [] as string[], positions: [] as string[], marks: [] as string[], relations: [] as string[], notArguments: 0, skipped: 0, rejected: [] as { n: number; reason: string }[], fallback: 0, remaining: 0, run: null as ReturnType<typeof meta> | null };
+  if (!pending.length) return empty;
+  input.onStatus?.(`Reading ${pending.length} new line${pending.length === 1 ? "" : "s"}`);
+
+  const graph = readGraph(doc, round.ourSide);
+  const positions = graph.positions;
+  const existing = graph.args.filter((a) => a.speech === speech);
+  const theirs = graph.args.filter((a) => a.side !== side && isBefore(a.speech, speech)).slice(-150);
+  const posName = new Map(positions.map((p) => [p.id, p.name]));
+  const lines: ExtractLine[] = pending.map((l, i) => ({ n: i + 1, key: l.textKey, line: l.line, text: l.text }));
+
+  // Their speech doc for this speech, if uploaded: tags and cites help match lines to cards.
+  const docTags = (
+    await db()
+      .select({ text: uploadBlocks.text, kind: uploadBlocks.kind })
+      .from(uploadBlocks)
+      .innerJoin(uploads, eq(uploads.id, uploadBlocks.uploadId))
+      .where(and(eq(uploads.roundId, input.roundId), sql`${uploads.attribution}->>'speech' = ${speech}`))
+  )
+    .filter((b) => b.kind !== "heading")
+    .slice(0, 80)
+    .map((b) => `- ${b.text.slice(0, 140)}`);
+
+  const flowedContext = (l: HeardLine) => all.filter((x) => x.textKey === l.textKey && x.status === "flowed" && x.line < l.line).slice(-2);
+  const shown = new Set<string>();
+  const numbered: string[] = [];
+  for (const [i, l] of pending.entries()) {
+    for (const c of flowedContext(l)) {
+      const k = `${c.textKey}|${c.line}`;
+      if (shown.has(k)) continue;
+      shown.add(k);
+      numbered.push(`   (already on the flow) ${c.text}`);
+    }
+    numbered.push(`${i + 1}. ${l.text}${l.source === "transcript" ? "   [transcript]" : ""}`);
+  }
+  const prompt = `SPEECH: ${speech} (${side.toUpperCase()})
+
+POSITIONS ON THE FLOW:
+${positions.map((p) => `[${p.id}] ${p.name} (${p.kind}, ${p.side})`).join("\n") || "(none yet)"}
+
+THIS SPEECH'S ARGUMENTS ALREADY ON THE FLOW:
+${existing.map((a) => `[${a.id}] ${posName.get(a.positionId) ?? ""} ${a.label ?? ""}. ${a.text.slice(0, 160)}`).join("\n") || "(none)"}
+
+THE OTHER TEAM'S EARLIER ARGUMENTS (for "answers"):
+${theirs.map((a) => `[${a.id}] ${a.speech} ${posName.get(a.positionId) ?? ""} ${a.label ?? ""}. ${a.text.slice(0, 140)}`).join("\n") || "(none)"}
+${docTags.length ? `\nTHEIR SPEECH DOC FOR THIS SPEECH (tags):\n${docTags.join("\n")}\n` : ""}
+LINES TO FLOW:
+${numbered.join("\n")}
+
+Return one entry for every numbered line.`;
+
+  const fake = () => {
+    const parsed = parseHeard(
+      lines.map((l) => ({ key: l.key, line: l.line, text: l.text })),
+      { positions },
+    );
+    return {
+      lines: parsed.map((p, i) => ({
+        line: i + 1,
+        action: p.action,
+        category: p.category ?? "",
+        sameAs: "",
+        args: p.args.map((a) => ({
+          quote: a.quote,
+          text: a.text,
+          warrant: "",
+          role: a.role,
+          evidence: a.evidence,
+          label: a.label ?? "",
+          positionId: p.position && "id" in p.position && !p.position.id.startsWith("pending:") ? p.position.id : "",
+          newPositionName: p.position && "name" in p.position ? p.position.name : p.position && "id" in p.position && p.position.id.startsWith("pending:") ? p.position.id.slice(8) : "",
+          newPositionKind: p.position && "name" in p.position ? p.position.kind : "",
+          answers: [],
+          confidence: 0.8,
+        })),
+      })),
+    };
+  };
+
+  const res = await runStructured({ task: "flow_extract", system: FLOW_EXTRACT_SYSTEM, prompt, schema: FlowExtractSchema, onPartial: input.onPartial, abortSignal: input.abortSignal, teamId: input.teamId, models: input.models, fake });
+  const checked = validateExtraction({ lines, positions, existing, ours: new Set(theirs.map((a) => a.id)) }, res.output as FlowExtractOutput);
+
+  // Lines the AI missed or that failed the checks still reach the flow, via the no-AI parser, marked uncertain.
+  const done = new Set(checked.lines.map((l) => l.n));
+  const leftover = lines.filter((l) => !done.has(l.n));
+  const fallback = leftover.length ? parsedToValidated(parseHeard(leftover.map((l) => ({ key: l.key, line: l.line, text: l.text })), { positions }), leftover) : [];
+  const opId = newId("aop");
+  let applied: HeardApplyResult | null = null;
+  input.onStatus?.("Putting it on the flow");
+  await applyServerChange(
+    round.stateDocId,
+    (d) => {
+      applied = applyHeard(d, { speech, side, lines: [...checked.lines, ...fallback].sort((a, b) => a.key.localeCompare(b.key) || a.line - b.line), opId, by: input.userId });
+    },
+    { userId: input.userId, origin: `ai:${opId}` },
+  );
+  const r = applied as HeardApplyResult | null;
+  return {
+    ...empty,
+    ...(r ?? {}),
+    rejected: checked.rejected,
+    fallback: fallback.length,
+    remaining: Math.max(0, all.filter((l) => l.status !== "flowed").length - pending.length),
+    run: meta(res),
+  };
 }

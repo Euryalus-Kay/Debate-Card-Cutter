@@ -6,7 +6,7 @@ import type * as Y from "yjs";
 import { Download, FilePlus2, Plus, Sparkles, CheckCircle2, Copy, Scissors, History } from "lucide-react";
 import { api, downloadFrom } from "@/client/api";
 import { flushDoc, useDocSync, useYDocValue } from "@/client/sync/hooks";
-import { Badge, Button, cn, EmptyState, Menu, MenuContent, MenuItem, MenuTrigger, Textarea, Tooltip, toast } from "@/components/ui";
+import { Badge, Button, cn, EmptyState, Menu, MenuContent, MenuItem, MenuTrigger, Tooltip, toast } from "@/components/ui";
 import { useApp } from "@/components/shell/app-shell";
 import { getFormat, speechSeconds, SPEECH_IDS, SPEECHES, type SpeechId } from "@/domain/format";
 import type { RoundGraph } from "@/domain/flow";
@@ -16,6 +16,7 @@ import { prepUsedMs, readSlots, readTimers, updateSlot, type SlotRecord } from "
 import { useRateProfile } from "@/client/use-settings";
 import type { RoundBundle, RoundRecord } from "./types";
 import { useWorkspace } from "./store";
+import { HeardPad } from "./heard-pad";
 import { claimForSection, useRoundResearch } from "./round-research";
 import { findSectionNode } from "./proposals";
 import { HistoryDialog } from "./history-dialog";
@@ -48,7 +49,7 @@ export function SpeechPanel({
   const speech = ws.speech;
   if (!speech) return null;
   const ours = SPEECHES[speech].side === round.ourSide;
-  if (!ours) return <OpponentSpeechView round={round} bundle={bundle} doc={doc} speech={speech} slots={slots} />;
+  if (!ours) return <OpponentSpeechView round={round} bundle={bundle} doc={doc} speech={speech} slots={slots} aiEnabled={aiEnabled} userId={userId} />;
   return <OurSpeechView round={round} bundle={bundle} doc={doc} graph={graph} speech={speech} aiEnabled={aiEnabled} userId={userId} />;
 }
 
@@ -291,17 +292,9 @@ function OurSpeechView({ round, bundle, doc, graph, speech, aiEnabled, userId }:
   );
 }
 
-function OpponentSpeechView({ round, bundle, doc, speech, slots }: { round: RoundRecord; bundle: RoundBundle; doc: Y.Doc | null; speech: SpeechId; slots: Record<SpeechId, SlotRecord> | null }) {
+function OpponentSpeechView({ round, bundle, doc, speech, slots, aiEnabled, userId }: { round: RoundRecord; bundle: RoundBundle; doc: Y.Doc | null; speech: SpeechId; slots: Record<SpeechId, SlotRecord> | null; aiEnabled: boolean; userId: string }) {
   const uploads = bundle.uploads.filter((u) => u.attribution?.speech === speech);
   const slot = useYDocValue(doc, (d) => readSlots(d)[speech], [speech]) ?? slots?.[speech];
-  // Local edits until blur; reset when the shared notes (or the speech) change underneath.
-  const shared = `${speech}\u0000${slot?.notes ?? ""}`;
-  const [notes, setNotes] = useState(slot?.notes ?? "");
-  const [base, setBase] = useState(shared);
-  if (base !== shared) {
-    setBase(shared);
-    setNotes(slot?.notes ?? "");
-  }
   return (
     <div className="flex h-full flex-col overflow-y-auto">
       <div className="border-b border-line bg-elev px-4 py-3">
@@ -324,15 +317,7 @@ function OpponentSpeechView({ round, bundle, doc, speech, slots }: { round: Roun
             </Tooltip>
           </div>
         </div>
-        <label className="mt-3 block text-xs font-medium text-muted">What they actually said (notes, analytics not in the doc, cards they skipped)</label>
-        <Textarea
-          rows={3}
-          className="mt-1"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          onBlur={() => doc && notes !== (slot?.notes ?? "") && doc.transact(() => updateSlot(doc, speech, { notes }))}
-          placeholder="e.g. 2NC only read the first 3 link cards; added an analytic that the perm severs"
-        />
+        <div className="mt-3">{doc ? <HeardPad roundId={round.id} stateDocId={round.stateDocId} doc={doc} speech={speech} aiEnabled={aiEnabled} userId={userId} legacyNotes={slot?.notes ?? ""} /> : null}</div>
       </div>
       {uploads.length === 0 ? (
         <EmptyState title={`No ${speech} document`}>Add their speech document in the Docs tab on the right (upload .docx/.pdf or paste). It will be marked as documented, not confirmed delivered.</EmptyState>

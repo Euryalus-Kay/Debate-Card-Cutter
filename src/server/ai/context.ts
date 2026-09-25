@@ -8,7 +8,7 @@
 import { eq } from "drizzle-orm";
 import { yXmlFragmentToProsemirrorJSON } from "@tiptap/y-tiptap";
 import { db } from "@/server/db/client";
-import { rounds } from "@/server/db/schema";
+import { rounds, uploads } from "@/server/db/schema";
 import { loadDoc } from "@/server/docs/store";
 import { getCards, searchCards, type CardRow } from "@/server/cards";
 import { computeCoverage, possiblyKickedPositions, liveOffenseOnKickedPositions, POSITION_KIND_LABEL, type ArgUnit, type CoverageReport, type RoundGraph } from "@/domain/flow";
@@ -18,7 +18,7 @@ import { fullCite, shortCite } from "@/domain/citation";
 import { capRatesForJudge, estimateSeconds, presetProfile, wordsForSeconds, type JudgeSpeed, type RatePresetId, type RateProfile } from "@/domain/timing";
 import { renderJudgeProfile } from "./paradigm";
 import type { StoredJudge } from "@/server/judges";
-import { readCxNotes, readGraph, readSlots, readStrategy } from "@/shared/round-doc";
+import { readCxNotes, readGraph, readSlots, readStrategy, recordedSpeeches } from "@/shared/round-doc";
 import { draftSchema, DRAFT_FRAGMENT } from "@/shared/editor/schema";
 import { allSections, draftFromPM, sectionContentHash, type Draft, type PMNodeJSON } from "@/shared/draft-model";
 import { draftTargetsFromDraft } from "./draft-targets";
@@ -46,6 +46,9 @@ function argLine(a: ArgUnit, indent = "   "): string {
   const meta: string[] = [];
   if (a.role && a.role !== "claim") meta.push(`role: ${a.role}`);
   if (a.delivery !== "confirmed") meta.push(a.delivery === "documented" ? "in doc, read not confirmed" : a.delivery);
+  if (a.evidence === "analytic") meta.push("analytic (no card)");
+  if (a.provenance.type === "heard" && a.provenance.quote !== a.text) meta.push(`as heard: "${a.provenance.quote}"`);
+  if (a.sameAs) meta.push(`same argument as [${a.sameAs}]`);
   if (a.warrant) meta.push(`warrant: ${a.warrant}`);
   if (meta.length) bits.push(`{${meta.join("; ")}}`);
   return bits.filter(Boolean).join(" ");
@@ -140,13 +143,12 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
     draftHeadSeq = headSeq;
   }
 
-  const recorded = new Set<SpeechId>();
+  const docSpeeches = (await db().select({ attribution: uploads.attribution }).from(uploads).where(eq(uploads.roundId, roundId)))
+    .map((u) => (u.attribution as { speech?: SpeechId } | null)?.speech)
+    .filter((s): s is SpeechId => !!s);
+  const recorded = recordedSpeeches(stateDoc, docSpeeches);
   const confirmed = new Set<SpeechId>();
-  for (const s of SPEECH_IDS) {
-    if (slots[s].status !== "not_started" || slots[s].notes.trim()) recorded.add(s);
-    if (slots[s].readConfirmed || slots[s].status === "delivered") confirmed.add(s);
-  }
-  for (const a of graph.args) if (a.delivery !== "planned") recorded.add(a.speech);
+  for (const s of SPEECH_IDS) if (slots[s].readConfirmed || slots[s].status === "delivered") confirmed.add(s);
 
   const ours = SPEECHES[opts.speech].side === round.ourSide;
   const coverage = ours ? computeCoverage(graph, opts.speech, draftTargetsFromDraft(draft), recorded) : null;

@@ -7,7 +7,7 @@ import { useDocSync, useYDocValue } from "@/client/sync/hooks";
 import { Button, cn, Dialog, Spinner, Tabs, TabsList, TabsTrigger, Textarea, toast } from "@/components/ui";
 import { useApp } from "@/components/shell/app-shell";
 import { nextSpeechFor, SPEECH_IDS, type SpeechId } from "@/domain/format";
-import { readGraph, readSlots } from "@/shared/round-doc";
+import { readGraph, readSlots, recordedSpeeches } from "@/shared/round-doc";
 import type { RoundBundle, RoundRecord } from "./types";
 import { useWorkspace } from "./store";
 import { TopBar, SpeechStepper } from "./top-bar";
@@ -53,12 +53,8 @@ export function RoundWorkspace({ roundId }: { roundId: string }) {
     return s;
   }, [bundle.data?.uploads]);
 
-  const recorded = useMemo(() => {
-    const s = new Set<SpeechId>(hasDoc);
-    if (slots) for (const id of SPEECH_IDS) if (slots[id].status !== "not_started" || slots[id].notes.trim()) s.add(id);
-    for (const a of graph?.args ?? []) if (a.delivery !== "planned") s.add(a.speech);
-    return s;
-  }, [hasDoc, slots, graph]);
+  // One definition shared with the server (src/shared/round-doc.ts); slots and graph re-run it when the doc changes.
+  const recorded = useMemo(() => (doc ? recordedSpeeches(doc, hasDoc) : new Set<SpeechId>(hasDoc)), [doc, hasDoc, slots, graph]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Default the selected speech: the one in the URL (so a mid-round refresh keeps your place), else the
   // next one we give (speeches with any record count as having happened).

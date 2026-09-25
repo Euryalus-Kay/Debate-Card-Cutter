@@ -5,13 +5,13 @@
  */
 
 import { after } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq, gt, sql } from "drizzle-orm";
 import { z } from "zod";
 import { handle, HttpError, requireAccess, requireUser } from "@/server/authz";
 import { db } from "@/server/db/client";
 import { aiOperations, documents, rounds } from "@/server/db/schema";
 import { newId } from "@/server/ids";
-import { draftSpeech, fitSpeech, interpretFlow, reviseSection, type SectionAction } from "@/server/ai/ops";
+import { draftSpeech, extractFlow, fitSpeech, interpretFlow, reviseSection, type SectionAction } from "@/server/ai/ops";
 import { AiRunError } from "@/server/ai/run";
 import { aiAllowed } from "@/server/ai/policy";
 import { ratesForSpeech } from "@/server/speakers";
@@ -20,7 +20,7 @@ import { SPEECH_IDS, type SpeechId } from "@/domain/format";
 export const maxDuration = 300;
 
 const Body = z.object({
-  kind: z.enum(["draft_speech", "revise_section", "interpret_flow", "fit_speech"]),
+  kind: z.enum(["draft_speech", "revise_section", "interpret_flow", "fit_speech", "extract_flow"]),
   roundId: z.string(),
   speech: z.enum(SPEECH_IDS as unknown as [string, ...string[]]),
   draftId: z.string().nullable().optional(),
@@ -48,6 +48,16 @@ export const POST = handle(async (req: Request) => {
   }
   // Time the speech at the pace of whoever gives it (roster / per-speech override), else the requester's.
   const { rates } = await ratesForSpeech(round, input.speech as SpeechId, u.id);
+
+  // One flow update per speech at a time: a second run would race on the same lines.
+  if (input.kind === "extract_flow") {
+    const [running] = await db()
+      .select({ id: aiOperations.id })
+      .from(aiOperations)
+      .where(and(eq(aiOperations.roundId, input.roundId), eq(aiOperations.kind, "extract_flow"), eq(aiOperations.status, "streaming"), sql`${aiOperations.target}->>'speech' = ${input.speech}`, gt(aiOperations.createdAt, sql`now() - interval '60 seconds'`)))
+      .limit(1);
+    if (running) throw new HttpError(409, "A flow update for this speech is already running.");
+  }
 
   const opId = newId("aop");
   await db()
@@ -137,6 +147,8 @@ export const POST = handle(async (req: Request) => {
           onPartial,
           abortSignal: abort.signal,
         });
+      } else if (input.kind === "extract_flow") {
+        result = await extractFlow({ roundId: input.roundId, speech: input.speech as SpeechId, teamId, userId: u.id, onPartial, onStatus: (s) => sink.push?.({ t: "status", data: s }), abortSignal: abort.signal });
       } else {
         result = await interpretFlow({ roundId: input.roundId, speech: input.speech as SpeechId, teamId, userId: u.id, onPartial, abortSignal: abort.signal });
       }

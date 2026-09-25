@@ -13,73 +13,12 @@ import { rounds, uploadBlocks, uploads } from "@/server/db/schema";
 import { applyServerChange, loadDoc } from "@/server/docs/store";
 import { readArgs, readPositions, upsertArg, upsertPosition } from "@/shared/round-doc";
 import { opposite, SPEECHES, type Side, type SpeechId } from "@/domain/format";
-import type { ArgUnit, Position, PositionKind } from "@/domain/flow";
+import type { ArgUnit, Position } from "@/domain/flow";
 import { newId } from "@/server/ids";
 
-export function guessKind(name: string): PositionKind {
-  const n = name.toLowerCase();
-  // Case components first: "Advantage 1 — Water Security" is not a security K.
-  if (/\b(advantage|adv\.?)\s*(\d|i{1,3}\b|iv\b)?/.test(n) && !/\b(cp|counterplan|disad|da)\b/.test(n)) return "advantage";
-  if (/\bsolvency\b/.test(n)) return "solvency";
-  if (/\binherency\b/.test(n)) return "inherency";
-  if (/\bharms?\b/.test(n)) return "harms";
-  if (/^plan\b|\bplan text\b/.test(n)) return "plan";
-  if (/\b(topicality)\b|^t\s*[-–—:]|^t$/.test(n)) return "t";
-  if (/\b(condo|conditionality|theory|pics? bad|dispo|vagueness|spec)\b/.test(n)) return "theory";
-  if (/\b(counterplan|cp)\b/.test(n)) return "cp";
-  if (/\b(disad|disadvantage|da)\b/.test(n)) return "da";
-  if (/\bframework\b/.test(n)) return "framework";
-  if (/\b(kritik|critique|k)\b/.test(n)) return "k";
-  if (/\bcase\b/.test(n)) return "case_other";
-  return "other";
-}
-
-const STOP = new Set(["the", "a", "an", "of", "and", "on", "to", "vs", "v", "da", "disad", "disadvantage", "cp", "counterplan", "k", "kritik", "case", "adv", "advantage", "a2", "at", "ext", "extend", "extension", "extensions", "answers", "answer", "1ac", "1nc", "2ac", "2nc", "1nr", "1ar", "2nr", "2ar", "block", "frontline", "frontlines", "overview"]);
-
-function tokens(name: string): string[] {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9 ]+/g, " ")
-    .split(/\s+/)
-    .filter((t) => t && !STOP.has(t) && !/^\d+$/.test(t) && !/^(i|ii|iii|iv|v)$/.test(t));
-}
-
-/** Core name used to match headings across speeches: "A2 Politics DA" / "2AC — Politics" → "politics". */
-export function positionKey(name: string): string {
-  return tokens(name).join(" ");
-}
-
-function advantageNumber(name: string): number | null {
-  const m = /\b(?:adv(?:antage)?)\.?\s*(\d+|i{1,3}|iv)\b/i.exec(name);
-  if (!m) return null;
-  const r: Record<string, number> = { i: 1, ii: 2, iii: 3, iv: 4 };
-  return /^\d+$/.test(m[1]) ? Number(m[1]) : r[m[1].toLowerCase()] ?? null;
-}
-
-/** Find an existing position that a heading refers to (exact core name, advantage number, then token overlap). */
-export function matchPosition(name: string, positions: Position[]): Position | null {
-  const key = positionKey(name);
-  if (key) {
-    const exact = positions.find((p) => positionKey(p.name) === key);
-    if (exact) return exact;
-  }
-  const adv = advantageNumber(name);
-  if (adv !== null) {
-    const hit = positions.find((p) => advantageNumber(p.name) === adv);
-    if (hit) return hit;
-  }
-  const t = new Set(tokens(name));
-  if (t.size === 0) return null;
-  let best: { p: Position; score: number } | null = null;
-  for (const p of positions) {
-    const pt = new Set(tokens(p.name));
-    if (!pt.size) continue;
-    const inter = [...t].filter((x) => pt.has(x)).length;
-    const score = inter / Math.min(t.size, pt.size);
-    if (score >= 0.66 && (!best || score > best.score)) best = { p, score };
-  }
-  return best?.p ?? null;
-}
+export { guessKind, matchPosition, positionKey } from "@/domain/positions";
+import { guessKind, matchPosition, positionKey } from "@/domain/positions";
+import { jaccard } from "@/domain/flow-extract";
 
 export interface FlowImportResult {
   positionsCreated: number;
@@ -109,7 +48,12 @@ export async function importUploadToFlow(roundId: string, uploadId: string, user
   const newArgs: ArgUnit[] = [];
   let order = existingPositions.length;
   let current_pos: Position | null = null;
+  // Continue numbering after arguments already on the flow for this speech (a second doc, or typed notes).
   const counters = new Map<string, number>();
+  for (const a of existingArgs) if (a.speech === speech && Number.isFinite(Number(a.label))) counters.set(a.positionId, Math.max(counters.get(a.positionId) ?? 0, Number(a.label)));
+  // Lines typed while listening that this doc's cards repeat: the typed unit becomes an alias of the card.
+  const heardHere = existingArgs.filter((a) => a.speech === speech && a.provenance.type === "heard" && !a.sameAs);
+  const aliases: { heardId: string; docArgId: string }[] = [];
 
   const known: Position[] = [...existingPositions];
   const ensurePosition = (name: string): Position => {
@@ -144,8 +88,11 @@ export async function importUploadToFlow(roundId: string, uploadId: string, user
     const n = (counters.get(pos.id) ?? 0) + 1;
     counters.set(pos.id, n);
     const data = (b.data ?? {}) as { cite?: { short?: string } | null };
+    const argId = newId("arg");
+    const twin = heardHere.find((h) => h.positionId === pos.id && !aliases.some((x) => x.heardId === h.id) && (jaccard(h.text, b.text) >= 0.5 || (!!data.cite?.short && (h.cites ?? []).some((c) => c.toLowerCase() === data.cite!.short!.toLowerCase()))));
+    if (twin) aliases.push({ heardId: twin.id, docArgId: argId });
     newArgs.push({
-      id: newId("arg"),
+      id: argId,
       positionId: pos.id,
       speech,
       side,
@@ -167,6 +114,7 @@ export async function importUploadToFlow(roundId: string, uploadId: string, user
       (d: Y.Doc) => {
         for (const p of newPositions) upsertPosition(d, p);
         for (const a of newArgs) upsertArg(d, a);
+        for (const x of aliases) upsertArg(d, { id: x.heardId, sameAs: x.docArgId });
       },
       { userId, origin: `import:${uploadId}` },
     );

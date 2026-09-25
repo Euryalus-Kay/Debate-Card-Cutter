@@ -54,36 +54,46 @@ export interface Position {
   order: number;
 }
 
-export type ArgRole =
-  | "claim"
-  | "uniqueness"
-  | "link"
-  | "internal_link"
-  | "impact"
-  | "solvency"
-  | "plan_text"
-  | "cp_text"
-  | "net_benefit"
-  | "perm"
-  | "interpretation"
-  | "violation"
-  | "standard"
-  | "voter"
-  | "alternative"
-  | "framework"
-  | "theory"
-  | "defense"
-  /** defensive answers typed precisely, because turn/kick logic depends on them */
-  | "non_unique"
-  | "no_link"
-  | "no_internal_link"
-  | "no_impact"
-  | "impact_mitigation"
-  | "link_turn"
-  | "impact_turn"
-  | "impact_calc"
-  | "overview"
-  | "other";
+/** Every argument role. One list drives the flow type and the AI output schemas. */
+export const ARG_ROLES = [
+  "claim",
+  "uniqueness",
+  "link",
+  "internal_link",
+  "impact",
+  "solvency",
+  "plan_text",
+  "cp_text",
+  "net_benefit",
+  "perm",
+  "interpretation",
+  "violation",
+  "standard",
+  "voter",
+  "alternative",
+  "framework",
+  "theory",
+  "defense",
+  // defensive answers typed precisely, because turn/kick logic depends on them
+  "non_unique",
+  "no_link",
+  "no_internal_link",
+  "no_impact",
+  "impact_mitigation",
+  "link_turn",
+  "impact_turn",
+  "we_meet",
+  "counter_interpretation",
+  "impact_calc",
+  "overview",
+  "other",
+] as const;
+
+export type ArgRole = (typeof ARG_ROLES)[number];
+
+export function isArgRole(x: unknown): x is ArgRole {
+  return typeof x === "string" && (ARG_ROLES as readonly string[]).includes(x);
+}
 
 export type Provenance =
   /** text found in a supplied document */
@@ -93,7 +103,12 @@ export type Provenance =
   /** an AI interpretation; must be reviewable */
   | { type: "ai_inferred"; opId?: string; confidence: number }
   /** planned content from one of our drafts */
-  | { type: "draft"; draftId: string; sectionId: string };
+  | { type: "draft"; draftId: string; sectionId: string }
+  /**
+   * what a debater typed while listening (or a transcript line): `quote` is the exact
+   * text it came from, anchored in the pad by the mark `markId`
+   */
+  | { type: "heard"; speech: SpeechId; markId: string; quote: string; source: "typed" | "transcript"; opId?: string; confidence?: number };
 
 /**
  * Whether the argument was actually delivered. A document alone never proves
@@ -127,6 +142,10 @@ export interface ArgUnit {
   humanEdited?: boolean;
   /** AI reading of the argument, kept separate from document text */
   aiInterpretation?: { opId: string; confidence: number; claim: string };
+  /** this unit is another record of the same argument (e.g. typed notes vs. their doc); coverage uses the canonical one */
+  sameAs?: string;
+  /** read from a card, or made without one (an analytic) */
+  evidence?: "card" | "analytic";
 }
 
 export type RelationType = "answers" | "extends" | "cross_applies" | "turns";
@@ -239,8 +258,19 @@ export function computeCoverage(graph: RoundGraph, target: SpeechId, draft: Draf
     for (const t of d.targets) decided.set(t, d);
   }
 
+  // An alias (the same argument recorded twice, e.g. typed notes and their doc) counts as its canonical unit.
+  const canonical = (id: string): string => {
+    let cur = id;
+    for (let i = 0; i < 5; i++) {
+      const next = argById.get(cur)?.sameAs;
+      if (!next || !argById.has(next)) break;
+      cur = next;
+    }
+    return cur;
+  };
   const bySection = new Map<string, { status: CoverageStatus; sections: string[] }>();
-  const mark = (argId: string, status: CoverageStatus, sectionId: string) => {
+  const mark = (rawId: string, status: CoverageStatus, sectionId: string) => {
+    const argId = canonical(rawId);
     const cur = bySection.get(argId);
     const rank: Record<CoverageStatus, number> = { answered: 5, grouped: 4, cross_applied: 3, conceded: 2, deprioritized: 1, uncertain: 0, unanswered: 0 };
     if (!cur) bySection.set(argId, { status, sections: [sectionId] });
@@ -256,14 +286,14 @@ export function computeCoverage(graph: RoundGraph, target: SpeechId, draft: Draf
   }
 
   const theirs = graph.args
-    .filter((a) => a.side !== SPEECHES[target].side && answerSpeeches.includes(a.speech) && isLive(a))
+    .filter((a) => a.side !== SPEECHES[target].side && answerSpeeches.includes(a.speech) && isLive(a) && canonical(a.id) === a.id)
     .sort((a, b) => (posById.get(a.positionId)?.order ?? 0) - (posById.get(b.positionId)?.order ?? 0) || a.order - b.order);
 
   const items: CoverageItem[] = theirs.map((arg) => {
     const position = posById.get(arg.positionId);
     const answersOurs = graph.relations
-      .filter((r) => r.status !== "rejected" && r.from === arg.id && (r.type === "answers" || r.type === "turns"))
-      .flatMap((r) => r.to)
+      .filter((r) => r.status !== "rejected" && canonical(r.from) === arg.id && (r.type === "answers" || r.type === "turns"))
+      .flatMap((r) => r.to.map(canonical))
       .filter((id) => argById.get(id)?.side === SPEECHES[target].side);
     const fromDraft = bySection.get(arg.id);
     const decision = decided.get(arg.id) ?? decided.get(arg.positionId);
@@ -277,7 +307,11 @@ export function computeCoverage(graph: RoundGraph, target: SpeechId, draft: Draf
     } else if (decision && decision.kind === "deprioritize") {
       status = "deprioritized";
       note = decision.reason || undefined;
-    } else if (arg.delivery === "uncertain" || (arg.provenance.type === "ai_inferred" && arg.provenance.confidence < LOW_CONFIDENCE)) {
+    } else if (
+      arg.delivery === "uncertain" ||
+      (arg.provenance.type === "ai_inferred" && arg.provenance.confidence < LOW_CONFIDENCE) ||
+      (arg.provenance.type === "heard" && arg.provenance.confidence !== undefined && arg.provenance.confidence < LOW_CONFIDENCE)
+    ) {
       status = "uncertain";
       note = arg.delivery === "uncertain" ? "Not sure this was read." : "The system's reading of this argument is low-confidence; confirm it.";
     } else {

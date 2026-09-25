@@ -11,6 +11,7 @@ import type { LanguageModel } from "ai";
 
 export type AiTask =
   | "flow_interpret" // roles + response links for a speech doc
+  | "flow_extract" // typed notes / transcript lines → flow arguments (quote-checked)
   | "speech_draft" // full speech from flow + evidence
   | "speech_draft_fast"
   | "section_revise" // targeted rewrites (clarify / reword / condense / strengthen)
@@ -63,6 +64,12 @@ export const REGISTRY: Record<AiTask, TaskConfig> = {
   flow_interpret: {
     primary: { model: MODELS.opus55, effort: "low", maxOutputTokens: 16000, firstChunkMs: 30000 },
     fallbacks: [{ model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 16000 }],
+  },
+  // Mid-round, latency-critical (target ≤ 10 s per update on a few new lines): fast model first; every
+  // output is quote-checked in code (src/domain/flow-extract.ts). Benchmarked by scripts/bench/flow-extract.ts.
+  flow_extract: {
+    primary: { model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 6000, firstChunkMs: 12000 },
+    fallbacks: [{ model: MODELS.haiku45, maxOutputTokens: 6000, firstChunkMs: 12000 }, { model: MODELS.opus55, effort: "low", maxOutputTokens: 6000 }],
   },
   // Live benchmark 2026-09-25 (docs/evals/results/draft-latency-2ac-run1.json): Opus 5.5 at low
   // effort had the fastest first output (3.2 s) and completion (46 s), fit the time limit, and got

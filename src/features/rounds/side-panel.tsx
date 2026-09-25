@@ -93,6 +93,8 @@ function provenanceText(a: ArgUnit): string {
       return `AI interpretation (confidence ${Math.round(a.provenance.confidence * 100)}%) — review`;
     case "draft":
       return "Planned in a draft";
+    case "heard":
+      return `Heard in the ${a.provenance.speech}${a.provenance.source === "transcript" ? " (transcript)" : " (typed notes)"}: “${a.provenance.quote}”`;
   }
 }
 

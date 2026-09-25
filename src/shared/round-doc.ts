@@ -173,6 +173,10 @@ export function upsertPosition(doc: Y.Doc, p: Position): void {
   setFields(entityMap(doc, RD.positions), p.id, { ...p });
 }
 
+export function deletePosition(doc: Y.Doc, id: string): void {
+  setFields(entityMap(doc, RD.positions), id, { deleted: true });
+}
+
 export function upsertArg(doc: Y.Doc, a: Partial<ArgUnit> & { id: string }, opts: { byHuman?: boolean } = {}): void {
   const existing = entityMap(doc, RD.args).get(a.id);
   if (existing && existing.get("humanEdited") && !opts.byHuman) {
@@ -287,4 +291,147 @@ export function applyTextDiff(t: Y.Text, next: string): void {
     if (endCur > start) t.delete(start, endCur - start);
     if (endNext > start) t.insert(start, next.slice(start, endNext));
   });
+}
+
+// ---------------------------------------------------------------------------
+// "Heard" pads (A1): what the debaters typed while listening, one Y.Text per
+// speech and author (partners never split each other's lines), plus an
+// append-only transcript per speech (speech-to-text). Marks anchor each line
+// that has been put on the flow, using Yjs relative positions, so edits above
+// a line never lose track of it.
+// ---------------------------------------------------------------------------
+
+export type HeardSource = "typed" | "transcript";
+
+export interface HeardMark {
+  id: string;
+  speech: SpeechId;
+  textKey: string;
+  /** Y.RelativePosition JSON at the line's first and last character */
+  start: unknown;
+  end: unknown;
+  /** hash of the line's text when it was flowed; a different hash now means the line was edited */
+  quoteHash: string;
+  kind: "args" | "same_as" | "not_argument";
+  argIds: string[];
+  /** for not_argument: roadmap, header, filler, question, … */
+  category: string;
+  opId: string | null;
+  by: string;
+}
+
+export interface HeardLine {
+  textKey: string;
+  source: HeardSource;
+  /** 0-based line number within its pad */
+  line: number;
+  from: number;
+  to: number;
+  text: string;
+  status: "unflowed" | "flowed" | "changed";
+  markIds: string[];
+}
+
+export const HEARD_MARKS = "heard_marks";
+export const heardKey = (speech: SpeechId, authorKey: string) => `heard:${speech}:${authorKey}`;
+export const transcriptKey = (speech: SpeechId) => `transcript:${speech}`;
+
+export function heardText(doc: Y.Doc, speech: SpeechId, authorKey: string): Y.Text {
+  return doc.getText(heardKey(speech, authorKey));
+}
+
+export function transcriptText(doc: Y.Doc, speech: SpeechId): Y.Text {
+  return doc.getText(transcriptKey(speech));
+}
+
+/** All pads for a speech that exist in the document (typed pads by author, then the transcript). */
+export function heardTextKeys(doc: Y.Doc, speech: SpeechId): string[] {
+  const keys = [...doc.share.keys()].filter((k) => k.startsWith(`heard:${speech}:`)).sort();
+  if (doc.share.has(transcriptKey(speech))) keys.push(transcriptKey(speech));
+  return keys;
+}
+
+export function heardAuthorOf(textKey: string): string | null {
+  return textKey.startsWith("heard:") ? textKey.split(":").slice(2).join(":") : null;
+}
+
+/** Normalized hash of a line (case and spacing don't count as edits). */
+export function lineHash(text: string): string {
+  const s = text.toLowerCase().replace(/\s+/g, " ").trim();
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0;
+  return h.toString(16).padStart(8, "0");
+}
+
+export function readHeardMarks(doc: Y.Doc): HeardMark[] {
+  return [...(doc.getMap(HEARD_MARKS) as Y.Map<HeardMark & { deleted?: boolean }>).values()].filter((m) => m && !m.deleted);
+}
+
+function absIndex(doc: Y.Doc, rel: unknown): number | null {
+  try {
+    const abs = Y.createAbsolutePositionFromRelativePosition(Y.createRelativePositionFromJSON(rel as never), doc);
+    return abs ? abs.index : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Anchors for a line (first and last character) and the deterministic id of its mark. */
+export function lineAnchors(doc: Y.Doc, speech: SpeechId, textKey: string, from: number, to: number): { id: string; start: unknown; end: unknown } {
+  const t = doc.getText(textKey);
+  const start = Y.relativePositionToJSON(Y.createRelativePositionFromTypeIndex(t, from, 0));
+  const end = Y.relativePositionToJSON(Y.createRelativePositionFromTypeIndex(t, Math.max(from, to), -1));
+  return { id: `hm_${lineHash(`${speech}|${textKey}|${JSON.stringify(start)}|${JSON.stringify(end)}`)}`, start, end };
+}
+
+export function putHeardMark(doc: Y.Doc, mark: HeardMark): void {
+  doc.getMap(HEARD_MARKS).set(mark.id, mark);
+}
+
+export function deleteHeardMark(doc: Y.Doc, id: string): void {
+  const m = doc.getMap(HEARD_MARKS) as Y.Map<HeardMark & { deleted?: boolean }>;
+  const cur = m.get(id);
+  if (cur) m.set(id, { ...cur, deleted: true });
+}
+
+/** Every non-empty line of every pad for a speech, with whether it is on the flow yet. */
+export function heardLines(doc: Y.Doc, speech: SpeechId): HeardLine[] {
+  const marks = readHeardMarks(doc).filter((m) => m.speech === speech);
+  const out: HeardLine[] = [];
+  for (const key of heardTextKeys(doc, speech)) {
+    const text = doc.getText(key).toString();
+    const resolved = marks
+      .filter((m) => m.textKey === key)
+      .map((m) => ({ m, start: absIndex(doc, m.start), end: absIndex(doc, m.end) }))
+      .filter((r): r is { m: HeardMark; start: number; end: number } => r.start !== null && r.end !== null);
+    let offset = 0;
+    text.split("\n").forEach((raw, line) => {
+      const from = offset;
+      const to = offset + raw.length;
+      offset = to + 1;
+      const trimmed = raw.trim();
+      if (!trimmed) return;
+      // Mark ranges are [start, end) like line ranges; the end anchor sits at the line's last character.
+      const hits = resolved.filter((r) => r.start < to && r.end > from);
+      const status = !hits.length ? "unflowed" : hits.every((h) => h.m.quoteHash === lineHash(trimmed)) ? "flowed" : "changed";
+      out.push({ textKey: key, source: key.startsWith("transcript:") ? "transcript" : "typed", line, from, to, text: trimmed, status, markIds: hits.map((h) => h.m.id) });
+    });
+  }
+  return out;
+}
+
+/**
+ * Speeches that have happened as far as the record shows: a slot status, notes or
+ * heard lines, arguments on the flow, or (when the caller knows) an uploaded doc.
+ * One definition for the client and the server.
+ */
+export function recordedSpeeches(doc: Y.Doc, withDocs: Iterable<SpeechId> = []): Set<SpeechId> {
+  const slots = readSlots(doc);
+  const out = new Set<SpeechId>(withDocs);
+  for (const s of SPEECH_IDS) {
+    if (slots[s].status !== "not_started" || slots[s].notes.trim()) out.add(s);
+    if (heardTextKeys(doc, s).some((k) => doc.getText(k).toString().trim())) out.add(s);
+  }
+  for (const a of readArgs(doc)) if (a.delivery !== "planned") out.add(a.speech);
+  return out;
 }
