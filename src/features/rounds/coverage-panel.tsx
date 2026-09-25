@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/client/api";
 import type * as Y from "yjs";
 import { AlertTriangle, ChevronDown, ChevronRight, CircleDashed, Info, Sparkles } from "lucide-react";
 import { Badge, Button, cn, EmptyState, Tooltip } from "@/components/ui";
@@ -102,7 +104,12 @@ export function CoveragePanel({ round, doc, graph, recorded, slots, aiEnabled }:
   if (!speech) return null;
 
   if (!ours) {
-    return <OpponentSpeechSummary speech={speech} graph={graph} slots={slots} recorded={recorded} />;
+    return (
+      <>
+        <OpponentHistory round={round} />
+        <OpponentSpeechSummary speech={speech} graph={graph} slots={slots} recorded={recorded} />
+      </>
+    );
   }
 
   const groups = new Map<string, CoverageItem[]>();
@@ -114,6 +121,7 @@ export function CoveragePanel({ round, doc, graph, recorded, slots, aiEnabled }:
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      <OpponentHistory round={round} />
       <div className="border-b border-line px-3 py-2.5">
         <div className="text-[13px] font-semibold">What the {speech} must answer</div>
         <div className="text-xs text-muted">{answerFrom.length ? `From the ${answerFrom.join(" + ")}` : "The 1AC starts the round."}</div>
@@ -263,6 +271,61 @@ export function CoveragePanel({ round, doc, graph, recorded, slots, aiEnabled }:
           </div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+interface PastRound {
+  roundId: string;
+  tournament: string;
+  roundLabel: string;
+  when: string;
+  theirSide: "aff" | "neg";
+  positions: { name: string; kind: string; args: number; cites: string[] }[];
+}
+
+/** Opponent memory: what this opponent ran against the team before, for prep. Hidden when there's nothing. */
+function OpponentHistory({ round }: { round: RoundRecord }) {
+  const [open, setOpen] = useState(false);
+  const q = useQuery({ queryKey: ["opponent-history", round.id], queryFn: () => api<{ opponent: string; rounds: PastRound[] }>(`/api/rounds/${round.id}/opponent-history`), staleTime: 300_000 });
+  const past = q.data?.rounds.filter((r) => r.positions.length) ?? [];
+  if (!past.length) return null;
+  return (
+    <div className="border-b border-line">
+      <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-1.5 px-3 py-2 text-left text-[12.5px] hover:bg-hover" aria-expanded={open}>
+        {open ? <ChevronDown className="size-3.5 text-faint" /> : <ChevronRight className="size-3.5 text-faint" />}
+        <span className="flex-1">
+          {q.data!.opponent} before: {past.length} round{past.length === 1 ? "" : "s"}
+        </span>
+      </button>
+      {open ? (
+        <ul className="space-y-2 px-3 pb-2.5">
+          {past.map((r) => (
+            <li key={r.roundId} className="text-[12px]">
+              <div className="font-medium">
+                {[r.tournament, r.roundLabel].filter(Boolean).join(" · ") || new Date(r.when).toLocaleDateString()} — they were {r.theirSide.toUpperCase()}
+              </div>
+              <ul className="mt-0.5 space-y-0.5">
+                {r.positions.map((p, i) => (
+                  <li key={i} className="flex items-center gap-1.5 text-muted">
+                    <span className="min-w-0 flex-1 truncate">
+                      {p.name} <span className="text-faint">({p.kind}{p.cites.length ? `; ${p.cites.slice(0, 3).join(", ")}` : ""})</span>
+                    </span>
+                    <a
+                      href={`/library/build?kind=answers&side=${round.ourSide}&argument=${encodeURIComponent(`${p.name}${p.cites.length ? ` (their evidence: ${p.cites.join(", ")})` : ""}`)}&target=${encodeURIComponent(q.data!.opponent)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="shrink-0 text-[11px] text-accent hover:underline"
+                    >
+                      Build answers
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }

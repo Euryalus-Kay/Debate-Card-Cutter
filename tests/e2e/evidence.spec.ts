@@ -72,3 +72,17 @@ test("a block from an evidence file goes into the speech with its cards", async 
   await expect(editor(A.page).locator("[data-card]").first()).toBeVisible();
   await A.context.close();
 });
+
+test("opponent memory: a new round against the same team shows what they ran before", async ({ browser }) => {
+  const A = await signedIn(browser, "a");
+  const team = await teamOf(A.page.request);
+  await roundWithDocs(A.page.request, team, `memory-1-${Date.now()}`);
+  const second = await roundWithDocs(A.page.request, team, `memory-2-${Date.now()}`);
+  await A.page.goto(`/rounds/${second}?speech=2AC`);
+  const toggle = A.page.getByRole("button", { name: /E2E before: \d+ rounds?/ });
+  await expect(toggle).toBeVisible({ timeout: 20_000 });
+  await toggle.click();
+  await expect(A.page.getByText("States CP").first()).toBeVisible();
+  await expect(A.page.getByRole("link", { name: "Build answers" }).first()).toHaveAttribute("href", /\/library\/build\?kind=answers&side=aff/);
+  await A.context.close();
+});
