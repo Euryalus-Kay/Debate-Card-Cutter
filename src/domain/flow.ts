@@ -285,8 +285,9 @@ export function computeCoverage(graph: RoundGraph, target: SpeechId, draft: Draf
     for (const t of s.targets) mark(t, status, s.sectionId);
   }
 
+  const notMine = blockExclusions(graph, target);
   const theirs = graph.args
-    .filter((a) => a.side !== SPEECHES[target].side && answerSpeeches.includes(a.speech) && isLive(a) && canonical(a.id) === a.id)
+    .filter((a) => a.side !== SPEECHES[target].side && answerSpeeches.includes(a.speech) && isLive(a) && canonical(a.id) === a.id && !notMine.has(a.positionId))
     .sort((a, b) => (posById.get(a.positionId)?.order ?? 0) - (posById.get(b.positionId)?.order ?? 0) || a.order - b.order);
 
   const items: CoverageItem[] = theirs.map((arg) => {
@@ -540,4 +541,72 @@ export function liveOffenseOnKickedPositions(graph: RoundGraph, ourSide: Side, t
 export function positionsAvailableFor2NR(graph: RoundGraph): Position[] {
   const inBlock = new Set(graph.args.filter((a) => a.side === "neg" && (a.speech === "2NC" || a.speech === "1NR") && isLive(a)).map((a) => a.positionId));
   return graph.positions.filter((p) => inBlock.has(p.id));
+}
+
+// ---------------------------------------------------------------------------
+// Their drops (A2): our arguments the other team never answered.
+// ---------------------------------------------------------------------------
+
+export interface TheirDrop {
+  arg: ArgUnit;
+  position?: Position;
+  /** COV-5: a "they dropped it" claim is safe only with a confirmed record of both sides */
+  safeToClaim: boolean;
+  reason: string;
+}
+
+/**
+ * Our arguments (from speeches the target extends) that no argument in the other
+ * team's later speeches answered. Offense for the target to extend. Gated by
+ * COV-5: our argument was delivered, every responding speech has a record, no
+ * answer/turn/cross-application exists, and it carries a warrant (card or reason).
+ */
+export function droppedByThem(graph: RoundGraph, target: SpeechId, recordedSpeeches: Set<SpeechId>): TheirDrop[] {
+  const mySide = SPEECHES[target].side;
+  const posById = new Map(graph.positions.map((p) => [p.id, p]));
+  const argById = new Map(graph.args.map((a) => [a.id, a]));
+  const canonical = (id: string) => argById.get(id)?.sameAs ?? id;
+  const answered = new Set(
+    graph.relations
+      .filter((r) => r.status !== "rejected" && (r.type === "answers" || r.type === "turns" || r.type === "cross_applies"))
+      .filter((r) => argById.get(r.from)?.side !== mySide)
+      .flatMap((r) => r.to.map(canonical)),
+  );
+  const kicked = new Set(graph.decisions.filter((d) => d.kind === "kick").flatMap((d) => d.targets));
+  const extendable = new Set(speechesToExtend(target));
+  return graph.args
+    .filter((a) => a.side === mySide && extendable.has(a.speech) && isLive(a) && !a.sameAs && !answered.has(a.id) && !kicked.has(a.positionId))
+    .map((arg) => {
+      const responders = SPEECH_ORDER.filter((s) => SPEECHES[s].side !== mySide && isBefore(arg.speech, s) && isBefore(s, target));
+      const missing = responders.filter((s) => !recordedSpeeches.has(s));
+      const hasWarrant = arg.cardIds.length > 0 || !!arg.cites?.length || !!arg.warrant || arg.text.split(/\s+/).length >= 8;
+      const delivered = arg.delivery === "confirmed";
+      const safeToClaim = delivered && responders.length > 0 && missing.length === 0 && hasWarrant;
+      const reason = !responders.length
+        ? "They haven't spoken since."
+        : missing.length
+          ? `No record of their ${missing.join(" and ")}, so it may have been answered.`
+          : !delivered
+            ? "Not confirmed as delivered."
+            : !hasWarrant
+              ? "It needs a warrant to be worth extending."
+              : `Unanswered in their ${responders.join(" and ")}.`;
+      return { arg, position: posById.get(arg.positionId), safeToClaim, reason };
+    });
+}
+
+const SPEECH_ORDER: SpeechId[] = ["1AC", "1NC", "2AC", "2NC", "1NR", "1AR", "2NR", "2AR"];
+
+/**
+ * The negative block splits positions between the 2NC and 1NR. Positions the team
+ * assigned to the other speech (a "go_for" decision on that speech), or that the
+ * 2NC already covered (for the 1NR), are not this speech's job.
+ */
+export function blockExclusions(graph: RoundGraph, target: SpeechId): Set<string> {
+  const out = new Set<string>();
+  if (target !== "2NC" && target !== "1NR") return out;
+  const other: SpeechId = target === "2NC" ? "1NR" : "2NC";
+  for (const d of graph.decisions) if (d.speech === other && d.kind === "go_for") for (const t of d.targets) out.add(graph.positions.some((p) => p.id === t) ? t : graph.args.find((a) => a.id === t)?.positionId ?? t);
+  if (target === "1NR") for (const a of graph.args) if (a.speech === "2NC" && isLive(a) && a.delivery !== "planned") out.add(a.positionId);
+  return out;
 }

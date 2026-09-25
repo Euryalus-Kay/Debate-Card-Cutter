@@ -3,13 +3,14 @@
 import { NodeViewContent, NodeViewWrapper, type ReactNodeViewProps } from "@tiptap/react";
 import { AlertTriangle, ExternalLink, Highlighter, Lock, LockOpen, MoreHorizontal, Sparkles, ShieldCheck, ShieldAlert, ShieldQuestion, FileWarning, Link2 } from "lucide-react";
 import { Badge, cn, toast, Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger, Tooltip } from "@/components/ui";
-import { BYPASS_LOCKS } from "@/shared/editor/schema";
+import { BYPASS_LOCKS, type SectionRelation } from "@/shared/editor/schema";
 import { pmCardBody, sectionLoad, draftFromPM, type PMNodeJSON, type DraftSection } from "@/shared/draft-model";
 import { countWords, estimate, formatClock } from "@/domain/timing";
 import { readAloud } from "@/domain/card";
 import { lintCard, worstSeverity } from "@/domain/lint";
 import { emptyCitation } from "@/domain/citation";
 import { useEditorRound } from "./context";
+import { TargetPicker } from "./target-picker";
 import { useWorkspace } from "../store";
 import { useState } from "react";
 import { applyCardMarks } from "../proposals";
@@ -70,6 +71,7 @@ export function SectionView(props: ReactNodeViewProps) {
             </button>
           );
         })}
+        {!locked ? <TargetPicker editor={editor} getPos={getPos} graph={ctx.graph} speech={ws.speech} targets={targets} relation={relation as SectionRelation} /> : null}
         {attrs.origin === "ai" ? (
           <Tooltip content="Written by AI from your round materials. Review before reading.">
             <span className="flex items-center gap-0.5 text-info">

@@ -10,8 +10,9 @@ import { documents, docVersions, rounds } from "@/server/db/schema";
 import { applyServerChange, loadDoc, saveVersion } from "@/server/docs/store";
 import { DRAFT_FRAGMENT, draftSchema } from "@/shared/editor/schema";
 import { allSections, draftFromPM, type Draft, type DraftItem, type PMNodeJSON } from "@/shared/draft-model";
-import { deleteArg, readArgs, readRelations, upsertArg, upsertRelation, setRelationStatus, updateSlot } from "@/shared/round-doc";
-import type { ArgRole, ArgUnit, RelationType } from "@/domain/flow";
+import { deleteArg, deletePosition, readArgs, readPositions, readRelations, upsertArg, upsertPosition, upsertRelation, setRelationStatus, updateSlot } from "@/shared/round-doc";
+import type { ArgRole, ArgUnit, Position, RelationType } from "@/domain/flow";
+import { guessKind, matchPosition } from "@/domain/positions";
 import { SPEECHES, type SpeechId } from "@/domain/format";
 import { buildDocx, type ExportNode } from "@/server/export/docx-writer";
 import { newId } from "@/server/ids";
@@ -42,12 +43,36 @@ export async function deliverDraft(docId: string, userId: string): Promise<{ ver
   const { doc: stateDoc } = await loadDoc(round.stateDocId);
   const argsNow = readArgs(stateDoc);
   const posOf = new Map(argsNow.map((a) => [a.id, a.positionId]));
+  // New positions this speech introduces (a 1NC off-case, an add-on): top-level position sections that
+  // answer nothing. They go on the flow with stable ids; their child sections belong to them.
+  const positionsNow = readPositions(stateDoc);
+  const newPositions: Position[] = [];
+  const inherited = new Map<string, string>();
+  const walk = (items: DraftItem[], parentPos: string | null) => {
+    for (const it of items) {
+      if (it.type !== "section") continue;
+      const s = it.section;
+      let pos = parentPos;
+      if (s.kind === "position" && !s.targets.length && s.title.trim()) {
+        const existing = s.positionId ?? matchPosition(s.title, positionsNow.filter((p) => p.side === SPEECHES[speech].side))?.id;
+        if (existing) pos = existing;
+        else {
+          const id = `dp_${docId.slice(-8)}_${s.id}`;
+          newPositions.push({ id, kind: guessKind(s.title), name: s.title.trim().slice(0, 120), side: SPEECHES[speech].side, introducedIn: speech, order: positionsNow.length + newPositions.length + 1 });
+          pos = id;
+        }
+      }
+      if (pos) inherited.set(s.id, pos);
+      walk(s.items, pos);
+    }
+  };
+  walk(draft.items, null);
   const sections = allSections(draft).filter((s) => s.kind !== "position" || s.targets.length);
   const units: { unit: ArgUnit; rel?: { type: RelationType; to: string[]; grouped: boolean } }[] = [];
   // Numbering restarts on each position, the way a flow is numbered ("2AC 1, 2, 3" on each sheet).
   const perPosition = new Map<string, number>();
   for (const s of sections) {
-    const positionId = s.positionId ?? (s.targets[0] ? posOf.get(s.targets[0]) : undefined);
+    const positionId = s.positionId ?? (s.targets[0] ? posOf.get(s.targets[0]) : undefined) ?? inherited.get(s.id);
     if (!positionId) continue;
     const order = (perPosition.get(positionId) ?? 0) + 1;
     perPosition.set(positionId, order);
@@ -73,8 +98,11 @@ export async function deliverDraft(docId: string, userId: string): Promise<{ ver
   await applyServerChange(
     round.stateDocId,
     (doc: Y.Doc) => {
-      // Replace units from any previous delivery of this draft.
+      // Replace units (and new positions) from any previous delivery of this draft.
       for (const a of readArgs(doc)) if (a.provenance.type === "draft" && a.provenance.draftId === docId && !units.some((u) => u.unit.id === a.id)) deleteArg(doc, a.id);
+      const prefix = `dp_${docId.slice(-8)}_`;
+      for (const p of readPositions(doc)) if (p.id.startsWith(prefix) && !newPositions.some((n) => n.id === p.id)) deletePosition(doc, p.id);
+      for (const p of newPositions) upsertPosition(doc, p);
       const rels = readRelations(doc);
       for (const { unit, rel } of units) {
         upsertArg(doc, unit);

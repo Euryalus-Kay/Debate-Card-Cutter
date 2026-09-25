@@ -4,13 +4,14 @@ import { useMemo, useState } from "react";
 import type * as Y from "yjs";
 import { AlertTriangle, ChevronDown, ChevronRight, CircleDashed, Info } from "lucide-react";
 import { Badge, cn, EmptyState, Tooltip } from "@/components/ui";
-import { computeCoverage, detectConflicts, liveOffenseOnKickedPositions, possiblyKickedPositions, POSITION_KIND_LABEL, type ArgUnit, type CoverageItem, type CoverageStatus, type RoundGraph } from "@/domain/flow";
+import { detectConflicts, liveOffenseOnKickedPositions, possiblyKickedPositions, POSITION_KIND_LABEL, type ArgUnit, type CoverageItem, type CoverageStatus, type RoundGraph } from "@/domain/flow";
 import { SPEECHES, speechesToAnswer, validatePrepContext, type SpeechId, SPEECH_IDS } from "@/domain/format";
 import type { SlotRecord } from "@/shared/round-doc";
 import { useDocSync } from "@/client/sync/hooks";
 import type { RoundRecord } from "./types";
 import { useWorkspace } from "./store";
-import { draftTargets, useDraft } from "./draft-hooks";
+import { useDraft } from "./draft-hooks";
+import { checkSections, checkSpeech } from "@/domain/speech-checks";
 
 export const STATUS_META: Record<CoverageStatus, { label: string; tone: "ok" | "teal" | "info" | "neutral" | "bad" | "warn"; hint: string }> = {
   answered: { label: "Answered", tone: "ok", hint: "A section of your draft answers this argument directly." },
@@ -28,6 +29,7 @@ export function ArgLine({ arg, compact }: { arg: ArgUnit; compact?: boolean }) {
       <div className={cn("text-[13px] leading-snug", compact && "line-clamp-2")}>
         {arg.label ? <span className="mr-1 font-semibold text-muted">{arg.label}.</span> : null}
         {arg.text}
+        {arg.evidence === "analytic" ? <span className="ml-1.5 rounded bg-sunken px-1 text-[10.5px] font-medium text-muted">analytic</span> : null}
       </div>
       {arg.cites?.length ? <div className="mt-0.5 truncate text-[11.5px] text-faint">{arg.cites.join(", ")}</div> : null}
     </div>
@@ -41,10 +43,12 @@ export function CoveragePanel({ round, graph, recorded, slots }: { round: RoundR
   const draft = useDraft(draftSync?.doc);
   const ours = speech ? SPEECHES[speech].side === round.ourSide : false;
 
-  const report = useMemo(() => {
+  const checked = useMemo(() => {
     if (!graph || !speech || !ours) return null;
-    return computeCoverage(graph, speech, draftTargets(draft), recorded);
+    return checkSpeech({ graph, speech, sections: checkSections(draft), recorded });
   }, [graph, speech, ours, draft, recorded]);
+  const report = checked?.coverage ?? null;
+  const [showAllChecks, setShowAllChecks] = useState(false);
 
   const issues = useMemo(() => {
     if (!speech || !slots) return [];
@@ -125,6 +129,31 @@ export function CoveragePanel({ round, graph, recorded, slots }: { round: RoundR
             ))}
           </div>
         ) : null}
+        {checked?.checks.length ? (
+          <div className="space-y-1.5 border-b border-line p-3">
+            <div className="flex items-center text-[11px] font-semibold uppercase tracking-wide text-faint">
+              Speech checks
+              <span className="ml-auto font-normal normal-case tracking-normal">
+                {checked.checks.filter((c) => c.severity === "critical").length} critical · {checked.checks.length} total
+              </span>
+            </div>
+            {(showAllChecks ? checked.checks : checked.checks.slice(0, 5)).map((c, k) => (
+              <button
+                key={k}
+                onClick={() => (c.argIds?.[0] ? ws.set({ selectedArgId: c.argIds[0], right: "details" }) : undefined)}
+                className={cn("block w-full rounded-md px-2 py-1.5 text-left text-xs", c.severity === "critical" ? "bg-bad-soft text-bad" : c.severity === "warning" ? "bg-warn-soft text-warn" : "bg-sunken text-muted")}
+              >
+                {c.severity === "critical" ? <AlertTriangle className="mr-1 inline size-3.5 align-[-2px]" /> : null}
+                {c.message}
+              </button>
+            ))}
+            {checked.checks.length > 5 ? (
+              <button onClick={() => setShowAllChecks(!showAllChecks)} className="text-[11.5px] text-accent-text hover:underline">
+                {showAllChecks ? "Show fewer" : `Show all ${checked.checks.length}`}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         {conflicts.length ? (
           <div className="space-y-1.5 border-b border-line p-3">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-faint">Strategy conflicts</div>
@@ -163,6 +192,27 @@ export function CoveragePanel({ round, graph, recorded, slots }: { round: RoundR
               <div key={k.position.id}>
                 {k.position.name} {k.certain ? "(appears kicked)" : "(unclear — their speech record is incomplete)"}
               </div>
+            ))}
+          </div>
+        ) : null}
+        {checked?.theirDrops.length ? (
+          <div className="border-t border-line p-3">
+            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-faint">They dropped (extend as offense)</div>
+            {checked.theirDrops.map((d) => (
+              <button key={d.arg.id} onClick={() => ws.set({ selectedArgId: d.arg.id, right: "details" })} className="mb-1 block w-full rounded-md px-2 py-1.5 text-left hover:bg-hover">
+                <div className="flex items-center gap-1.5">
+                  <Tooltip content={d.reason}>
+                    <span>
+                      <Badge tone={d.safeToClaim ? "ok" : "neutral"}>{d.safeToClaim ? "Dropped" : "Maybe dropped"}</Badge>
+                    </span>
+                  </Tooltip>
+                  <span className="text-[11px] text-faint">
+                    {d.arg.speech} · {d.position?.name ?? ""}
+                  </span>
+                </div>
+                <ArgLine arg={d.arg} compact />
+                {!d.safeToClaim ? <div className="mt-0.5 text-[11px] text-muted">{d.reason}</div> : null}
+              </button>
             ))}
           </div>
         ) : null}

@@ -17,6 +17,8 @@ import { cardLoad } from "@/domain/card";
 import { acceptRewrites, allocateWordChange } from "@/domain/length-plan";
 import { allSections, itemLoad, sectionContentHash, type DraftItem, type DraftSection, type PMNodeJSON } from "@/shared/draft-model";
 import { buildRoundContext, renderDraft, type RoundContext } from "./context";
+import { draftTargetsFromDraft } from "./draft-targets";
+import { checkSections, checkSpeech, type CheckSection, type SpeechCheck } from "@/domain/speech-checks";
 import { GLOBAL_RULES, SPEECH_RULES } from "./speech-rules";
 import { runStructured, type RunResult } from "./run";
 import { MODELS } from "./models";
@@ -49,6 +51,8 @@ export interface Validation {
   sectionSeconds: Record<string, number>;
   /** set when the draft was automatically trimmed or filled to time */
   lengthAdjust?: LengthAdjust;
+  /** speech checks on the speech as it will stand (existing sections + this proposal) */
+  checks?: SpeechCheck[];
 }
 
 export interface LengthAdjust {
@@ -99,7 +103,11 @@ export function validateDraft(out: SpeechDraftOutput, ctx: RoundContext, speech:
   const targets: DraftTarget[] = sections
     .filter((s) => s.relation !== "none" && s.relation !== "new")
     .map((s) => ({ sectionId: s.ref, title: s.title, relation: s.relation as DraftTarget["relation"], targets: s.targets }));
-  const cov = SPEECHES[speech].side === ourSide ? computeCoverage(ctx.graph, speech, targets, ctx.recorded) : null;
+  // Coverage and checks look at the speech as it will stand: what's already in the draft plus this proposal.
+  const existing = ctx.draft ? draftTargetsFromDraft(ctx.draft) : [];
+  const cov = SPEECHES[speech].side === ourSide ? computeCoverage(ctx.graph, speech, [...existing, ...targets], ctx.recorded) : null;
+  const proposalSections: CheckSection[] = sections.map((s) => ({ id: s.ref, title: s.title, relation: s.relation, targets: s.targets, role: s.role || null, crossApplyFrom: s.crossApplyFrom || null, analytic: s.analytic, cardCites: s.cardIds.map((c) => ctx.cards.find((x) => x.id === c)?.shortCite ?? ""), parentId: s.parentRef || null, kind: s.kind }));
+  const checks = SPEECHES[speech].side === ourSide ? checkSpeech({ graph: ctx.graph, speech, sections: [...checkSections(ctx.draft), ...proposalSections], recorded: ctx.recorded }).checks : [];
   const omitted = new Set(out.omitted.flatMap((o) => o.targets));
   const unaddressed = (cov?.items ?? []).filter((i) => i.status === "unanswered" && !omitted.has(i.arg.id)).map((i) => ({ id: i.arg.id, text: i.arg.text }));
   const newInRebuttal = isRebuttal(speech) ? sections.filter((s) => s.relation === "new").map((s) => s.title) : [];
@@ -116,7 +124,7 @@ export function validateDraft(out: SpeechDraftOutput, ctx: RoundContext, speech:
   const unsupportedDropClaims = unconfirmed.length ? sections.filter((s) => DROP.test(s.analytic)).map((s) => s.title) : [];
   return {
     output: { ...out, sections },
-    validation: { unsupportedDropClaims, droppedTargets, droppedCards, unaddressed, newInRebuttal, positionsNotInBlock, estimatedSeconds: estimated, limitSeconds: ctx.limitSeconds, sectionSeconds },
+    validation: { unsupportedDropClaims, droppedTargets, droppedCards, unaddressed, newInRebuttal, positionsNotInBlock, estimatedSeconds: estimated, limitSeconds: ctx.limitSeconds, sectionSeconds, checks },
   };
 }
 
