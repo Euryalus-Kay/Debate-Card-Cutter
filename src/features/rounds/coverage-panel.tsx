@@ -6,7 +6,8 @@ import { AlertTriangle, ChevronDown, ChevronRight, CircleDashed, Info, Sparkles 
 import { Badge, Button, cn, EmptyState, Tooltip } from "@/components/ui";
 import { detectConflicts, liveOffenseOnKickedPositions, possiblyKickedPositions, POSITION_KIND_LABEL, type ArgUnit, type CoverageItem, type CoverageStatus, type RoundGraph } from "@/domain/flow";
 import { getFormat, SPEECHES, speechesToAnswer, validatePrepContext, type SpeechId, SPEECH_IDS } from "@/domain/format";
-import { prepUsedMs, readTimers, type SlotRecord } from "@/shared/round-doc";
+import { deleteDecision, prepUsedMs, readTimers, upsertDecision, type SlotRecord } from "@/shared/round-doc";
+import { lastRebuttalScores } from "@/domain/last-rebuttal";
 import { useDocSync, useYDocValue } from "@/client/sync/hooks";
 import { prepGuide } from "@/domain/analytic-checks";
 import { formatClock } from "@/domain/timing";
@@ -193,6 +194,7 @@ export function CoveragePanel({ round, doc, graph, recorded, slots, aiEnabled }:
             ))}
           </div>
         ) : null}
+        {(speech === "2NR" || speech === "2AR") && graph && doc ? <GoFor speech={speech} graph={graph} recorded={recorded} doc={doc} /> : null}
         {!report?.items.length ? (
           <EmptyState icon={<CircleDashed className="size-7" />} title={speech === "1AC" || speech === "1NC" ? "Nothing to answer yet" : "No opponent arguments recorded"}>
             {speech === "1AC"
@@ -261,6 +263,43 @@ export function CoveragePanel({ round, doc, graph, recorded, slots, aiEnabled }:
           </div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/** Last rebuttal: which positions are winnable, from the flow. The team decides; "Go for it" records it for the draft. */
+function GoFor({ speech, graph, recorded, doc }: { speech: "2NR" | "2AR"; graph: RoundGraph; recorded: Set<SpeechId>; doc: Y.Doc }) {
+  const scores = useMemo(() => lastRebuttalScores(graph, speech, recorded), [graph, speech, recorded]);
+  const chosen = new Set(graph.decisions.filter((d) => d.speech === speech && d.kind === "go_for").flatMap((d) => d.targets));
+  if (!scores.length) return null;
+  const best = scores.find((x) => x.available);
+  return (
+    <div className="border-b border-line p-3">
+      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-faint">What to go for</div>
+      <ul className="space-y-1.5">
+        {scores.map((x) => {
+          const id = `go_${speech}_${x.position.id}`;
+          const on = chosen.has(x.position.id);
+          return (
+            <li key={x.position.id} className={cn("rounded-md px-2 py-1.5 text-[12.5px]", on ? "bg-accent-soft/60" : x.available ? "bg-sunken" : "opacity-60")}>
+              <div className="flex items-center gap-1.5">
+                <span className="min-w-0 flex-1 truncate font-semibold">{x.position.name}</span>
+                {x === best && !on ? <Badge tone="ok">strongest</Badge> : null}
+                {x.theirTurns.length ? <Badge tone="bad">{x.theirTurns.length} turn{x.theirTurns.length === 1 ? "" : "s"} open</Badge> : null}
+                {x.available ? (
+                  <Button size="xs" variant={on ? "primary" : "ghost"} onClick={() => doc.transact(() => (on ? deleteDecision(doc, id) : upsertDecision(doc, { id, speech, kind: "go_for", targets: [x.position.id], reason: "Chosen from the last-rebuttal scorecard" })))}>
+                    {on ? "Going for it" : "Go for it"}
+                  </Button>
+                ) : null}
+              </div>
+              <div className="mt-0.5 text-[11.5px] text-muted">
+                {x.ours.length} of your arguments on it{x.cards ? `, ${x.cards} with cards` : ""}. {x.reasons.join(" ")}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="mt-1.5 text-[11px] text-faint">From the flow only: what&apos;s still yours, what they dropped, and what of theirs is still open. The draft follows the positions you choose.</p>
     </div>
   );
 }
