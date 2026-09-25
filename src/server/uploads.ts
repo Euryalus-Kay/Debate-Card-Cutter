@@ -60,6 +60,22 @@ export interface IngestResult {
   plainText?: string;
 }
 
+/**
+ * A Verbatim file saved without its heading styles still has Verbatim's sizes: pockets 26 pt, hats 22 pt,
+ * blocks 16 pt (bold). Only when a file has no heading styles at all, bold lines at those sizes become
+ * headings again; tags (13 pt bold) are left to the tag rules.
+ */
+export function inferHeadingsFromSize(paragraphs: DocParagraph[]): DocParagraph[] {
+  if (paragraphs.some((p) => p.headingLevel > 0)) return paragraphs;
+  return paragraphs.map((p) => {
+    const runs = p.runs.filter((r) => r.text.trim());
+    if (!runs.length || p.text.length > 200 || !runs.every((r) => r.props.bold)) return p;
+    const size = Math.max(...runs.map((r) => r.props.size ?? 0)) / 2;
+    const level = size >= 24 ? 1 : size >= 20 ? 2 : size >= 15 ? 3 : 0;
+    return level ? { ...p, headingLevel: level as DocParagraph["headingLevel"] } : p;
+  });
+}
+
 export async function ingest(bytes: Uint8Array, fileName: string, kindHint?: UploadKind): Promise<IngestResult> {
   const kind = kindHint ?? sniffKind(bytes, fileName);
   if (!kind) throw new HttpError(415, "Unsupported file. Upload .docx, .pdf, or plain text. Legacy .doc files must be re-saved as .docx.");
@@ -70,7 +86,7 @@ export async function ingest(bytes: Uint8Array, fileName: string, kindHint?: Upl
   try {
     if (kind === "docx") {
       const parsed = parseDocx(bytes);
-      paragraphs = parsed.paragraphs;
+      paragraphs = inferHeadingsFromSize(parsed.paragraphs);
       warnings.push(...parsed.warnings);
     } else if (kind === "pdf") {
       const pdf = await extractPdf(bytes);

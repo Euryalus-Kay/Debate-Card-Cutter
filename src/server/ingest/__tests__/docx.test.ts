@@ -147,3 +147,28 @@ describe("tags pasted without the Tag style (synthetic)", () => {
     expect(s.items.filter((x) => x.kind === "card")).toHaveLength(1);
   });
 });
+
+describe("files saved without heading styles (synthetic)", () => {
+  const p = (index: number, text: string, opts: { h?: 0 | 1 | 2 | 3 | 4; bold?: boolean; size?: number } = {}): DocParagraph => ({
+    index,
+    headingLevel: opts.h ?? 0,
+    inTable: false,
+    text,
+    runs: [{ text, props: { bold: opts.bold, size: opts.size }, emphasis: false }],
+  });
+
+  it("Verbatim sizes become headings again, only when the file has no heading styles at all", async () => {
+    const { inferHeadingsFromSize } = await import("@/server/uploads");
+    const flat = [p(0, "Case Neg", { bold: true, size: 52 }), p(1, "Advantage 1", { bold: true, size: 44 }), p(2, "AT: Innovation", { bold: true, size: 32 }), p(3, "Tags stay tags", { bold: true, size: 26 }), p(4, "Big but not bold", { size: 44 })];
+    expect(inferHeadingsFromSize(flat).map((x) => x.headingLevel)).toEqual([1, 2, 3, 0, 0]);
+    const styled = [p(0, "Pocket", { h: 1 }), p(1, "Big bold line", { bold: true, size: 44 })];
+    expect(inferHeadingsFromSize(styled).map((x) => x.headingLevel)).toEqual([1, 0]);
+  });
+
+  it("recognizes cites that open with a full name or a name particle, not ordinary sentences", () => {
+    const cite = (text: string) => looksLikeCite(p(0, text));
+    expect(cite("Andreas von Gunten, 15 – Master of Arts in Philosophy, Open University, 2015")).toBe(true);
+    expect(cite("Jane Rivera 22, Professor of Economics at Example State University, 2022")).toBe(true);
+    expect(cite("The Supreme Court 2019 decision changed how states regulate insurance markets.")).toBe(false);
+  });
+});

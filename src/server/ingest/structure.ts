@@ -48,7 +48,10 @@ export interface StructuredDoc {
 }
 
 const YEAR = "['’‘`]?(?:\\d{2}|\\d{4})";
-const CITE_START = new RegExp(String.raw`^\s*[\p{Lu}][\p{L}'’.\-]+(?:\s(?:&|and)\s[\p{Lu}][\p{L}'’.\-]+|\s(?:et\.?\s?al\.?))?(?:[\s,]+(?:${YEAR}|ND|N\.D\.|n\.d\.))\b`, "u");
+// "Smith 22", "Jane Smith 22", "Andreas von Gunten, 15", "Smith and Lee 22", "Smith et al. 22".
+const NAME = String.raw`[\p{Lu}][\p{L}'’.\-]+`;
+const PARTICLES = String.raw`(?:von|van|der|den|de|la|le|del|da|di|du|bin|al)`;
+const CITE_START = new RegExp(String.raw`^\s*${NAME}(?:\s(?:${PARTICLES}\s)*${NAME})?(?:\s(?:&|and)\s${NAME}|\s(?:et\.?\s?al\.?))?(?:[\s,]+(?:${YEAR}|ND|N\.D\.|n\.d\.))\b`, "u");
 const SHORT_CITE = new RegExp(String.raw`^[\p{Lu}][\p{L}'’.\-&, ]{0,60}?[\s,]+(?:${YEAR}|ND)\b`, "u");
 const URL_RE = /\bhttps?:\/\/[^\s)\]}>"]+/i;
 
