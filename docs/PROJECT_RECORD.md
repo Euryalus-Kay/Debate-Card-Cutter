@@ -208,7 +208,7 @@ A typical round (two or three drafts, a fit, a few rewrites, one research job) c
 | EXT-05 | Speech-to-text key: an OpenAI API key from a parent-owned account (18+) with a monthly spend limit, added as `OPENAI_API_KEY` in the Vercel dashboard (never in chat) | Optional: without it, live listening uses Chrome's on-device recognition and transcript paste/upload works |
 | EXT-06 | Library import to production: migration `0003_library_meta` | Done 09-25 (applied before deploying; production had 0 users and 0 cards) |
 | EXT-07 | Library checks cache: migration `0004_evidence_checks` on production | Done 09-25 (applied before deploying) |
-| EXT-08 | Migrations `0005_card_uses_analytics_bank` and `0006_ai_limits` on production before the next deploy (done by me) | Pending |
+| EXT-08 | Migrations `0005_card_uses_analytics_bank` and `0006_ai_limits` on production | Done 09-25 (applied before deploying; 0 users) |
 | EXT-04 | Optional search keys (Tavily/Exa) to widen discovery beyond Anthropic web search + OpenAlex | Optional; research works without them |
 
 ## 5. Test results
@@ -299,4 +299,5 @@ Each entry is marked **verified**, **partially verified**, or **unverified**.
 | 09-25 | **Flow extraction benchmark** (Phase G gate ≥ 95%): 3 synthetic speeches typed in shorthand (1NC off-case, 2NC line-by-line, 1NR case and K; 27 lines, 24 expected arguments), real model, 4 runs: recall 100%, 95.8%, 95.8%, 100%; 0 unflowed lines; 8–13 s per speech | pass | verified (`flow-extract-run1..4.json`) |
 | 09-25 | **Topic brief** (research agent, 110 sources; unverified points marked): resolution origin and novice limits, T definitions for both sides, the literature base, likely affs and negs, a recommended starter set, dated currency notes | written | `docs/research/topic-nhi.md` |
 | 09-25 | **Starter set built** (7 files, real models): 68 cards — 38 cut from real sources and verified word for word, 30 from the library — 215 analytics, 1 "Card needed" (K), 0 repeated cards, 0 unknown authors; 1.6–3.2 minutes and $0.64–2.06 per file, $7.51 for the set (plus about $5.60 for the first build, superseded by P-49) | pass | verified (`nhi-starter-build.json`, counts only) |
+| 09-25 | **Production after the Phase G changes** (migrations 0005–0006 applied first; CX help, scorecard, opponent memory, analytics bank, spend and budget, rate limits, accessibility and security fixes): smoke test 22/22 including a one-card file build; QA data and files removed; 0 users | pass | verified |
 

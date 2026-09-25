@@ -422,6 +422,18 @@ if (process.env.SMOKE_BUILD) {
   });
 }
 
+await step("cross-ex help, the team's spend and budget, and opponent memory answer on the deployment", async () => {
+  const cx = await A.json<{ mode: string; questions?: { question: string }[] }>(`/api/rounds/${roundId}/cx`, { method: "POST", json: { cxId: "CX2" } });
+  assert(cx.status === 200 && cx.body.mode === "ask" && (cx.body.questions?.length ?? 0) > 0, `cx ${cx.status} ${JSON.stringify(cx.body).slice(0, 160)}`);
+  const usage = await A.json<{ capUsd: number; canChangeCap: boolean; month: { usd: number } }>(`/api/teams/${teamId}/ai-usage`);
+  assert(usage.status === 200 && usage.body.capUsd === 50 && usage.body.canChangeCap && usage.body.month.usd > 0, `usage ${usage.status} ${JSON.stringify(usage.body).slice(0, 160)}`);
+  const partnerCap = await B.json(`/api/teams/${teamId}/ai-usage`, { method: "POST", json: { capUsd: 500 } });
+  assert(partnerCap.status === 403, `a partner (not the owner) changed the budget: ${partnerCap.status}`);
+  const history = await A.json<{ rounds: unknown[] }>(`/api/rounds/${roundId}/opponent-history`);
+  assert(history.status === 200 && Array.isArray(history.body.rounds), `history ${history.status}`);
+  return { questions: cx.body.questions?.length, monthUsd: usage.body.month.usd };
+});
+
 await step("export the draft as .docx", async () => {
   const res = await A.req(`/api/docs/${draftId}/export`);
   assert(res.status === 200, `status ${res.status}`);
