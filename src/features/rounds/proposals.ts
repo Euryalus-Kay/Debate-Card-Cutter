@@ -4,10 +4,10 @@ import { create } from "zustand";
 import type { Editor } from "@tiptap/react";
 import type { Node as PMNode } from "@tiptap/pm/model";
 import { api } from "@/client/api";
-import { cardToPM, sectionContentHash, type PMNodeJSON } from "@/shared/draft-model";
+import { cardToPM, highlightCss, sectionContentHash, type PMNodeJSON } from "@/shared/draft-model";
 import { makeId, BYPASS_LOCKS } from "@/shared/editor/schema";
 import { fullCite, shortCite, citationGaps, type Citation } from "@/domain/citation";
-import type { BodyBlock, VerificationStatus } from "@/domain/card";
+import { normalizeHighlights, normalizeSpans, type BodyBlock, type BodyText, type VerificationStatus } from "@/domain/card";
 import type { SpeechDraftOutput, SectionRevisionOutput, AlternativesOutput, FitPlanOutput } from "@/server/ai/schemas";
 
 export interface Validation {
@@ -273,4 +273,75 @@ export function insertSectionAfterCurrent(editor: Editor, node: PMNodeJSON): voi
   }
   if (editor.isEmpty) editor.chain().setContent({ type: "doc", content: [node] }, { emitUpdate: true }).run();
   else editor.chain().insertContentAt(at, node).run();
+}
+
+/**
+ * Replace a card instance's underline/emphasis/highlight marks with those of
+ * `body` (same verbatim text). Mark-only steps, so the card-text guard allows
+ * them. Returns "missing" if the card is gone and "changed" if its text no
+ * longer matches the proposal.
+ */
+export function applyCardMarks(editor: Editor, instanceId: string, body: BodyBlock[]): "applied" | "missing" | "changed" {
+  let cardPos = -1;
+  let cardNode: PMNode | null = null;
+  editor.state.doc.descendants((node, pos) => {
+    if (cardNode) return false;
+    if (node.type.name === "card" && node.attrs.id === instanceId) {
+      cardNode = node;
+      cardPos = pos;
+      return false;
+    }
+    return true;
+  });
+  if (!cardNode || cardPos < 0) return "missing";
+  const card = cardNode as PMNode;
+  // Locate text blocks the way pmCardBody splits them: a new block at each paragraph and after each omission/insertion.
+  const blocks: { from: number; text: string }[] = [];
+  let bodyPos = -1;
+  card.forEach((child, offset) => {
+    if (child.type.name === "cardBody") bodyPos = cardPos + 1 + offset;
+  });
+  if (bodyPos < 0) return "missing";
+  const bodyNode = card.child([...Array(card.childCount).keys()].find((i) => card.child(i).type.name === "cardBody")!);
+  bodyNode.forEach((para, paraOffset) => {
+    const paraStart = bodyPos + 1 + paraOffset + 1;
+    let current: { from: number; text: string } | null = null;
+    para.forEach((inl, inlOffset) => {
+      if (inl.isText) {
+        if (!current) {
+          current = { from: paraStart + inlOffset, text: "" };
+          blocks.push(current);
+        }
+        current.text += inl.text ?? "";
+      } else current = null;
+    });
+  });
+  const texts = body.filter((b): b is BodyText => b.kind === "text" && b.text.length > 0);
+  const live = blocks.filter((b) => b.text.length > 0);
+  if (texts.length !== live.length || texts.some((t, i) => t.text !== live[i].text)) return "changed";
+  const { schema } = editor.state;
+  const tr = editor.state.tr;
+  const from = bodyPos + 1;
+  const to = bodyPos + bodyNode.nodeSize - 1;
+  for (const m of ["highlight", "underline", "emphasis"]) if (schema.marks[m]) tr.removeMark(from, to, schema.marks[m]);
+  texts.forEach((t, i) => {
+    const base = live[i].from;
+    const em = normalizeSpans(t.emphasis, t.text.length);
+    const inEm = (p: number) => em.some((s) => p >= s.start && p < s.end);
+    for (const s of normalizeSpans(t.underline, t.text.length)) {
+      // Underlined text outside emphasis gets the underline mark (emphasis already implies underline).
+      let a = s.start;
+      while (a < s.end) {
+        while (a < s.end && inEm(a)) a++;
+        let b = a;
+        while (b < s.end && !inEm(b)) b++;
+        if (b > a) tr.addMark(base + a, base + b, schema.marks.underline.create());
+        a = b;
+      }
+    }
+    for (const s of em) tr.addMark(base + s.start, base + s.end, schema.marks.emphasis.create());
+    for (const s of normalizeHighlights(t.highlight, t.text.length)) tr.addMark(base + s.start, base + s.end, schema.marks.highlight.create({ color: highlightCss(s.color) }));
+  });
+  editor.view.dispatch(tr);
+  return "applied";
 }

@@ -6,6 +6,7 @@
  */
 
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import type { LanguageModel } from "ai";
 
 export type AiTask =
@@ -46,6 +47,9 @@ export const MODELS = {
   haiku45: "claude-haiku-4-5",
   opus5: "claude-opus-5",
   fable51: "claude-fable-5-1",
+  // benchmark-only (see isGemini)
+  gemini38flash: "gemini-3.8-flash",
+  gemini31pro: "gemini-3.1-pro-preview",
 } as const;
 
 /**
@@ -118,8 +122,24 @@ export const REGISTRY: Record<AiTask, TaskConfig> = {
 };
 
 let provider: ReturnType<typeof createAnthropic> | null = null;
+let google: ReturnType<typeof createGoogleGenerativeAI> | null = null;
+
+/**
+ * Gemini models are for benchmarks only. Google's Gemini API terms bar apps
+ * "likely to be accessed by individuals under the age of 18" (on every tier,
+ * including via Vertex AI), so the production registry never routes to them.
+ */
+export const isGemini = (model: string) => model.startsWith("gemini-") || model.startsWith("gemma-");
 
 export function languageModel(spec: ModelSpec): LanguageModel {
+  if (isGemini(spec.model)) {
+    if (!google) {
+      const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+      if (!apiKey) throw new Error("GOOGLE_GENERATIVE_AI_API_KEY is not configured (benchmarks only).");
+      google = createGoogleGenerativeAI({ apiKey });
+    }
+    return google(spec.model);
+  }
   if (!provider) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured on the server.");
@@ -130,6 +150,11 @@ export function languageModel(spec: ModelSpec): LanguageModel {
 }
 
 export function providerOptions(spec: ModelSpec) {
+  if (isGemini(spec.model)) {
+    // Gemini 3.8 Flash accepts low/medium/high ("minimal" is rejected), so "off" maps to low.
+    const level = spec.effort === "medium" || spec.effort === "high" ? spec.effort : "low";
+    return { google: { thinkingConfig: { thinkingLevel: level, includeThoughts: false } } } as never;
+  }
   const anthropic: Record<string, unknown> = {};
   if (spec.effort) anthropic.effort = spec.effort;
   if (spec.thinkingOff) anthropic.thinking = { type: "disabled" };

@@ -1,8 +1,8 @@
 "use client";
 
 import { NodeViewContent, NodeViewWrapper, type ReactNodeViewProps } from "@tiptap/react";
-import { AlertTriangle, ExternalLink, Lock, LockOpen, MoreHorizontal, Sparkles, ShieldCheck, ShieldAlert, ShieldQuestion, FileWarning, Link2 } from "lucide-react";
-import { Badge, cn, Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger, Tooltip } from "@/components/ui";
+import { AlertTriangle, ExternalLink, Highlighter, Lock, LockOpen, MoreHorizontal, Sparkles, ShieldCheck, ShieldAlert, ShieldQuestion, FileWarning, Link2 } from "lucide-react";
+import { Badge, cn, toast, Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger, Tooltip } from "@/components/ui";
 import { BYPASS_LOCKS } from "@/shared/editor/schema";
 import { pmCardBody, sectionLoad, draftFromPM, type PMNodeJSON, type DraftSection } from "@/shared/draft-model";
 import { estimate, formatClock } from "@/domain/timing";
@@ -10,6 +10,10 @@ import { lintCard, worstSeverity } from "@/domain/lint";
 import { emptyCitation } from "@/domain/citation";
 import { useEditorRound } from "./context";
 import { useWorkspace } from "../store";
+import { useState } from "react";
+import { applyCardMarks } from "../proposals";
+import { RehighlightDialog } from "@/features/cards/rehighlight-dialog";
+import { useApp } from "@/components/shell/app-shell";
 
 const RELATION_LABEL: Record<string, string> = {
   answers: "Answers",
@@ -165,6 +169,8 @@ export function CardView(props: ReactNodeViewProps) {
   const v = String(attrs.verification ?? "unverified");
   const edited = !!attrs.textEdited;
   const inBasket = attrs.cardId ? ws.basket.includes(String(attrs.cardId)) : false;
+  const [rehighlight, setRehighlight] = useState(false);
+  const { team } = useApp();
   const vMeta =
     edited
       ? { icon: <FileWarning className="size-3.5" />, tone: "bad" as const, label: "Text edited", hint: "The evidence text was edited in this document and no longer matches the verified source." }
@@ -198,6 +204,13 @@ export function CardView(props: ReactNodeViewProps) {
             </span>
           </Tooltip>
         ) : null}
+        {ctx.aiEnabled ? (
+          <Tooltip content="Re-highlight to a read length (words never change)">
+            <button className="rounded p-0.5 text-faint hover:bg-hover hover:text-fg" aria-label="Re-highlight card" onClick={() => setRehighlight(true)}>
+              <Highlighter className="size-3.5" />
+            </button>
+          </Tooltip>
+        ) : null}
         <Tooltip content="Open the full card (source, highlighting, history)">
           <button className="rounded p-0.5 text-faint hover:bg-hover hover:text-fg" aria-label="Open card" onClick={() => ctx.onCardOpen((attrs.cardId as string) ?? null, String(attrs.id))}>
             <ExternalLink className="size-3.5" />
@@ -205,6 +218,23 @@ export function CardView(props: ReactNodeViewProps) {
         </Tooltip>
       </div>
       <NodeViewContent />
+      {rehighlight ? (
+        <RehighlightDialog
+          open
+          onOpenChange={setRehighlight}
+          tag={tag}
+          body={body}
+          teamId={team.id}
+          roundId={ws.roundId ?? undefined}
+          cardWpm={ctx.rates.rates.cardWpm}
+          onApply={(next) => {
+            const r = applyCardMarks(props.editor, String(attrs.id), next);
+            if (r === "changed") toast("The card changed while you were choosing; nothing was applied.", "warn");
+            else if (r === "missing") toast("That card is no longer in the draft.", "warn");
+            else toast("Re-highlighted.", "ok");
+          }}
+        />
+      ) : null}
     </NodeViewWrapper>
   );
 }

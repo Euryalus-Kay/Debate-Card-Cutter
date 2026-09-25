@@ -7,9 +7,12 @@
 import { z } from "zod";
 import { runStructured, type RunResult } from "@/server/ai/run";
 import type { ModelSpec } from "@/server/ai/models";
-import { makeText, normalizeHighlights, normalizeSpans, readAloud, highlightRatio, type BodyText, type CardIssue, type Span } from "@/domain/card";
+import { makeText, readAloud, highlightRatio, type BodyText, type CardIssue, type Span } from "@/domain/card";
 import { normalizeWithMap, verifyAgainstSource, type VerificationResult } from "@/domain/verify";
 import { countWords } from "@/domain/timing";
+import { applyReadPlan } from "@/domain/align";
+import { highlightMetrics } from "@/domain/highlight-metrics";
+import { assessRead, defaultTargetWords, highlightCard, HIGHLIGHT_RULES, type QualityIssue } from "./highlight";
 
 export const CardCutSchema = z.object({
   verdict: z.enum(["cut", "no_support"]),
@@ -18,16 +21,9 @@ export const CardCutSchema = z.object({
   endParagraph: z.number().int().describe("Number of the last paragraph of the excerpt (same as start for one paragraph)."),
   firstWords: z.string().describe("Only if the excerpt starts after the beginning of the first paragraph: its first 5-10 words copied exactly, starting at a sentence start. Otherwise empty."),
   lastWords: z.string().describe("Only if the excerpt ends before the end of the last paragraph: its last 5-10 words copied exactly, ending at a sentence end. Otherwise empty."),
-  marks: z
-    .array(
-      z.object({
-        paragraph: z.number().int(),
-        underline: z.array(z.string()).describe("Exact phrases to underline, in order of appearance."),
-        highlight: z.array(z.string()).describe("Exact phrases to highlight (the words read aloud), in order of appearance."),
-        emphasis: z.array(z.string()).describe("0-3 exact key words or short phrases inside the highlighted text."),
-      }),
-    )
-    .describe("Formatting for each paragraph in the excerpt."),
+  readShort: z.string().describe("The highlighted read: exactly the words the speaker says, copied from the excerpt in order (skip words freely; never add, change, or reorder). About 20% of the excerpt, 35–90 words."),
+  readLong: z.string().describe("The underlined read: about twice as long, containing every word of readShort plus the next most important support; same rules."),
+  emphasis: z.array(z.string()).describe("Up to 3 of the most important words or short phrases inside readShort."),
   tag: z.string().describe("The debate tag: one sentence, at most 25 words, no stronger than the highlighted text."),
   support: z.object({
     level: z.enum(["strong", "moderate", "weak"]),
@@ -56,15 +52,14 @@ export type CardCutOutput = z.infer<typeof CardCutSchema>;
 export const CUT_SYSTEM = `You cut evidence cards for high school policy debate. A card is a verbatim excerpt from a source, with the parts read aloud highlighted, plus a tag (the debater's one-sentence claim).
 
 You are given the claim a debater needs and a source split into numbered paragraphs. Your job is selection, not writing:
-- Pick ONE contiguous excerpt: startParagraph..endParagraph (usually 1-3 paragraphs, 80-250 words). Prefer whole paragraphs, and include the sentences around the key claim that give the author's context (they stay in the card, unhighlighted). To trim, give firstWords/lastWords that begin or end a full sentence. Never include page furniture (headings, captions, link labels like "Read more", share buttons): end with lastWords before it.
+- Pick ONE contiguous excerpt: startParagraph..endParagraph (usually 1-4 paragraphs, 120-450 words). Keep whole paragraphs and the sentences around the key claim that give the author's context and reasoning: they stay in the card, shrunk and unread, so a long excerpt costs no speaking time. To trim, give firstWords/lastWords that begin or end a full sentence. Never include page furniture (headings, captions, link labels like "Read more", share buttons): end with lastWords before it.
 - The excerpt must fairly represent the author. Do not cut an author describing a view they reject, a hypothetical they dismiss, or a quote of someone else they rebut, as if it were their own view. If the only supporting text is like that, answer "no_support".
 - If the source does not actually support the claim, answer "no_support" and explain. Never force a card.
 
-Formatting (these rules are enforced by code; phrases that don't match are dropped):
-- Every phrase must be copied exactly from ONE paragraph of the excerpt: same words, spelling, punctuation, and capitalization. List phrases in the order they appear.
-- Underline the parts that carry the argument (roughly 30-50% of the excerpt).
-- Highlight the words that will be read aloud: a subset of the underlined text, typically 20-35% of the excerpt (skip filler words; keep what is needed for the claim, its warrant, and its qualifiers). Read in order, the highlights must make sense and must not change the author's meaning. Never leave out "not", "no", "never", "without", or a hedge ("may", "could", "likely", "some") from a highlighted sentence when leaving it out would change what the author says.
-- Emphasis: at most three short key terms inside the highlighted text.
+Then write what the speaker reads (code locates your words in the excerpt; words that aren't there, or are out of order, are dropped):
+${HIGHLIGHT_RULES}
+- readShort (highlighted) ≈ 20% of the excerpt, 35–90 words; readLong (underlined) ≈ twice that and contains readShort.
+- emphasis: at most three key words inside readShort.
 
 Tag: one sentence, at most 25 words, as strong as the highlighted text honestly supports and no stronger. Any number in the tag must appear in the excerpt. Keep the author's hedges when they matter.
 
@@ -185,23 +180,6 @@ export function locatePhrase(text: string, phrase: string, from = 0): Span | nul
   return { start, end };
 }
 
-function applyPhrases(block: BodyText, phrases: string[], missing: string[]): Span[] {
-  const spans: Span[] = [];
-  let cursor = 0;
-  for (const ph of phrases) {
-    const p = ph.trim();
-    if (!p) continue;
-    const hit = locatePhrase(block.text, p, cursor);
-    if (!hit) {
-      missing.push(p);
-      continue;
-    }
-    spans.push(hit);
-    cursor = hit.end;
-  }
-  return spans;
-}
-
 export interface BuiltCut {
   body: BodyText[];
   tag: string;
@@ -211,6 +189,8 @@ export interface BuiltCut {
   paragraphRange: [number, number];
   readWords: number;
   highlightRatio: number;
+  /** read-aloud quality problems left after the quality gate (empty when fine) */
+  readQuality?: QualityIssue[];
 }
 
 export class CutRejected extends Error {}
@@ -238,40 +218,28 @@ export function buildCut(out: CardCutOutput, src: NumberedSource, sourceText: st
     body.push(makeText(text.trim(), { newParagraph: i > s }));
   }
 
-  const missing: string[] = [];
-  const marksFor = (idx: number) => out.marks.filter((m) => m.paragraph - 1 - s === idx);
   // A trailing link label or caption after the last full sentence ("… by 2050. More on Climate") is not
-  // article prose: end the excerpt at the sentence (still contiguous and verbatim) unless it is marked.
+  // article prose: end the excerpt at the sentence (still contiguous and verbatim) unless it is read.
   const last = body[body.length - 1];
   if (last && !/[.!?:"”’)\]]\s*$/.test(last.text)) {
     const re = /[.!?]["”’)\]]*(?=\s|$)/g;
     let endAt = -1;
     for (let m = re.exec(last.text); m; m = re.exec(last.text)) endAt = m.index + m[0].length;
     const tail = endAt > 0 ? last.text.slice(endAt).trim() : "";
-    const tailMarked = marksFor(body.length - 1).some((m) => [...m.highlight, ...m.underline, ...m.emphasis].some((ph) => tail && ph.trim() && tail.includes(ph.trim())));
-    if (tail && tail.length < 60 && !tailMarked) last.text = last.text.slice(0, endAt);
+    const lower = (x: string) => x.toLowerCase().replace(/\s+/g, " ");
+    const tailRead = !!tail && [out.readShort, out.readLong].some((r) => lower(r).includes(lower(tail).slice(0, 24)));
+    if (tail && tail.length < 60 && !tailRead) last.text = last.text.slice(0, endAt);
   }
-  for (const m of out.marks) {
-    const idx = m.paragraph - 1 - s;
-    const block = body[idx];
-    if (!block) continue;
-    const hl = applyPhrases(block, m.highlight, missing);
-    const ul = applyPhrases(block, m.underline, missing);
-    const em = applyPhrases(block, m.emphasis, missing);
-    // Read text is always underlined; emphasis only inside underlining.
-    block.underline = normalizeSpans([...ul, ...hl, ...em], block.text.length);
-    block.highlight = normalizeHighlights(
-      hl.map((h) => ({ ...h, color: "yellow" as const })),
-      block.text.length,
-    );
-    block.emphasis = normalizeSpans(em, block.text.length);
-  }
-
+  // The model planned the read-aloud text; code places it on the verbatim excerpt.
+  const applied = applyReadPlan(body, { readShort: out.readShort, readLong: out.readLong, emphasis: out.emphasis });
+  body.splice(0, body.length, ...applied.body);
+  const missing = applied.unmatchedShort;
   const verification = verifyAgainstSource(body, sourceText, { dehyphenate });
   const tag = out.tag.trim().replace(/\s+/g, " ");
   // Tag and formatting rules (lintCard) run when the card is saved, with its citation.
   const issues: CardIssue[] = [...verification.issues];
-  if (missing.length) issues.push({ severity: "info", code: "phrases_not_found", message: `${missing.length} suggested formatting phrase(s) did not match the source exactly and were skipped.` });
+  if (missing.length) issues.push({ severity: "info", code: "phrases_not_found", message: `${missing.length} planned read word(s) weren't in the excerpt and were skipped.` });
+  if (applied.protectedWords.length) issues.push({ severity: "info", code: "qualifiers_kept", message: `Kept "${[...new Set(applied.protectedWords)].join('", "')}" in the read so the author's meaning isn't changed.` });
   return {
     body,
     tag,
@@ -330,6 +298,27 @@ export async function cutCard(req: CutRequest): Promise<CutResult> {
   if (run.output.verdict === "no_support") return { run, numbered, built: null, rejectedReason: run.output.reason };
   try {
     const built = buildCut(run.output, numbered, req.sourceText, req.dehyphenate);
+    // Read quality gate: if the planned read is off target or choppy, re-highlight the excerpt once.
+    const target = defaultTargetWords(built.body);
+    const quality = assessRead(highlightMetrics(built.body), target, built.missingPhrases);
+    if (quality.length) {
+      try {
+        const redo = await highlightCard({ tag: built.tag, body: built.body, targetWords: target, models: req.models, teamId: req.teamId, signal: req.signal, repair: false });
+        if (redo.issues.length < quality.length) {
+          const recheck = verifyAgainstSource(redo.body, req.sourceText, { dehyphenate: req.dehyphenate });
+          if (recheck.ok) {
+            built.body = redo.body as BodyText[];
+            built.readWords = redo.metrics.readWords;
+            built.highlightRatio = highlightRatio(redo.body);
+            built.readQuality = redo.issues;
+            return { run, numbered, built };
+          }
+        }
+      } catch {
+        /* keep the first highlighting */
+      }
+    }
+    built.readQuality = quality;
     return { run, numbered, built };
   } catch (e) {
     return { run, numbered, built: null, rejectedReason: e instanceof Error ? e.message : String(e) };

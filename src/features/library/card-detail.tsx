@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { EditorContent, useEditor } from "@tiptap/react";
-import { ArrowLeft, Highlighter, Underline as UnderlineIcon, Type, Trash2, ExternalLink, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Highlighter, Underline as UnderlineIcon, Type, Trash2, ExternalLink, AlertTriangle, Sparkles } from "lucide-react";
 import { api } from "@/client/api";
 import { Badge, Button, cn, IconButton, Input, Spinner, Textarea, toast } from "@/components/ui";
 import { editorExtensions } from "@/shared/editor/schema";
@@ -16,6 +16,8 @@ import { highlightRatio, readAloud, type BodyBlock, type CardIssue } from "@/dom
 import { countWords, estimate } from "@/domain/timing";
 import { useRateProfile } from "@/client/use-settings";
 import { VerificationBadge } from "@/features/rounds/evidence-panel";
+import { RehighlightDialog } from "@/features/cards/rehighlight-dialog";
+import { useApp } from "@/components/shell/app-shell";
 
 interface CardData {
   id: string;
@@ -41,6 +43,8 @@ export function CardDetail({ cardId }: { cardId: string }) {
   const [tag, setTag] = useState("");
   const [cite, setCite] = useState<Citation | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [rehighlight, setRehighlight] = useState(false);
+  const { team } = useApp();
   // Load the form from each new server version of the card.
   const [loaded, setLoaded] = useState<string | null>(null);
   const cardKey = card ? `${card.id}:${card.version}:${card.updatedAt}` : null;
@@ -135,6 +139,9 @@ export function CardDetail({ cardId }: { cardId: string }) {
               </span>
             </button>
           ))}
+          <Button size="xs" variant="ghost" onClick={() => setRehighlight(true)}>
+            <Sparkles className="size-3.5" /> Re-highlight
+          </Button>
           <span className="ml-auto text-xs text-faint">
             ~{Math.round(est.seconds)}s to read · {Math.round(highlightRatio(bodyNow) * 100)}% highlighted
           </span>
@@ -142,6 +149,24 @@ export function CardDetail({ cardId }: { cardId: string }) {
         <div className="speech-editor card-detail-editor rounded-b-xl border border-line bg-elev">
           <EditorContent editor={editor} />
         </div>
+        <RehighlightDialog
+          open={rehighlight}
+          onOpenChange={setRehighlight}
+          tag={tag}
+          body={bodyNow}
+          teamId={team.id}
+          cardWpm={rates.rates.cardWpm}
+          onApply={async (next) => {
+            try {
+              // Save tag/cite edits too so nothing typed here is lost when the card reloads.
+              await api(`/api/cards/${cardId}`, { method: "PATCH", json: { tag, citation: cite, body: next, reason: "re-highlighted" } });
+              toast("Re-highlighted. The previous highlighting is in the card's history.", "ok");
+              await qc.invalidateQueries({ queryKey: ["card", cardId] });
+            } catch (e) {
+              toast((e as Error).message, "bad");
+            }
+          }}
+        />
         {issues.length ? (
           <div className="mt-3 space-y-1">
             {issues.map((i, k) => (

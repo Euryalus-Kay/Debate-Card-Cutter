@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.63",
+    "@ai-sdk/google": "^4.0.80",
     "@anthropic-ai/sdk": "^0.128.0",
     "@mozilla/readability": "^0.6.0",
     "@neondatabase/serverless": "^1.1.0",

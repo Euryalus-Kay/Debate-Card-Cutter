@@ -107,7 +107,9 @@ describe("card cutting (deterministic part)", () => {
     endParagraph: 4,
     firstWords: "",
     lastWords: "",
-    marks: [{ paragraph: 3, underline: ["upzoning can increase housing supply"], highlight: ['upzoning can increase housing supply and "drive down" prices'], emphasis: ["increase"] }],
+    readShort: 'upzoning can increase housing supply and "drive down" prices',
+    readLong: 'Recent studies show that upzoning can increase housing supply and "drive down" prices over time',
+    emphasis: ["increase"],
     tag: "Upzoning increases supply and lowers prices",
     support: { level: "strong", explanation: "", caveats: [] },
     byline: { title: "", publication: "", authors: [], organization: "", organizationEvidence: "", date: "", dateEvidence: "" },
@@ -119,13 +121,16 @@ describe("card cutting (deterministic part)", () => {
     expect(paragraphs[2].slice(at!.start, at!.end)).toBe("and “drive down” prices");
   });
 
-  it("copies verbatim source text, applies marks, and verifies", () => {
+  it("copies verbatim source text, places the planned read on it, and verifies", () => {
     const built = buildCut(base, src, text, false);
     expect(built.verification.ok).toBe(true);
     expect(built.body[0].text).toBe(paragraphs[2]);
+    // The read keeps the source's own punctuation and quote marks.
     expect(readAloud(built.body).text).toBe("upzoning can increase housing supply and “drive down” prices");
-    // read text is always underlined
-    expect(built.body[0].underline[0]).toMatchObject({ start: built.body[0].highlight[0].start });
+    // read text is always underlined (the underline is the longer read)
+    const h = built.body[0].highlight[0];
+    expect(built.body[0].underline.some((u) => u.start <= h.start && u.end >= h.end)).toBe(true);
+    expect(built.body[0].emphasis).toHaveLength(1);
   });
 
   it("ends the excerpt before a trailing link label", () => {
@@ -134,14 +139,14 @@ describe("card cutting (deterministic part)", () => {
   });
 
   it("trims to firstWords at a sentence start", () => {
-    const built = buildCut({ ...base, startParagraph: 2, endParagraph: 2, firstWords: "That view is wrong.", marks: [] }, src, text, false);
+    const built = buildCut({ ...base, startParagraph: 2, endParagraph: 2, firstWords: "That view is wrong.", readShort: "", readLong: "", emphasis: [] }, src, text, false);
     expect(built.body[0].text).toBe("That view is wrong.");
   });
 
-  it("reports phrases that do not match the source", () => {
-    const built = buildCut({ ...base, marks: [{ paragraph: 3, underline: [], highlight: ["upzoning always lowers rents"], emphasis: [] }] }, src, text, false);
-    expect(built.missingPhrases).toEqual(["upzoning always lowers rents"]);
-    expect(built.body[0].highlight).toHaveLength(0);
+  it("drops planned read words that are not in the excerpt (the text is never changed)", () => {
+    const built = buildCut({ ...base, readShort: "upzoning always lowers rents", readLong: "" }, src, text, false);
+    expect(built.missingPhrases).toEqual(["always", "lowers", "rents"]);
+    expect(readAloud(built.body).text).toBe("upzoning");
   });
 
   it("refuses paragraphs the model was not shown", () => {
