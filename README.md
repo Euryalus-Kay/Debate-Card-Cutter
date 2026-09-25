@@ -2,6 +2,13 @@
 
 A policy debate workspace for two partners: cut and organize evidence, flow the round (typed notes included), and prepare speeches with AI help that never changes a speech until you accept it. Decisions, problems found, and test results are in [docs/PROJECT_RECORD.md](docs/PROJECT_RECORD.md).
 
+## What it does
+
+- **In the round:** type what you hear (or paste or upload a transcript, or listen to a Zoom or NSDA Campus tab), and it goes on the flow; "what the next speech must answer" updates as they speak. Drafts answer every argument, and updates change only what's new. Selection edits and @AI comments work on a few words. Partners see each other's AI work live. There's cross-ex help, a scorecard for what to go for in the 2NR or 2AR, and a reminder of what this opponent ran before.
+- **Evidence:** import whole files (up to 50 MB; Verbatim files parse exactly, others are split by a small model that only labels paragraphs). Cut new cards from real sources; every word is checked against the source. The library is checked first, and a card is offered only where a model rates it as proving what the speech needs. Imported cards can be checked against their sources in bulk.
+- **Files:** build a whole file for an argument (1NC or 1AC through the last rebuttal), with analytics written and cards found in the library or cut from sources. Missing cards are marked "Card needed", never invented. It downloads as a Verbatim Word file.
+- **Spend:** Settings shows this month's AI cost by feature, and the owner sets a monthly budget; AI requests stop at the budget, and everything else keeps working.
+
 ## Run it
 
 ```bash
@@ -10,7 +17,7 @@ npm run db:migrate
 npm run dev
 ```
 
-Configuration lives in `.env.local` (never committed). The app needs `APP_DATABASE_URL` or `DATABASE_URL` (Postgres), `BETTER_AUTH_SECRET`, `ANTHROPIC_API_KEY`, and `BLOB_READ_WRITE_TOKEN`. Production values are set in the Vercel dashboard, not in files.
+Configuration lives in `.env.local` (never committed). The app needs `APP_DATABASE_URL` or `DATABASE_URL` (Postgres), `BETTER_AUTH_SECRET`, `ANTHROPIC_API_KEY`, and `BLOB_READ_WRITE_TOKEN`. `OPENAI_API_KEY` is optional: it turns on server speech-to-text (without it, live listening uses Chrome's on-device recognition). Production values are set in the Vercel dashboard, not in files.
 
 ## Tests
 
@@ -19,6 +26,7 @@ Configuration lives in `.env.local` (never committed). The app needs `APP_DATABA
 - End to end, against a dev server started with `ENABLE_DEV_LOGIN=1`:
   - With the deterministic fake model (no API cost): start the server with `AI_FAKE=1`, then run `E2E_FAKE=1 npx playwright test`.
   - With the real model (costs API credits): `E2E_AI=1 npx playwright test ai`.
+- Benchmarks with the real models (cost API credits) are in `scripts/bench/`; results (counts only) are in `docs/evals/results/`. The QA report is [docs/QA_REPORT.md](docs/QA_REPORT.md).
 
 ## Using Clash with students
 
