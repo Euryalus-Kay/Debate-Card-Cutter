@@ -389,6 +389,39 @@ await step("research job runs in the background on Vercel and cuts a verified ca
   return { tag: job.cards[0].tag, cite: job.cards[0].shortCite, method: job.job.checkpoint.items[0]?.method };
 });
 
+// Optional (costs about $0.65): SMOKE_BUILD=1 builds a one-card file, so research runs in its own invocations.
+if (process.env.SMOKE_BUILD) {
+  await step("file builder: plan → approve one card → research runs on its own → file with a Word copy", async () => {
+    type BuildView = { build: { status: string; checkpoint: { items: { key: string; status: string }[] }; result: { uploadId: string; cards: number; researched: number; fromLibrary: number; missing: string[] } | null; error: string | null } };
+    const start = await A.json<{ jobId: string }>("/api/files/builds", { method: "POST", json: { teamId, input: { kind: "da", argument: "Deficits: the new federal spending for national health insurance raises interest rates and crowds out private investment", resolution: "Resolved: The United States federal government should establish national health insurance in the United States.", maxCards: 3 } } });
+    assert(start.status === 202, `start ${start.status}`);
+    const poll = async (until: (s: string) => boolean, ms: number) => {
+      const deadline = Date.now() + ms;
+      let v: BuildView | null = null;
+      while (Date.now() < deadline) {
+        v = (await A.json<BuildView>(`/api/files/builds/${start.body.jobId}?teamId=${teamId}`)).body;
+        if (until(v.build.status)) return v;
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+      return v;
+    };
+    const t0 = Date.now();
+    const planned = await poll((s) => s !== "queued" && s !== "running", 180_000);
+    assert(planned?.build.status === "awaiting_approval", `plan ended ${planned?.build.status}: ${planned?.build.error}`);
+    const planMs = Date.now() - t0;
+    const keys = planned.build.checkpoint.items.map((i) => i.key);
+    const ok = await A.json(`/api/files/builds/${start.body.jobId}`, { method: "POST", json: { teamId, action: "approve", removed: keys.slice(1) } });
+    assert(ok.status === 200, `approve ${ok.status}`);
+    const t1 = Date.now();
+    const built = await poll((s) => s !== "queued" && s !== "running", 300_000);
+    assert(built?.build.status === "succeeded" && built.build.result, `build ended ${built?.build.status}: ${built?.build.error}`);
+    const file = await A.req(`/api/uploads/${built.build.result.uploadId}/download`);
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    assert(file.status === 200 && bytes[0] === 0x50 && bytes[1] === 0x4b, `download ${file.status}`);
+    return { planMs, buildMs: Date.now() - t1, cardItems: keys.length, ...built.build.result, uploadId: undefined };
+  });
+}
+
 await step("export the draft as .docx", async () => {
   const res = await A.req(`/api/docs/${draftId}/export`);
   assert(res.status === 200, `status ${res.status}`);
