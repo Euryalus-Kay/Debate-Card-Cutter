@@ -92,6 +92,10 @@ exposed through a Cloudflare tunnel (`zaincardcutter.xyz`).
 | P-13 | One `DATABASE_URL` shared by Production, Preview, and Development: local testing wrote to what would be the production DB | Fixed without deleting anything: new isolated `clash_prod` database (D-10) |
 | P-14 | Research job made 5 cards when 3 were requested (parallel workers didn't count in-flight cuts) | Fixed; verified 2/2 |
 | P-15 | Fit-to-time plan cut 2.5 min when 1.3 min was needed (model had no words-per-second budget) | Fixed: prompt gives measured rates and a cut budget; lands within 10 s of target |
+| P-16 | Drafts ran short (fast 2AC 4:26–6:49 of 8:00): models write ~25–40% fewer words than a fast speaker needs for their own time budgets | Mitigated: card read times + word targets in the prompt; "Fill to time" with a rate-exact top-up writer lands at the 95% target (6:49 → 7:36) |
+| P-17 | Export/deliver/AI read the server copy, so edits typed in the last moment could be missing | Fixed: flush pending edits first (found by E2E) |
+| P-18 | "Add section" split the current paragraph and could leave keyboard focus on a toolbar/lock button (a typed space toggled a lock) | Fixed: insert after the current section, focus synchronously, select the heading; toolbar keeps editor focus (found by E2E on the production build) |
+| P-19 | Judge-paradigm reading: Haiku 4.5 misread "won't judge kick unless told to" as "no"; "slow down on tags" read as overall slow | Fixed: Sonnet 5 (thinking off) + explicit value definitions; stable over 3 runs |
 
 ## 3. Architecture decisions
 | ID | Decision | Rationale (evidence) |
@@ -113,6 +117,23 @@ exposed through a Cloudflare tunnel (`zaincardcutter.xyz`).
 | D-12 | Durable jobs without extra infrastructure: checkpoint after every step, 90 s lease, resume when a status poll finds the lease expired, cancel flag checked at each checkpoint | Survives Vercel timeouts/deploys; verified on production |
 | D-13 | Accounts are invite-only in production (first account exempt) | A public URL with open signup would let strangers spend the team's AI budget |
 | D-14 | Offline: service worker caches app code, visited pages, and round data; edits queue in IndexedDB; sign-out flushes, warns about unsent edits, and clears the device | Tournament Wi-Fi; shared computers |
+| D-15 | Judge profiles: every preference must quote the paradigm (unquoted values reset to unknown); used in AI context and to cap time estimates at the judge's pace (TIME-6) | JUD-1..3; avoid inventing judge preferences |
+| D-16 | Speaker assignment per round and per speech (FMT-2); each speech is timed at its speaker's calibrated pace in the UI and in AI requests | Partners speak at different speeds; rebuttals are sometimes swapped |
+| D-17 | Cross-ex notes are separate shared texts (one per CX), never flow arguments, labeled as CX in AI context (SEQ-4) | CX answers matter only when a speech uses them |
+| D-18 | Prep overage is shown as time over; the round can apply the tournament rule "deduct from the next speech" | KSHSAA / NDT rules differ by tournament |
+
+### Measured AI cost and latency (telemetry, standard API prices; `scripts/ai-costs.ts`)
+| Operation | Model | Avg time | Avg cost |
+|---|---|---|---|
+| Deep speech draft | Opus 5.5 (medium) | 117 s | $0.31 |
+| Fast speech draft | Opus 5.5 (low) | 47 s | $0.14 |
+| Fit / fill to time (+ top-up) | Opus 5.5 (low) + Sonnet 5 | 28 s | $0.12–0.15 |
+| Flow interpretation | Opus 5.5 (low) | 18 s | $0.07 |
+| Cut one card | Opus 5.5 (low) | 8 s | $0.05 |
+| Section rewrite | Sonnet 5 (thinking off) | 5 s | $0.03 |
+| Judge paradigm | Sonnet 5 (thinking off) | 7 s | $0.01 |
+| Web discovery (per research job) | Sonnet 5 + web search | 18 s | ≈ $0.08 |
+A typical round (two or three drafts, a fit, a few rewrites, one research job) costs roughly $1–2.
 
 ## 4. External dependencies requiring user action
 | ID | What | Status |
@@ -147,3 +168,9 @@ Each entry is marked **verified**, **partially verified**, or **unverified**.
 | 09-25 | Invite-only signup | unit test + production | verified |
 | 09-25 | **Production smoke test** (`scripts/e2e/prod-smoke.ts`): signup/invite gate, access control, Blob upload + flow import, two-client sync, AI draft, background research job, DOCX export | 14/14 (twice; QA data removed after) | verified (`docs/evals/results/prod-smoke-*.json`) |
 | 09-25 | Unit/integration suite | 98 tests, 13 files | verified |
+| 09-25 | Judge profile extraction (synthetic paradigm): quotes enforced, judge-kick/speed categories stable over 3 runs; pace cap applied in UI | pass | verified |
+| 09-25 | Delivered arguments numbered per position (integration test) | pass | verified |
+| 09-25 | **E2E suite** (`npx playwright test`, installed Chrome): sign-in gate; round creation; partners co-editing; section lock blocks partner; offline edit syncs after reconnect; outsider 404; missing speech never a concession; Verbatim import; Word export with just-typed text; speaker reassignment changes 1AR timing; CX notes shared live | 9/9 on dev server and 9/9 twice on the local production build (service worker active) | verified |
+| 09-25 | AI E2E (`E2E_AI=1`): AI 2AC → apply → Fill to time (6:49 → 7:36 of 8:00) | pass | verified |
+| 09-25 | Word export rendered by macOS Quick Look: Verbatim headings, bold 13 pt cites, underline/emphasis, unread text shrunk | pass; highlights are present in the file (`w:highlight`, same markup as Verbatim) but Quick Look/TextEdit don't display Word highlights | partially verified: confirm highlight display once in Word or Google Docs |
+| 09-25 | Production (after each deploy): smoke test 14/14; QA data removed; 0 users | pass | verified |

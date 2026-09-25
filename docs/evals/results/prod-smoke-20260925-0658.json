@@ -1,0 +1,76 @@
+{
+  "base": "https://clash-debate.vercel.app",
+  "at": "2026-09-25T11:58:43.636Z",
+  "results": [
+    {
+      "step": "owner signs up (first account)",
+      "ok": true,
+      "ms": 1138
+    },
+    {
+      "step": "owner creates a team",
+      "ok": true,
+      "ms": 337
+    },
+    {
+      "step": "stranger cannot sign up without an invite",
+      "ok": true,
+      "ms": 116
+    },
+    {
+      "step": "owner creates an invite link",
+      "ok": true,
+      "ms": 96
+    },
+    {
+      "step": "partner signs up with the invite and joins",
+      "ok": true,
+      "ms": 370
+    },
+    {
+      "step": "owner creates a round (aff)",
+      "ok": true,
+      "ms": 685
+    },
+    {
+      "step": "partner can read the round; logged-out gets 401",
+      "ok": true,
+      "ms": 1299
+    },
+    {
+      "step": "upload 1AC + 1NC .docx to Blob and add to the flow",
+      "ok": true,
+      "ms": 1644
+    },
+    {
+      "step": "create a 2AC draft",
+      "ok": true,
+      "ms": 116
+    },
+    {
+      "step": "two clients sync the draft (A writes, B sees; B writes, A sees)",
+      "ok": true,
+      "ms": 2061
+    },
+    {
+      "step": "AI drafts the 2AC (fast mode, streamed)",
+      "ok": true,
+      "ms": 41286
+    },
+    {
+      "step": "research job runs in the background on Vercel and cuts a verified card",
+      "ok": true,
+      "ms": 12390
+    },
+    {
+      "step": "export the draft as .docx",
+      "ok": true,
+      "ms": 494
+    },
+    {
+      "step": "outsider (no team) gets 404 on the round, draft, and job list",
+      "ok": true,
+      "ms": 349
+    }
+  ]
+}
