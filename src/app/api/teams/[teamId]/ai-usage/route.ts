@@ -1,5 +1,8 @@
 import { and, eq, gte } from "drizzle-orm";
-import { handle, requireTeam, requireUser } from "@/server/authz";
+import { z } from "zod";
+import { handle, HttpError, membership, requireTeam, requireUser } from "@/server/authz";
+import { teams } from "@/server/db/schema";
+import { teamCapUsd } from "@/server/limits";
 import { db } from "@/server/db/client";
 import { telemetry } from "@/server/db/schema";
 import { costOf, TASK_LABEL } from "@/server/ai/cost";
@@ -33,9 +36,25 @@ export const GET = handle(async (_req: Request, ctx: { params: Promise<{ teamId:
       byFeature.set(label, e);
     } else previous += usd;
   }
+  const role = (await membership(u.id, teamId))?.role;
   return Response.json({
+    capUsd: await teamCapUsd(teamId),
+    canChangeCap: role === "owner",
     month: { usd: +month.toFixed(2), byFeature: [...byFeature].map(([feature, v]) => ({ feature, calls: v.calls, usd: +v.usd.toFixed(2) })).sort((a, b) => b.usd - a.usd) },
     lastMonth: { usd: +previous.toFixed(2) },
     note: "Estimated from token counts at standard API prices; your provider's bill is the final word. Speech-to-text isn't included.",
   });
 });
+
+/** The owner sets the team's monthly AI budget (USD). */
+export const POST = handle(async (req: Request, ctx: { params: Promise<{ teamId: string }> }) => {
+  const { teamId } = await ctx.params;
+  const u = await requireUser();
+  await requireTeam(u.id, teamId);
+  if ((await membership(u.id, teamId))?.role !== "owner") throw new HttpError(403, "Only the team owner can change the AI budget.");
+  const p = z.object({ capUsd: z.number().int().min(0).max(1000) }).safeParse(await req.json().catch(() => null));
+  if (!p.success) throw new HttpError(400, "The budget is a whole number of dollars from 0 to 1000.");
+  await db().update(teams).set({ aiMonthlyCapUsd: p.data.capUsd, updatedAt: new Date() }).where(eq(teams.id, teamId));
+  return Response.json({ capUsd: p.data.capUsd });
+});
+

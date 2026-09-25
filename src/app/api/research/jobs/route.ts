@@ -11,6 +11,7 @@ import { db } from "@/server/db/client";
 import { rounds } from "@/server/db/schema";
 import { aiAllowed } from "@/server/ai/policy";
 import { createResearchJob, listResearchJobs, ResearchInput, runResearchJob } from "@/server/research/jobs";
+import { guardAi } from "@/server/limits";
 
 export const maxDuration = 300;
 
@@ -22,6 +23,7 @@ export const POST = handle(async (req: Request) => {
   if (!parsed.success) throw new HttpError(400, parsed.error.issues[0]?.message ?? "Invalid research request.");
   const { teamId, input, idempotencyKey } = parsed.data;
   await requireTeam(u.id, teamId);
+  await guardAi("research", u.id, teamId);
   if (!process.env.ANTHROPIC_API_KEY) throw new HttpError(503, "AI is not configured on the server.");
   if (input.roundId) {
     const roundTeam = await requireAccess(u.id, "round", input.roundId);

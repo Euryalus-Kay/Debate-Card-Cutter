@@ -3,6 +3,7 @@ import { z } from "zod";
 import { handle, HttpError, requireTeam, requireUser } from "@/server/authz";
 import { createImportJob, ImportInput, listImportJobs, runImportJob } from "@/server/library/import-job";
 import { isTeamIncomingPath } from "@/server/uploads";
+import { guardAi } from "@/server/limits";
 
 export const maxDuration = 300;
 
@@ -15,6 +16,7 @@ export const POST = handle(async (req: Request) => {
   if (!p.success) throw new HttpError(400, "Invalid import.");
   const { teamId, ...input } = p.data;
   await requireTeam(u.id, teamId);
+  await guardAi("import", u.id, teamId);
   if (!isTeamIncomingPath(teamId, input.pathname)) throw new HttpError(400, "That file isn't in this team's uploads.");
   const jobId = await createImportJob(teamId, u.id, input);
   after(() => runImportJob(jobId));

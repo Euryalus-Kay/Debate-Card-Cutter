@@ -5,6 +5,7 @@ import { handle, HttpError, requireTeam, requireUser } from "@/server/authz";
 import { db } from "@/server/db/client";
 import { jobs } from "@/server/db/schema";
 import { checkableCards, createCheckJob, runCheckJob } from "@/server/library/check-job";
+import { guardAi } from "@/server/limits";
 
 export const maxDuration = 300;
 
@@ -28,6 +29,7 @@ export const POST = handle(async (req: Request) => {
   const p = z.object({ teamId: z.string().min(1) }).safeParse(await req.json().catch(() => null));
   if (!p.success) throw new HttpError(400, "Invalid request.");
   await requireTeam(u.id, p.data.teamId);
+  await guardAi("library_check", u.id, p.data.teamId);
   const r = await createCheckJob(p.data.teamId, u.id);
   if (!r) throw new HttpError(409, "No imported cards with a link to check.");
   after(() => runCheckJob(r.jobId));

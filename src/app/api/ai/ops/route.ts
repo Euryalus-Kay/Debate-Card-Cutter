@@ -17,6 +17,7 @@ import { aiAllowed } from "@/server/ai/policy";
 import { warmLibraryCheck } from "@/server/ai/context";
 import { ratesForSpeech } from "@/server/speakers";
 import { SPEECH_IDS, type SpeechId } from "@/domain/format";
+import { guardAi } from "@/server/limits";
 
 export const maxDuration = 300;
 
@@ -51,6 +52,7 @@ export const POST = handle(async (req: Request) => {
   const teamId = await requireAccess(u.id, "round", input.roundId);
   const [round] = await db().select().from(rounds).where(eq(rounds.id, input.roundId));
   if (!aiAllowed(round)) throw new HttpError(403, "AI is turned off for this round (tournament rules setting). Change it from the round menu if the rules allow it.");
+  await guardAi("ai_op", u.id, teamId);
   if (input.draftId) {
     const [d] = await db().select({ roundId: documents.roundId }).from(documents).where(eq(documents.id, input.draftId));
     if (!d || d.roundId !== input.roundId) throw new HttpError(404, "Draft not found in this round.");

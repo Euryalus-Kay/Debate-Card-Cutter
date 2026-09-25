@@ -18,6 +18,7 @@ import { buildDocx, type ExportNode } from "@/server/export/docx-writer";
 import { findEvidence } from "@/server/library/find";
 import { createResearchJob, runResearchJob } from "@/server/research/jobs";
 import { continueJob } from "@/server/jobs/continue";
+import { monthSpendUsd, teamCapUsd } from "@/server/limits";
 import { fullCite, shortCite } from "@/domain/citation";
 import type { BodyBlock, BodyText } from "@/domain/card";
 import type { ImportedItem, StructuredDoc } from "@/server/ingest/structure";
@@ -180,6 +181,9 @@ export async function runFileBuild(jobId: string): Promise<void> {
           const best = found.cardIds[0];
           if (best && (found.byCard.get(best)?.[0]?.fit ?? 0) >= 3) {
             Object.assign(it, { status: "library", cardId: best, note: found.byCard.get(best)?.[0]?.use });
+          } else if ((await monthSpendUsd(job.teamId)) >= (await teamCapUsd(job.teamId))) {
+            // The month's AI budget ran out mid-build: the rest is reported missing, not researched.
+            Object.assign(it, { status: "not_found", note: "Not researched: this month's AI budget is used up." });
           } else {
             const rid = await createResearchJob(job.teamId, job.createdBy ?? "", { claim: it.label, context: `${where(it.key)}. Look for: ${it.search || "the best qualified source"}`, maxCards: 1, search: true, use: it.use, side, labels: ["file"] }, `file:${jobId}:${it.key}`);
             Object.assign(it, { status: "researching", researchJobId: rid });

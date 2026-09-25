@@ -122,6 +122,8 @@ export const teams = pgTable("teams", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   school: text("school").notNull().default(""),
+  /** AI spend allowed per calendar month (USD, estimated from token counts); the owner sets it */
+  aiMonthlyCapUsd: integer("ai_monthly_cap_usd").notNull().default(50),
   createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
@@ -609,6 +611,17 @@ export const evidenceChecks = pgTable(
     checkedAt: createdAt(),
   },
   (t) => [primaryKey({ columns: [t.teamId, t.needHash] })],
+);
+
+/** Request counts for rate limits on routes that spend AI (one row per hit; old rows pruned). */
+export const rateHits = pgTable(
+  "rate_hits",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    key: text("key").notNull(),
+    at: ts("at").notNull().defaultNow(),
+  },
+  (t) => [index("rate_hits_key_idx").on(t.key, t.at)],
 );
 
 /** Measured latencies and failures for model/provider calls (instrumentation). */

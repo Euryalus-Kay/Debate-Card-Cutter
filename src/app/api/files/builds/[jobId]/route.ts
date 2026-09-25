@@ -5,6 +5,7 @@ import { handle, HttpError, requireTeam, requireUser } from "@/server/authz";
 import { db } from "@/server/db/client";
 import { jobs } from "@/server/db/schema";
 import { approveFileBuild, getFileBuild, runFileBuild } from "@/server/files/build-job";
+import { assertBudget } from "@/server/limits";
 
 export const maxDuration = 300;
 
@@ -47,6 +48,8 @@ export const POST = handle(async (req: Request, ctx: Ctx) => {
       .where(and(eq(jobs.id, jobId), eq(jobs.teamId, p.data.teamId), eq(jobs.status, "awaiting_approval")));
     return Response.json({ ok: true });
   }
+  // Approving starts the research spending: the month's budget must allow it.
+  await assertBudget(p.data.teamId);
   const ok = await approveFileBuild(p.data.teamId, jobId, p.data.removed);
   if (!ok) throw new HttpError(409, "This plan isn't waiting for approval.");
   after(() => runFileBuild(jobId));

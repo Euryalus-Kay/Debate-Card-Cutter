@@ -2,6 +2,7 @@ import { after } from "next/server";
 import { z } from "zod";
 import { handle, HttpError, requireTeam, requireUser } from "@/server/authz";
 import { createFileBuild, FileBuildInput, listFileBuilds, runFileBuild } from "@/server/files/build-job";
+import { guardAi } from "@/server/limits";
 
 export const maxDuration = 300;
 
@@ -13,6 +14,7 @@ export const POST = handle(async (req: Request) => {
   const p = Body.safeParse(await req.json().catch(() => null));
   if (!p.success) throw new HttpError(400, "Describe the argument (at least a few words).");
   await requireTeam(u.id, p.data.teamId);
+  await guardAi("file_build", u.id, p.data.teamId);
   const jobId = await createFileBuild(p.data.teamId, u.id, p.data.input);
   after(() => runFileBuild(jobId));
   return Response.json({ jobId }, { status: 202 });

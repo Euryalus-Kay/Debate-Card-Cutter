@@ -11,6 +11,7 @@ import { aiAllowed } from "@/server/ai/policy";
 import { highlightCard } from "@/server/research/highlight";
 import { AiRunError } from "@/server/ai/run";
 import { verbatimText, type BodyBlock } from "@/domain/card";
+import { guardAi } from "@/server/limits";
 
 export const maxDuration = 120;
 
@@ -29,6 +30,7 @@ export const POST = handle(async (req: Request) => {
   const { teamId, roundId, tag, targetWords } = parsed.data;
   const body = parsed.data.body as BodyBlock[];
   await requireTeam(u.id, teamId);
+  await guardAi("highlight", u.id, teamId);
   if (roundId) {
     const roundTeam = await requireAccess(u.id, "round", roundId);
     if (roundTeam !== teamId) throw new HttpError(404, "Not found.");

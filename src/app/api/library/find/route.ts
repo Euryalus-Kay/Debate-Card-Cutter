@@ -6,6 +6,7 @@ import { rounds } from "@/server/db/schema";
 import { aiAllowed } from "@/server/ai/policy";
 import { getCards } from "@/server/cards";
 import { findEvidence } from "@/server/library/find";
+import { guardAi } from "@/server/limits";
 
 export const maxDuration = 60;
 
@@ -36,6 +37,7 @@ export const POST = handle(async (req: Request) => {
     teamId = p.data.teamId;
     side = p.data.side;
   }
+  await guardAi("library_find", u.id, teamId);
   const text = p.data.context?.trim() ? `${p.data.claim.trim()} (context: ${p.data.context.trim()})` : p.data.claim.trim();
   const found = await findEvidence(teamId, [{ id: "claim", text, intent: "support" }], { side, perNeed: 8, maxCards: 3 });
   const rows = await getCards(teamId, found.cardIds);

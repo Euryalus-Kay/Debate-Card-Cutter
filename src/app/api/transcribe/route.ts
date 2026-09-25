@@ -14,6 +14,7 @@ import { isTeamIncomingPath, readPrivateBlob } from "@/server/uploads";
 import { db } from "@/server/db/client";
 import { rounds } from "@/server/db/schema";
 import { ruleSetOf } from "@/domain/rules";
+import { rateLimit } from "@/server/limits";
 
 export const maxDuration = 120;
 
@@ -26,6 +27,7 @@ export const POST = handle(async (req: Request) => {
   if (!form) throw new HttpError(400, "Send the audio as a form upload.");
   const roundId = String(form.get("roundId") ?? "");
   await requireAccess(u.id, "round", roundId);
+  await rateLimit("transcribe", u.id);
   const [round] = await db().select().from(rounds).where(eq(rounds.id, roundId));
   if (ruleSetOf(round.settings as never).recording === "off") throw new HttpError(403, "This round's tournament rules don't allow recording. Type what you hear instead.");
   const pathname = form.get("pathname") ? String(form.get("pathname")) : null;

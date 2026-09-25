@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, Timer, Trash2 } from "lucide-react";
 import { api } from "@/client/api";
 import { useApp } from "@/components/shell/app-shell";
-import { Badge, Button, Field, Select, Textarea, toast } from "@/components/ui";
+import { Badge, Button, Field, Input, Select, Textarea, toast } from "@/components/ui";
 import { useSettings } from "@/client/use-settings";
 import { calibrate, countWords, formatClock, presetProfile, RATE_PRESETS, type CalibrationObservation, type RatePresetId, type RateProfile } from "@/domain/timing";
 
@@ -63,8 +63,22 @@ export function SettingsPage() {
 
 /** What the team's AI use cost this month, by feature (estimated from token counts). */
 function AiSpend({ teamId }: { teamId: string }) {
-  const q = useQuery({ queryKey: ["ai-usage", teamId], queryFn: () => api<{ month: { usd: number; byFeature: { feature: string; calls: number; usd: number }[] }; lastMonth: { usd: number }; note: string }>(`/api/teams/${teamId}/ai-usage`) });
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["ai-usage", teamId], queryFn: () => api<{ capUsd: number; canChangeCap: boolean; month: { usd: number; byFeature: { feature: string; calls: number; usd: number }[] }; lastMonth: { usd: number }; note: string }>(`/api/teams/${teamId}/ai-usage`) });
   const d = q.data;
+  const [cap, setCap] = useState<string | null>(null);
+  async function saveCap() {
+    const n = Math.round(Number(cap));
+    if (!Number.isFinite(n) || n < 0 || n > 1000) return toast("Enter a whole number of dollars from 0 to 1000.", "warn");
+    try {
+      await api(`/api/teams/${teamId}/ai-usage`, { method: "POST", json: { capUsd: n } });
+      setCap(null);
+      await qc.invalidateQueries({ queryKey: ["ai-usage", teamId] });
+      toast(`Monthly AI budget set to $${n}.`, "ok");
+    } catch (e) {
+      toast((e as Error).message, "bad");
+    }
+  }
   return (
     <section className="rounded-xl border border-line bg-elev p-4">
       <h2 className="text-sm font-semibold">AI use this month</h2>
@@ -73,8 +87,21 @@ function AiSpend({ teamId }: { teamId: string }) {
       ) : (
         <>
           <p className="mt-1 text-[13px]">
-            About <span className="font-semibold">${d.month.usd.toFixed(2)}</span> so far{d.lastMonth.usd ? ` (last month: $${d.lastMonth.usd.toFixed(2)})` : ""}.
+            About <span className="font-semibold">${d.month.usd.toFixed(2)}</span> of the ${d.capUsd} monthly budget so far{d.lastMonth.usd ? ` (last month: $${d.lastMonth.usd.toFixed(2)})` : ""}. At the budget, new AI requests stop until next month; typed notes, the flow and cards keep working.
           </p>
+          {d.canChangeCap ? (
+            <div className="mt-2 flex items-center gap-2 text-[13px]">
+              <label htmlFor="ai-cap" className="text-muted">
+                Monthly budget ($)
+              </label>
+              <Input id="ai-cap" className="h-8 w-24" inputMode="numeric" value={cap ?? String(d.capUsd)} onChange={(e) => setCap(e.target.value)} />
+              {cap !== null && cap !== String(d.capUsd) ? (
+                <Button size="sm" onClick={() => void saveCap()}>
+                  Save
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
           {d.month.byFeature.length ? (
             <table className="mt-2 w-full text-[12.5px]">
               <tbody className="divide-y divide-line">
