@@ -85,21 +85,52 @@ export function EditorToolbar({ editor }: { editor: Editor | null }) {
   });
   if (!editor || !state) return null;
   const insertSection = () => {
-    editor
-      .chain()
-      .focus()
-      .insertContent({
-        type: "section",
-        attrs: { id: makeId("sec"), kind: "response", relation: "none", targets: [], origin: "human" },
-        content: [
-          { type: "heading", attrs: { level: 4 }, content: [{ type: "text", text: "New section" }] },
-          { type: "paragraph" },
-        ],
-      })
-      .run();
+    const id = makeId("sec");
+    // Focus now (TipTap's focus() waits a frame), so keystrokes can't land on whatever button had focus.
+    editor.view.focus();
+    // Insert after the section the cursor is in (never split its text); at the end if not in one.
+    const { $from } = editor.state.selection;
+    let at = editor.state.doc.content.size;
+    for (let d = $from.depth; d > 0; d--) {
+      if ($from.node(d).type.name === "section") {
+        at = $from.after(d);
+        break;
+      }
+      if (d === 1) at = $from.after(1);
+    }
+    if (editor.isEmpty) at = 0;
+    const node = {
+      type: "section",
+      attrs: { id, kind: "response", relation: "none", targets: [], origin: "human" },
+      content: [
+        { type: "heading", attrs: { level: 4 }, content: [{ type: "text", text: "New section" }] },
+        { type: "paragraph" },
+      ],
+    };
+    if (editor.isEmpty) editor.chain().focus().setContent({ type: "doc", content: [node] }, { emitUpdate: true }).run();
+    else editor.chain().focus().insertContentAt(at, node).run();
+    // Put the cursor in the new section's heading with its placeholder text selected, so typing names it.
+    let from = -1;
+    editor.state.doc.descendants((node, pos) => {
+      if (from >= 0) return false;
+      if (node.type.name === "section" && node.attrs.id === id) {
+        from = pos + 2; // inside section → inside heading
+        return false;
+      }
+      return true;
+    });
+    if (from >= 0) editor.chain().focus().setTextSelection({ from, to: from + "New section".length }).run();
   };
   return (
-    <div className="flex h-10 shrink-0 items-center gap-0.5 border-b border-line bg-elev px-2" role="toolbar" aria-label="Formatting">
+    <div
+      className="flex h-10 shrink-0 items-center gap-0.5 border-b border-line bg-elev px-2"
+      role="toolbar"
+      aria-label="Formatting"
+      // Clicking a toolbar button must not take focus (or the text selection) away from the editor.
+      onMouseDown={(e) => {
+        if ((e.target as HTMLElement).closest("button")) e.preventDefault();
+      }}
+    >
       <IconButton label="Undo (⌘Z)" disabled={!state.canUndo} onClick={() => editor.chain().focus().undo().run()}>
         <Undo2 className="size-4" />
       </IconButton>
