@@ -85,6 +85,13 @@ exposed through a Cloudflare tunnel (`zaincardcutter.xyz`).
 | P-06 | Global sequence numbers could let a client skip a concurrently committed update | Fixed (D-04a); verified by `scripts/sync-stress.ts` on Neon |
 | P-07 | Pull read snapshot pointer and rows in two statements → updates hidden by concurrent compaction (stress test: a puller ended with 87/200 items) | Fixed: single-statement pull; 5/5 stress runs pass |
 | P-08 | Concurrent creation of the same keyed nested Y.Map loses fields | Fixed (D-04b); unit-tested |
+| P-09 | Verbatim imports: 50/53 real cites came out "Unknown author ND" | Fixed: Cite char-style detection, year formats ('19, 2K, m/d/yy); 53/53 cites and years parse |
+| P-10 | Sonnet 5 at low effort took >20 s to first output on drafting | Re-benchmarked; drafting routed to Opus 5.5 (D-05a) |
+| P-11 | Section hashes differed between browser and server for any section containing a card (synced doc writes `attrs: {}` on marks and omits nulls), so AI revisions of card sections were always "stale" | Fixed: server round-trips through the editor schema; hash ignores nulls/empty attrs; regression test fails on old code |
+| P-12 | Vercel project framework preset was "Other": first production deploy served 404 everywhere | Fixed: `vercel.json` pins `framework: nextjs`, region iad1 |
+| P-13 | One `DATABASE_URL` shared by Production, Preview, and Development: local testing wrote to what would be the production DB | Fixed without deleting anything: new isolated `clash_prod` database (D-10) |
+| P-14 | Research job made 5 cards when 3 were requested (parallel workers didn't count in-flight cuts) | Fixed; verified 2/2 |
+| P-15 | Fit-to-time plan cut 2.5 min when 1.3 min was needed (model had no words-per-second budget) | Fixed: prompt gives measured rates and a cut budget; lands within 10 s of target |
 
 ## 3. Architecture decisions
 | ID | Decision | Rationale (evidence) |
@@ -100,6 +107,12 @@ exposed through a Cloudflare tunnel (`zaincardcutter.xyz`).
 | D-07 | Direct OOXML parser for DOCX import; hand-written OOXML writer for export (Verbatim style IDs: Heading1–4 = Pocket/Hat/Block/Tag; character styles for cite/underline/emphasis) | mammoth drops highlights and style-based underline (verified on real files, infrastructure.md §8.1) |
 | D-08 | Card text is protected in the editor (marks editable, text not) and sections can be locked; enforced by ProseMirror transaction filters | Human control + integrity; tested in `shared/__tests__/editor.test.ts` |
 | D-09 | AI output is stored as a proposal tied to the hashes of its inputs; humans apply it, and stale proposals are flagged | Never overwrite newer human work |
+| D-05a | Model routing from live benchmarks: drafting and flow interpretation on Opus 5.5 (low effort for fast mode, medium for deep); card cutting on Opus 5.5 low; quick section rewrites on Sonnet 5 (thinking off); fit-to-time on Opus 5.5 low. Every task has fallbacks | `docs/evals/results/draft-latency-2ac-run1.json`, `card-cut-run1.json`, `card-cut-run3.json`: Opus 5.5 low had the fastest first output (2–3 s), kept authors' hedges in tags, had zero unmatched phrases and no lint errors; Sonnet 5 (thinking off) dropped hedges; Haiku 4.5 missed phrases |
+| D-10 | Production uses its own database (`clash_prod`, same Neon project) via `APP_DATABASE_URL` (Production only); previews and local development use the original database | Isolated resources without touching existing data; created by `scripts/create-prod-db.ts` (non-destructive) |
+| D-11 | Research pipeline: search results are leads only. Every source is fetched and stored in full (robots.txt respected; Anthropic `web_fetch` as fallback for bot-walled sites), the model picks one contiguous passage + exact phrases, code copies and verifies the text, and citation fields come only from page metadata or text it can point to | NSDA 7.1–7.2; user requirement "no fabricated quotes, sources, or qualifications" |
+| D-12 | Durable jobs without extra infrastructure: checkpoint after every step, 90 s lease, resume when a status poll finds the lease expired, cancel flag checked at each checkpoint | Survives Vercel timeouts/deploys; verified on production |
+| D-13 | Accounts are invite-only in production (first account exempt) | A public URL with open signup would let strangers spend the team's AI budget |
+| D-14 | Offline: service worker caches app code, visited pages, and round data; edits queue in IndexedDB; sign-out flushes, warns about unsent edits, and clears the device | Tournament Wi-Fi; shared computers |
 
 ## 4. External dependencies requiring user action
 | ID | What | Status |
@@ -107,6 +120,7 @@ exposed through a Cloudflare tunnel (`zaincardcutter.xyz`).
 | EXT-01 | Recover v1 data from Supabase dashboard (restore or download backup) | Requested |
 | EXT-02 | Revoke leaked Perplexity key | Requested |
 | EXT-03 | Consider making the GitHub repo private | Recommended |
+| EXT-04 | Optional search keys (Tavily/Exa) to widen discovery beyond Anthropic web search + OpenAlex | Optional; research works without them |
 
 ## 5. Test results
 Each entry is marked **verified**, **partially verified**, or **unverified**.
@@ -119,3 +133,17 @@ Each entry is marked **verified**, **partially verified**, or **unverified**.
 | 09-25 | Doc store on PGlite: convergence, dedupe, compaction, server-side changes | 4 tests pass | verified |
 | 09-25 | Client sync: offline edits survive restart, lost response no duplicate, concurrent merge, repair handshake | 5 tests pass | verified |
 | 09-25 | **Neon concurrency stress**: 4 writers × 50 updates, 3 pullers, concurrent compaction | 5/5 runs: all pullers converge to 200/200 | verified |
+| 09-25 | Real Verbatim files: import formatting and cites | 53/53 cards, cites, and years | verified |
+| 09-25 | Security: outsider gets 404 on 15 read/write/sync/AI/upload/delete endpoints; no session → 401; research APIs same | pass | verified (local + production) |
+| 09-25 | Two clients editing one draft (browser + partner bot) | converged, 0 pending | verified |
+| 09-25 | AI 2AC draft (fast) | first output 2.3 s, total 37–45 s | verified (local + production) |
+| 09-25 | Card cutting on 7 real sources × 4 models | 100% of cut cards verbatim-verified; all models refused cards from contradicting sources | verified (`card-cut-run1/3.json`) |
+| 09-25 | Research jobs: search mode (12 leads → 2 or 3 cards), URL mode, pasted text; blocked sites reported with a "paste the text" fix | pass | verified |
+| 09-25 | In-round research: section → cut card → insert in place of its "Needs evidence" note | pass | verified |
+| 09-25 | AI policy "off" blocks research for that round (403) | pass | verified |
+| 09-25 | Fit to time (1AR, 6:16 → 4:54 planned; 5:19 → 4:51 planned and measured after apply) | pass | verified |
+| 09-25 | Draft history: save, preview, restore (pre-restore version saved) | pass | verified |
+| 09-25 | Offline (local production build, server stopped): cached round loads, edit queued, survives reload, syncs on reconnect | pass | verified |
+| 09-25 | Invite-only signup | unit test + production | verified |
+| 09-25 | **Production smoke test** (`scripts/e2e/prod-smoke.ts`): signup/invite gate, access control, Blob upload + flow import, two-client sync, AI draft, background research job, DOCX export | 14/14 (twice; QA data removed after) | verified (`docs/evals/results/prod-smoke-*.json`) |
+| 09-25 | Unit/integration suite | 98 tests, 13 files | verified |
