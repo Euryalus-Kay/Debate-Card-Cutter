@@ -42,3 +42,19 @@ test("draft → apply → revise a section → fill to time, with progress shown
   await expect(editor(A.page)).toContainText("And that matters because it decides the round", { timeout: 30_000 });
   await A.context.close();
 });
+
+test("cross-ex help: questions aimed at their arguments go into the shared CX notes", async ({ browser }) => {
+  test.setTimeout(120_000);
+  const A = await signedIn(browser, "a");
+  const roundId = await roundWithDocs(A.page.request, await teamOf(A.page.request), `cx-help-${Date.now()}`);
+  await A.page.goto(`/rounds/${roundId}`);
+  await A.page.getByRole("tab", { name: "CX" }).click();
+  // CX of their 1NC: we ask. CX of our 1AC: they ask us, so we prep answers.
+  await expect(A.page.getByRole("button", { name: "Prep answers" }).first()).toBeVisible();
+  const box = A.page.getByLabel("Notes: CX of the 1NC").locator("xpath=ancestor::div[contains(@class,'rounded-lg')][1]");
+  await box.getByRole("button", { name: "Suggest questions" }).click();
+  await expect(box.getByText(/\[AI_FAKE\] What does your evidence say causes/).first()).toBeVisible({ timeout: 30_000 });
+  await box.getByRole("button", { name: "Add question to notes" }).first().click();
+  await expect(A.page.getByLabel("Notes: CX of the 1NC")).toHaveValue(/Q: \[AI_FAKE\] What does your evidence say causes/);
+  await A.context.close();
+});

@@ -49,7 +49,7 @@ export function SidePanel({ round, bundle, doc, graph, aiEnabled }: { round: Rou
         <DocsPanel round={round} bundle={bundle} aiEnabled={aiEnabled} />
       </TabsContent>
       <TabsContent value="cx" className="min-h-0 flex-1 overflow-y-auto">
-        <CxPanel round={round} doc={doc} />
+        <CxPanel round={round} doc={doc} aiEnabled={aiEnabled} />
       </TabsContent>
       <TabsContent value="comments" className="flex min-h-0 flex-1 flex-col">
         <CommentsPanel env={env} />

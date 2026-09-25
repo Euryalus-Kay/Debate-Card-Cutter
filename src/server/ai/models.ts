@@ -21,6 +21,7 @@ export type AiTask =
   | "card_label" // library labels for a card: side, argument type, position, role, one-line claim
   | "evidence_fit" // how well each library card fits what a speech needs (0–3), with what it proves there
   | "file_plan" // plan a whole evidence file: every speech's sections, card claims to find, analytics written out
+  | "cx_prep" // cross-examination questions aimed at their warrants, or likely questions and answers for ours
   | "speech_fit" // whole-speech keep/condense/cut plan to fit the time limit
   | "speech_patch" // update an existing draft: add answers to new arguments, relink, minimal edits
   | "coverage_review" // what's still missing, strategic risks
@@ -115,6 +116,10 @@ export const REGISTRY: Record<AiTask, TaskConfig> = {
   card_label: {
     primary: { model: MODELS.haiku45, maxOutputTokens: 6000, firstChunkMs: 30000 },
     fallbacks: [{ model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 6000 }],
+  },
+  cx_prep: {
+    primary: { model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 4000, firstChunkMs: 20000 },
+    fallbacks: [{ model: MODELS.opus55, effort: "low", maxOutputTokens: 4000 }],
   },
   file_plan: {
     primary: { model: MODELS.opus55, effort: "medium", maxOutputTokens: 16000, firstChunkMs: 60000 },
