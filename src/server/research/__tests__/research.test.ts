@@ -173,3 +173,12 @@ describe("institutional authors", () => {
     expect(shortCite(citation)).toBe("Climate Leadership Council 19");
   });
 });
+
+describe("byline words that aren't names", () => {
+  it("drops a role word read from the byline as if it were an author", () => {
+    const sourceText = "By Journalist. Reporting from the capital, the program's costs rose again this year.";
+    const byline = { authors: [{ name: "Journalist.", nameEvidence: "By Journalist.", qualifications: "", qualificationsEvidence: "" }], organization: "", organizationEvidence: "", date: "", dateEvidence: "" };
+    const { citation } = buildCitation({ url: "https://example.test/a", metadata: { authors: [], siteName: "Example News" }, sourceText, accessed: "2026-09-25", byline: byline as never });
+    expect(citation.authors).toHaveLength(0);
+  });
+});

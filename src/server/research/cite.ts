@@ -144,7 +144,8 @@ export function buildCitation(input: CiteBuildInput): CiteBuildResult {
       if (a.name.trim() && !verified.includes(a) && !known) rejected.push(`author "${a.name}" (not found in the source text)`);
     }
     if (!authors.length && verified.length) {
-      authors = verified.map((a) => ({ name: cleanAuthorName(a.name) ?? a.name.trim() }));
+      // A byline word that isn't a person's name ("Journalist.", "Staff") is dropped; an organization is kept for below.
+      authors = verified.map((a) => ({ name: cleanAuthorName(a.name) ?? (isOrganizationName(a.name) ? a.name.trim() : "") })).filter((a) => a.name);
       authorProv = "source";
     }
     // Qualifications: only when the source text states them.
