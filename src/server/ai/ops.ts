@@ -12,13 +12,13 @@ import { upsertArg, upsertRelation } from "@/shared/round-doc";
 import { readArgs, readRelations } from "@/shared/round-doc";
 import { computeCoverage, positionsAvailableFor2NR, type DraftTarget } from "@/domain/flow";
 import { isRebuttal, SPEECHES, speechesToAnswer as speechesToAnswerFor, type SpeechId } from "@/domain/format";
-import { countWords, estimateSeconds, presetProfile, type RateProfile } from "@/domain/timing";
+import { addLoads, countWords, estimateSeconds, presetProfile, type RateProfile } from "@/domain/timing";
 import { cardLoad } from "@/domain/card";
-import { allSections, sectionContentHash, type DraftSection, type PMNodeJSON } from "@/shared/draft-model";
+import { allSections, itemLoad, sectionContentHash, type DraftItem, type DraftSection, type PMNodeJSON } from "@/shared/draft-model";
 import { buildRoundContext, renderDraft, type RoundContext } from "./context";
 import { GLOBAL_RULES, SPEECH_RULES } from "./speech-rules";
 import { runStructured, type RunResult } from "./run";
-import { AlternativesSchema, FlowInterpretSchema, SectionRevisionSchema, SpeechDraftSchema, type AlternativesOutput, type FlowInterpretOutput, type SectionRevisionOutput, type SpeechDraftOutput } from "./schemas";
+import { AlternativesSchema, FitPlanSchema, FlowInterpretSchema, SectionRevisionSchema, SpeechDraftSchema, type AlternativesOutput, type FitPlanOutput, type FlowInterpretOutput, type SectionRevisionOutput, type SpeechDraftOutput } from "./schemas";
 import { newId } from "@/server/ids";
 
 export const SYSTEM_BASE = `You are an expert high school policy debate coach and strategist helping two debaters prepare speeches during and before rounds. You reason about the specific round in front of you: the actual arguments on the flow, the actual evidence provided, and the actual speech being prepared.
@@ -234,6 +234,146 @@ Return the revised section: its heading (title), the analytic text to say, and w
   const output: SectionRevisionOutput = { ...res.output, cardIds: res.output.cardIds.filter((c) => valid.has(c)) };
   const seconds = estimateSection(output.analytic, output.title, output.cardIds, ctx, rates);
   return { kind: "revision" as const, output, baseHash, estimatedSeconds: seconds, previousSeconds: currentSeconds, run: meta(res), contextRefs: ctx.refs, cards: summarizeCards(ctx) };
+}
+
+// ---------------------------------------------------------------------------
+// Fit the whole speech to time
+// ---------------------------------------------------------------------------
+
+export interface FitInput {
+  roundId: string;
+  speech: SpeechId;
+  draftId: string;
+  targetSeconds?: number | null;
+  instructions: string;
+  rates?: RateProfile | null;
+  teamId: string;
+  onPartial?: (p: unknown) => void;
+  abortSignal?: AbortSignal;
+}
+
+/** Seconds for a section's own content (excluding nested sections). */
+function ownSeconds(s: DraftSection, rates: RateProfile): number {
+  return estimateSeconds(addLoads(...s.items.filter((i) => i.type !== "section").map(itemLoad)), rates.rates);
+}
+
+function totalSeconds(s: DraftSection, rates: RateProfile): number {
+  return ownSeconds(s, rates) + s.items.filter((i): i is Extract<DraftItem, { type: "section" }> => i.type === "section").reduce((a, i) => a + totalSeconds(i.section, rates), 0);
+}
+
+function renderForFit(items: DraftItem[], rates: RateProfile, graph: RoundContext["graph"], depth = 0): string[] {
+  const lines: string[] = [];
+  const pad = "  ".repeat(depth);
+  for (const it of items) {
+    if (it.type !== "section") continue;
+    const s = it.section;
+    const targets = s.targets.map((t) => graph.args.find((a) => a.id === t)).filter(Boolean).map((a) => `${a!.speech} "${a!.text.slice(0, 80)}"`);
+    lines.push(`${pad}<section id="${s.id}" own="${Math.round(ownSeconds(s, rates))}s" total="${Math.round(totalSeconds(s, rates))}s"${s.locked ? " LOCKED" : ""}${s.role ? ` role="${s.role}"` : ""}>`);
+    if (s.title) lines.push(`${pad}  # ${s.title}`);
+    if (targets.length) lines.push(`${pad}  answers: ${targets.join("; ")}`);
+    for (const x of s.items) {
+      if (x.type === "paragraph" && x.text.trim()) lines.push(`${pad}  ${x.text}`);
+      if (x.type === "card") lines.push(`${pad}  [card ${x.cardId ?? "unsaved"}] ${x.tag} — ${x.shortCite} (~${Math.round(estimateSeconds(itemLoad(x), rates.rates))}s)`);
+    }
+    lines.push(...renderForFit(s.items, rates, graph, depth + 1));
+    lines.push(`${pad}</section>`);
+  }
+  return lines;
+}
+
+export async function fitSpeech(input: FitInput) {
+  const rates = input.rates ?? presetProfile("fast");
+  const ctx = await buildRoundContext(input.roundId, { speech: input.speech, draftId: input.draftId, evidenceMode: "selected_only", instructions: input.instructions, rates });
+  if (!ctx.draft || !ctx.draftJson) throw new Error("Open a draft with content to fit.");
+  const sections = allSections(ctx.draft);
+  if (!sections.length) throw new Error("This draft has no sections to fit. Add sections (or generate a draft) first.");
+  const topLoose = ctx.draft.items.filter((i) => i.type !== "section");
+  const current = estimateSeconds(addLoads(...ctx.draft.items.map(itemLoad)), rates.rates);
+  const limit = ctx.limitSeconds;
+  const target = Math.round(Math.min(input.targetSeconds ?? limit * 0.97, limit));
+  const system = `${SYSTEM_BASE}
+
+SPEECH BEING PREPARED
+${SPEECH_RULES[input.speech]}
+
+TASK: FIT THE SPEECH TO TIME. The debaters wrote or accepted this draft and it runs long. Decide, section by section, what to keep as is, what to condense (rewrite shorter), and what to cut, so the whole speech fits the target. Priorities: keep the arguments that decide the round and every answer to an argument the other team is likely to extend; cut repetition, redundant cards (keep the best one), and low-value defense first; condense overviews and long explanations; group similar answers. A section marked LOCKED must be kept exactly. Never invent evidence: condensed sections may only keep cards they already have. Say honestly what is being given up.`;
+  const notes = [input.instructions ? `Team instruction: ${input.instructions}` : "", topLoose.length ? "(Text outside sections is kept as is.)" : ""].filter(Boolean).join("\n");
+  const need = Math.max(0, Math.round(current - target));
+  const wps = rates.rates.analyticWpm / 60;
+  const prompt = `The draft runs ~${Math.round(current)} s. The ${input.speech} limit is ${limit} s. Bring it to about ${target} s: remove about ${need} s in total, and no more than ${need + 20} s. Every second of a rebuttal is valuable, so do not cut deeper than needed; prefer cutting a whole weak section or a redundant card over rewriting everything.
+This speaker reads analytics at about ${Math.round(rates.rates.analyticWpm)} words per minute, so a condensed section of N seconds should have about ${wps.toFixed(1)} × N words of analytic text (cards add their own time, shown below). Give each entry a targetSeconds and write condensed text to that length.
+${notes}
+DRAFT (seconds are estimates at this speaker's measured rate):
+${renderForFit(ctx.draft.items, rates, ctx.graph).join("\n")}
+
+Return one plan entry for every section id above.`;
+  const res = await runStructured({ task: "speech_fit", system, context: ctx.text, prompt, schema: FitPlanSchema, onPartial: input.onPartial, abortSignal: input.abortSignal, teamId: input.teamId });
+
+  // Validate: known sections only; locked sections stay; condensed sections keep only their own cards.
+  const byId = new Map(sections.map((s) => [s.id, s]));
+  const hashOf = (id: string) => {
+    const j = findSection(ctx.draftJson, id);
+    return j ? sectionContentHash(j) : "";
+  };
+  const plan: FitPlanOutput["plan"] = [];
+  const seen = new Set<string>();
+  for (const e of res.output.plan) {
+    const s = byId.get(e.sectionId);
+    if (!s || seen.has(s.id)) continue;
+    seen.add(s.id);
+    if (s.locked && e.action !== "keep") {
+      plan.push({ ...e, action: "keep", title: "", analytic: "", cardIds: [], reason: "Locked by the team, kept as is." });
+      continue;
+    }
+    const own = new Set(s.items.filter((i) => i.type === "card").map((i) => (i as { cardId: string | null }).cardId).filter((x): x is string => !!x));
+    plan.push(e.action === "condense" ? { ...e, cardIds: e.cardIds.filter((c) => own.has(c)) } : e);
+  }
+  for (const s of sections) if (!seen.has(s.id)) plan.push({ sectionId: s.id, action: "keep", targetSeconds: Math.round(ownSeconds(s, rates)), title: "", analytic: "", cardIds: [], reason: "Not covered by the plan; kept as is." });
+
+  // Sections inside a cut section are cut with it.
+  const cut = new Set(plan.filter((e) => e.action === "cut").map((e) => e.sectionId));
+  for (const s of sections) if (cut.has(s.id)) for (const c of allSections(s)) cut.add(c.id);
+
+  // Time after the plan.
+  const perSection: Record<string, { before: number; after: number }> = {};
+  let after = current;
+  const cardById = new Map<string, Extract<DraftItem, { type: "card" }>>();
+  for (const s of sections) for (const i of s.items) if (i.type === "card" && i.cardId) cardById.set(i.cardId, i);
+  for (const e of plan) {
+    const s = byId.get(e.sectionId)!;
+    const before = ownSeconds(s, rates);
+    let a = before;
+    if (cut.has(s.id)) a = 0;
+    else if (e.action === "condense") {
+      a = estimateSeconds(addLoads({ cardWords: 0, tagWords: countWords(e.title), analyticWords: countWords(e.analytic), cards: 0, transitions: 1 }, ...e.cardIds.map((id) => (cardById.get(id) ? itemLoad(cardById.get(id)!) : { cardWords: 0, tagWords: 0, analyticWords: 0, cards: 0, transitions: 0 }))), rates.rates);
+    }
+    perSection[s.id] = { before: Math.round(before), after: Math.round(a) };
+    after -= before - a;
+  }
+
+  // Coverage consequences: targets whose only answers are being cut.
+  const kept = sections.filter((s) => !cut.has(s.id));
+  const stillAnswered = new Set(kept.flatMap((s) => s.targets));
+  const lost = [...new Set(sections.filter((s) => cut.has(s.id)).flatMap((s) => s.targets))].filter((t) => !stillAnswered.has(t));
+  const newlyUnanswered = lost.map((id) => ({ id, text: ctx.graph.args.find((a) => a.id === id)?.text ?? id }));
+
+  const baseHashes: Record<string, string> = {};
+  for (const e of plan) if (e.action !== "keep") baseHashes[e.sectionId] = hashOf(e.sectionId);
+  const titles: Record<string, string> = Object.fromEntries(sections.map((s) => [s.id, s.title]));
+  return {
+    kind: "fit" as const,
+    output: { ...res.output, plan },
+    baseHashes,
+    titles,
+    perSection,
+    previousSeconds: Math.round(current),
+    estimatedSeconds: Math.round(after),
+    limitSeconds: limit,
+    targetSeconds: target,
+    newlyUnanswered,
+    run: meta(res),
+    contextRefs: ctx.refs,
+  };
 }
 
 export interface InterpretInput {

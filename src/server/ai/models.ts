@@ -14,6 +14,7 @@ export type AiTask =
   | "speech_draft_fast"
   | "section_revise" // targeted rewrites (clarify / reword / condense / strengthen)
   | "section_alternatives"
+  | "speech_fit" // whole-speech keep/condense/cut plan to fit the time limit
   | "coverage_review" // what's still missing, strategic risks
   | "card_cut" // select passages/highlights from stored source text
   | "card_support" // does the card support the tag
@@ -73,6 +74,11 @@ export const REGISTRY: Record<AiTask, TaskConfig> = {
   section_revise: {
     primary: { model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 4000, firstChunkMs: 12000 },
     fallbacks: [{ model: MODELS.haiku45, maxOutputTokens: 4000 }],
+  },
+  // Whole-speech triage needs strategic judgement but must be fast mid-round: same tier as fast drafting.
+  speech_fit: {
+    primary: { model: MODELS.opus55, effort: "low", maxOutputTokens: 12000, firstChunkMs: 30000 },
+    fallbacks: [{ model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 12000 }],
   },
   section_alternatives: {
     primary: { model: MODELS.opus55, effort: "low", maxOutputTokens: 8000, firstChunkMs: 30000 },

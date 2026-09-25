@@ -8,7 +8,7 @@ import { cardToPM, sectionContentHash, type PMNodeJSON } from "@/shared/draft-mo
 import { makeId, BYPASS_LOCKS } from "@/shared/editor/schema";
 import { fullCite, shortCite, citationGaps, type Citation } from "@/domain/citation";
 import type { BodyBlock, VerificationStatus } from "@/domain/card";
-import type { SpeechDraftOutput, SectionRevisionOutput, AlternativesOutput } from "@/server/ai/schemas";
+import type { SpeechDraftOutput, SectionRevisionOutput, AlternativesOutput, FitPlanOutput } from "@/server/ai/schemas";
 
 export interface Validation {
   unsupportedDropClaims?: string[];
@@ -49,7 +49,34 @@ export type Proposal =
       result: { output: SectionRevisionOutput | AlternativesOutput; baseHash: string; estimatedSeconds?: number; previousSeconds?: number; run: RunMeta } | null;
       error: string | null;
       startedAt: number;
+    }
+  | {
+      id: string;
+      opId: string | null;
+      kind: "fit";
+      draftId: string;
+      speech: string;
+      status: "running" | "ready" | "failed" | "applied" | "dismissed";
+      partial: unknown;
+      result: FitResult | null;
+      error: string | null;
+      startedAt: number;
+      /** per-section outcome after applying */
+      outcomes?: Record<string, ApplyResult>;
     };
+
+export interface FitResult {
+  output: FitPlanOutput;
+  baseHashes: Record<string, string>;
+  titles: Record<string, string>;
+  perSection: Record<string, { before: number; after: number }>;
+  previousSeconds: number;
+  estimatedSeconds: number;
+  limitSeconds: number;
+  targetSeconds: number;
+  newlyUnanswered: { id: string; text: string }[];
+  run: RunMeta;
+}
 
 export interface RunMeta {
   model: string;
@@ -174,6 +201,16 @@ export function findSectionNode(editor: Editor, sectionId: string): { node: PMNo
 
 export type ApplyResult = "applied" | "stale" | "locked" | "missing";
 
+/** Delete a section, with the same lock and stale checks as applyRevision. */
+export function removeSection(editor: Editor, sectionId: string, baseHash: string, force = false): ApplyResult {
+  const found = findSectionNode(editor, sectionId);
+  if (!found) return "missing";
+  if (found.node.attrs.locked) return "locked";
+  if (sectionContentHash(found.node.toJSON() as PMNodeJSON) !== baseHash && !force) return "stale";
+  editor.view.dispatch(editor.state.tr.delete(found.pos, found.pos + found.node.nodeSize));
+  return "applied";
+}
+
 /**
  * Replace a section's content with a revision. Refuses if the section is
  * locked or missing; returns "stale" (without changing anything) if the
@@ -213,7 +250,8 @@ export function applyRevision(
   if (rev.needsEvidence?.trim()) content.push({ type: "note", content: [{ type: "text", text: `Needs evidence: ${rev.needsEvidence.trim()}` }] });
   content.push(...nested);
   const newJson: PMNodeJSON = { type: "section", attrs: { ...node.attrs, origin: "ai", aiOpId: opId, role: rev.role ?? node.attrs.role }, content };
-  newJson.attrs!.appliedHash = sectionContentHash(newJson);
+  // Hash the content as the editor will hold it (schema defaults filled in).
+  newJson.attrs!.appliedHash = sectionContentHash(editor.schema.nodeFromJSON(newJson).toJSON() as PMNodeJSON);
   const newNode = editor.schema.nodeFromJSON(newJson);
   editor.view.dispatch(editor.state.tr.replaceWith(pos, pos + node.nodeSize, newNode).setMeta(BYPASS_LOCKS, false));
   return "applied";

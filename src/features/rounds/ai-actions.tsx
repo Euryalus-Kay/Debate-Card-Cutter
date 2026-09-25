@@ -41,6 +41,26 @@ export async function startDraftOp(args: { round: RoundRecord; speech: SpeechId;
   }
 }
 
+/** Ask for a whole-speech keep/condense/cut plan that fits the time limit. */
+export async function startFitOp(args: { round: RoundRecord; speech: SpeechId; draftId: string; instructions?: string }) {
+  const store = useProposals.getState();
+  const pid = makeId("prop");
+  store.add({ id: pid, opId: null, kind: "fit", draftId: args.draftId, speech: args.speech, status: "running", partial: null, result: null, error: null, startedAt: Date.now() });
+  useWorkspace.getState().set({ right: "ai" });
+  // Make sure the server sees the latest text.
+  await new Promise((r) => setTimeout(r, 400));
+  try {
+    const result = await runOp({ kind: "fit_speech", roundId: args.round.id, speech: args.speech, draftId: args.draftId, instructions: args.instructions ?? "", mode: "fast" }, (e) => {
+      if (e.t === "op") store.update(pid, { opId: e.id });
+      if (e.t === "partial") useProposals.getState().update(pid, { partial: e.data });
+    });
+    useProposals.getState().update(pid, { status: "ready", result: result as never });
+  } catch (e) {
+    useProposals.getState().update(pid, { status: "failed", error: (e as Error).message });
+    toast((e as Error).message, "bad");
+  }
+}
+
 export async function runSectionAi(args: { round: RoundRecord; speech: SpeechId; draftId: string; editor: Editor | null; sectionId: string; action: string; instructions?: string }) {
   if (!args.editor) return;
   const found = findSectionNode(args.editor, args.sectionId);

@@ -320,7 +320,19 @@ export function draftLoad(d: Draft): WordLoad {
 
 /** Stable content hash for staleness detection (FNV-1a over canonical JSON). */
 export function contentHash(value: unknown): string {
-  const s = JSON.stringify(value, (_k, v) => (v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b))) : v));
+  // Canonical form: sorted keys; null/undefined values and empty objects dropped. The synced
+  // document omits null attributes and writes attribute-less marks as {attrs: {}}, while editor
+  // nodes spell nulls out and omit empty attrs; both must hash the same.
+  const isEmptyObject = (x: unknown) => !!x && typeof x === "object" && !Array.isArray(x) && Object.keys(x).length === 0;
+  const s = JSON.stringify(value, (_k, v) =>
+    v && typeof v === "object" && !Array.isArray(v)
+      ? Object.fromEntries(
+          Object.entries(v)
+            .filter(([, x]) => x !== null && x !== undefined && !isEmptyObject(x))
+            .sort(([a], [b]) => a.localeCompare(b)),
+        )
+      : v,
+  );
   let h1 = 0x811c9dc5;
   let h2 = 0x01000193;
   for (let i = 0; i < s.length; i++) {

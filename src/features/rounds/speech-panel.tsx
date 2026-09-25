@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type * as Y from "yjs";
-import { Download, FilePlus2, Plus, Sparkles, CheckCircle2, Copy } from "lucide-react";
+import { Download, FilePlus2, Plus, Sparkles, CheckCircle2, Copy, Scissors } from "lucide-react";
 import { api } from "@/client/api";
 import { useDocSync, useYDocValue } from "@/client/sync/hooks";
 import { Badge, Button, cn, EmptyState, Menu, MenuContent, MenuItem, MenuTrigger, Textarea, Tooltip, toast } from "@/components/ui";
@@ -22,7 +22,7 @@ import { EditorRoundCtx } from "./editor/context";
 import { EditorToolbar, SpeechEditorView, useSpeechEditor } from "./editor/speech-editor";
 import { useDraft } from "./draft-hooks";
 import { OpponentDocView } from "./docs-panel";
-import { GenerateDialog, runSectionAi } from "./ai-actions";
+import { GenerateDialog, runSectionAi, startFitOp } from "./ai-actions";
 import { registerEditor } from "./editor/active-editor";
 
 export function SpeechPanel({
@@ -235,6 +235,11 @@ function OurSpeechView({ round, bundle, doc, graph, speech, aiEnabled, userId }:
               {rates.observations.length ? "" : " · uncalibrated"}
             </span>
             {over > 0 ? <Badge tone="bad">over by ~{formatClock(over)}</Badge> : total > 0 ? <Badge tone="ok">{formatClock(limit - total)} to spare</Badge> : null}
+            {over > 0 && aiEnabled && ws.draftId ? (
+              <Button size="xs" className="ml-auto" onClick={() => void startFitOp({ round, speech, draftId: ws.draftId! })}>
+                <Scissors className="size-3.5" /> Fit to time
+              </Button>
+            ) : null}
           </div>
           <div className="mt-1.5 flex h-2 overflow-hidden rounded-full bg-sunken" aria-hidden>
             {lines.map((l, i) => (

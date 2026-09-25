@@ -11,7 +11,7 @@ import { handle, HttpError, requireAccess, requireUser } from "@/server/authz";
 import { db } from "@/server/db/client";
 import { aiOperations, documents, rounds, userSettings } from "@/server/db/schema";
 import { newId } from "@/server/ids";
-import { draftSpeech, interpretFlow, reviseSection, type SectionAction } from "@/server/ai/ops";
+import { draftSpeech, fitSpeech, interpretFlow, reviseSection, type SectionAction } from "@/server/ai/ops";
 import { AiRunError } from "@/server/ai/run";
 import { aiAllowed } from "@/server/ai/policy";
 import { SPEECH_IDS, type SpeechId } from "@/domain/format";
@@ -20,7 +20,7 @@ import type { RateProfile } from "@/domain/timing";
 export const maxDuration = 300;
 
 const Body = z.object({
-  kind: z.enum(["draft_speech", "revise_section", "interpret_flow"]),
+  kind: z.enum(["draft_speech", "revise_section", "interpret_flow", "fit_speech"]),
   roundId: z.string(),
   speech: z.enum(SPEECH_IDS as unknown as [string, ...string[]]),
   draftId: z.string().nullable().optional(),
@@ -118,6 +118,19 @@ export const POST = handle(async (req: Request) => {
           instructions: input.instructions,
           targetSeconds: input.targetSeconds ?? null,
           cardIds: input.cardIds,
+          rates,
+          teamId,
+          onPartial,
+          abortSignal: abort.signal,
+        });
+      } else if (input.kind === "fit_speech") {
+        if (!input.draftId) throw new HttpError(400, "Missing draft.");
+        result = await fitSpeech({
+          roundId: input.roundId,
+          speech: input.speech as SpeechId,
+          draftId: input.draftId,
+          targetSeconds: input.targetSeconds ?? null,
+          instructions: input.instructions,
           rates,
           teamId,
           onPartial,

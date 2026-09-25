@@ -17,7 +17,7 @@ import { readAloud } from "@/domain/card";
 import { fullCite, shortCite } from "@/domain/citation";
 import { presetProfile, wordsForSeconds, type RateProfile } from "@/domain/timing";
 import { readGraph, readSlots, readStrategy } from "@/shared/round-doc";
-import { DRAFT_FRAGMENT } from "@/shared/editor/schema";
+import { draftSchema, DRAFT_FRAGMENT } from "@/shared/editor/schema";
 import { allSections, draftFromPM, sectionContentHash, type Draft, type PMNodeJSON } from "@/shared/draft-model";
 import { draftTargetsFromDraft } from "./draft-targets";
 
@@ -121,7 +121,14 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
   let draftHeadSeq: number | null = null;
   if (opts.draftId) {
     const { doc, headSeq } = await loadDoc(opts.draftId);
-    draftJson = yXmlFragmentToProsemirrorJSON(doc.getXmlFragment(DRAFT_FRAGMENT)) as PMNodeJSON;
+    const raw = yXmlFragmentToProsemirrorJSON(doc.getXmlFragment(DRAFT_FRAGMENT)) as PMNodeJSON;
+    // Round-trip through the editor schema so default attributes are filled in exactly as the
+    // browser's editor sees them; section hashes then match between server and client.
+    try {
+      draftJson = draftSchema().nodeFromJSON(raw).toJSON() as PMNodeJSON;
+    } catch {
+      draftJson = raw;
+    }
     draft = draftFromPM(draftJson);
     draftHeadSeq = headSeq;
   }

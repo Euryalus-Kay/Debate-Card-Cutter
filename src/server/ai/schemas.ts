@@ -70,6 +70,23 @@ export const SectionRevisionSchema = z.object({
 });
 export type SectionRevisionOutput = z.infer<typeof SectionRevisionSchema>;
 
+export const FitPlanSchema = z.object({
+  summary: z.string().describe("One or two sentences: how the speech was fit to time and what it prioritizes."),
+  plan: z.array(
+    z.object({
+      sectionId: z.string(),
+      action: z.enum(["keep", "condense", "cut"]),
+      targetSeconds: z.number().describe("condense: the intended length of this section's own content in seconds; keep: its current seconds; cut: 0"),
+      title: z.string().describe("condense only: the section heading (may be shorter); otherwise empty"),
+      analytic: z.string().describe("condense only: the new, shorter analytic text to say; otherwise empty"),
+      cardIds: z.array(z.string()).describe("condense only: which of this section's card ids to keep reading"),
+      reason: z.string().describe("one short phrase: why this section is kept, condensed, or cut"),
+    }),
+  ),
+  sacrificed: z.array(z.string()).describe("what the speech gives up, in plain words (answers dropped, weaker coverage, less impact comparison)"),
+});
+export type FitPlanOutput = z.infer<typeof FitPlanSchema>;
+
 export const AlternativesSchema = z.object({
   options: z.array(
     z.object({
