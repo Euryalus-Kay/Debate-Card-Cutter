@@ -11,6 +11,7 @@ import { highlightCss } from "@/shared/draft-model";
 import { cn, IconButton, Tooltip, toast } from "@/components/ui";
 import { CardView, SectionView } from "./node-views";
 import { useWorkspace } from "../store";
+import { insertSectionAfterCurrent } from "../proposals";
 
 const blockedMessages: Record<BlockedReason, string> = {
   locked_section: "That section is locked. Unlock it (lock icon) to edit.",
@@ -86,29 +87,14 @@ export function EditorToolbar({ editor }: { editor: Editor | null }) {
   if (!editor || !state) return null;
   const insertSection = () => {
     const id = makeId("sec");
-    // Focus now (TipTap's focus() waits a frame), so keystrokes can't land on whatever button had focus.
-    editor.view.focus();
-    // Insert after the section the cursor is in (never split its text); at the end if not in one.
-    const { $from } = editor.state.selection;
-    let at = editor.state.doc.content.size;
-    for (let d = $from.depth; d > 0; d--) {
-      if ($from.node(d).type.name === "section") {
-        at = $from.after(d);
-        break;
-      }
-      if (d === 1) at = $from.after(1);
-    }
-    if (editor.isEmpty) at = 0;
-    const node = {
+    insertSectionAfterCurrent(editor, {
       type: "section",
       attrs: { id, kind: "response", relation: "none", targets: [], origin: "human" },
       content: [
         { type: "heading", attrs: { level: 4 }, content: [{ type: "text", text: "New section" }] },
         { type: "paragraph" },
       ],
-    };
-    if (editor.isEmpty) editor.chain().focus().setContent({ type: "doc", content: [node] }, { emitUpdate: true }).run();
-    else editor.chain().focus().insertContentAt(at, node).run();
+    });
     // Put the cursor in the new section's heading with its placeholder text selected, so typing names it.
     let from = -1;
     editor.state.doc.descendants((node, pos) => {

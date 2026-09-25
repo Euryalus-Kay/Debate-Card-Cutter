@@ -258,3 +258,19 @@ export function applyRevision(
   editor.view.dispatch(editor.state.tr.replaceWith(pos, pos + node.nodeSize, newNode).setMeta(BYPASS_LOCKS, false));
   return "applied";
 }
+
+/** Insert a node after the section the cursor is in (or at the end), never splitting text. */
+export function insertSectionAfterCurrent(editor: Editor, node: PMNodeJSON): void {
+  editor.view.focus();
+  const { $from } = editor.state.selection;
+  let at = editor.state.doc.content.size;
+  for (let d = $from.depth; d > 0; d--) {
+    if ($from.node(d).type.name === "section") {
+      at = $from.after(d);
+      break;
+    }
+    if (d === 1) at = $from.after(1);
+  }
+  if (editor.isEmpty) editor.chain().setContent({ type: "doc", content: [node] }, { emitUpdate: true }).run();
+  else editor.chain().insertContentAt(at, node).run();
+}

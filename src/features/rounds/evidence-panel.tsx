@@ -14,6 +14,7 @@ import { useWorkspace } from "./store";
 import { cardNode, fetchCards } from "./proposals";
 import { getActiveEditor } from "./editor/active-editor";
 import { RoundResearchList, useRoundResearch } from "./round-research";
+import { FilesView } from "./files-view";
 import type { RoundRecord } from "./types";
 
 interface Hit {
@@ -48,6 +49,7 @@ export function EvidencePanel({ round, aiEnabled }: { round: RoundRecord; aiEnab
   const { team } = useApp();
   const ws = useWorkspace();
   const [q, setQ] = useState("");
+  const [view, setView] = useState<"cards" | "files">("cards");
   const [debounced, setDebounced] = useState("");
   useEffect(() => {
     const t = setTimeout(() => setDebounced(q), 220);
@@ -94,8 +96,22 @@ export function EvidencePanel({ round, aiEnabled }: { round: RoundRecord; aiEnab
           </div>
         ) : null}
       </div>
+      <div role="tablist" aria-label="Evidence view" className="flex gap-1 border-b border-line px-2 py-1.5 text-[12px]">
+        {(
+          [
+            ["cards", "Cards"],
+            ["files", "Files & blocks"],
+          ] as const
+        ).map(([v, label]) => (
+          <button key={v} role="tab" aria-selected={view === v} onClick={() => setView(v)} className={cn("rounded-md px-2 py-1 font-medium", view === v ? "bg-hover text-fg" : "text-muted hover:text-fg")}>
+            {label}
+          </button>
+        ))}
+      </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {res.isLoading ? (
+        {view === "files" ? (
+          <FilesView />
+        ) : res.isLoading ? (
           <div className="flex justify-center p-6">
             <Spinner />
           </div>

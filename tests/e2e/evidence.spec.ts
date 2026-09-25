@@ -49,3 +49,24 @@ test("the speech exports to Word with the team's text", async ({ browser }) => {
   expect(strFromU8(files["word/styles.xml"])).toContain('w:styleId="Heading4"');
   await A.context.close();
 });
+
+test("a block from an evidence file goes into the speech with its cards", async ({ browser }) => {
+  const A = await signedIn(browser, "a");
+  const teamId = await teamOf(A.page.request);
+  const up = await A.page.request.post("/api/library/uploads", {
+    multipart: { teamId, file: { name: "synthetic-1nc.docx", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", buffer: readFileSync("tests/fixtures/synthetic-1nc.docx") } },
+  });
+  expect(up.ok()).toBeTruthy();
+  const roundId = await roundWithDocs(A.page.request, teamId, `blocks-${Date.now()}`);
+  await A.page.goto(`/rounds/${roundId}`);
+  await A.page.getByRole("button", { name: "Blank draft" }).click();
+  await A.page.getByRole("tab", { name: "Evidence" }).click();
+  await A.page.getByRole("tab", { name: "Files & blocks" }).click();
+  await A.page.getByRole("button", { name: /synthetic-1nc/ }).first().click();
+  const insert = A.page.getByRole("button", { name: /^Insert block / }).first();
+  const label = (await insert.getAttribute("aria-label"))!.replace(/^Insert block /, "");
+  await insert.click();
+  await expect(editor(A.page).locator("section").first()).toContainText(label);
+  await expect(editor(A.page).locator("[data-card]").first()).toBeVisible();
+  await A.context.close();
+});
