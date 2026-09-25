@@ -1,5 +1,5 @@
 /**
- * Highlighting benchmark on real human-highlighted cards (the user's supplied
+ * Highlighting benchmark on real human-highlighted cards (public 2021 Open Evidence camp files from the Internet Archive, git-ignored; not the user's own
  * Verbatim files). Each card's marks are removed, each model re-highlights it
  * to the same read length the human chose, and every version (including the
  * human's) is scored:
