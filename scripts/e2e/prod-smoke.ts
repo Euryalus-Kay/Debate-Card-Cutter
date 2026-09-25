@@ -314,7 +314,7 @@ await step("AI drafts the 2AC (fast mode, streamed)", async () => {
   let buf = "";
   let first: number | null = null;
   const t0 = Date.now();
-  type Ev = { t: string; data?: { output?: { sections?: unknown[] } }; message?: string };
+  type Ev = { t: string; data?: { output?: { sections?: { cardIds?: string[] }[] }; validation?: { library?: { offered: number; used: number }; retags?: { cite: string }[] } }; message?: string };
   let done: Ev | null = null as Ev | null;
   for (;;) {
     const { value, done: end } = await reader.read();
@@ -333,7 +333,10 @@ await step("AI drafts the 2AC (fast mode, streamed)", async () => {
   assert(done && done.t === "done", `no result: ${JSON.stringify(done).slice(0, 300)}`);
   const sections = done.data?.output?.sections ?? [];
   assert(sections.length > 0, "draft had no sections");
-  return { firstByteMs: first, totalMs: Date.now() - t0, sections: sections.length };
+  // The library holds only the imported 1NC (their evidence): the check must not offer it as our answer.
+  const library = done.data?.validation?.library;
+  assert(!library || library.used === 0, `the draft reads ${library?.used} library card(s), but the library holds only their evidence`);
+  return { firstByteMs: first, totalMs: Date.now() - t0, sections: sections.length, library, retags: done.data?.validation?.retags?.length ?? 0 };
 });
 
 await step("the AI updates the 2AC for what's new (patch_speech), placing answers by position", async () => {
