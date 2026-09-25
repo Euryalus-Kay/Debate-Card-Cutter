@@ -151,7 +151,8 @@ export async function runStructured<S extends z.ZodType>(input: RunInput<S>): Pr
   );
 }
 
-async function recordTelemetry(teamId: string | null, task: string, model: string, ms: number, ok: boolean, data: unknown) {
+/** Record one model call (also used for direct SDK calls: web search and web fetch). */
+export async function recordTelemetry(teamId: string | null, task: string, model: string, ms: number, ok: boolean, data: unknown) {
   try {
     await db().insert(telemetry).values({ teamId, kind: "ai", name: `${task}:${model}`, ms, ok, data: data as never });
   } catch {

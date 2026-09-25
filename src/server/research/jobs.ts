@@ -191,7 +191,7 @@ export async function runResearchJob(jobId: string): Promise<void> {
 
   try {
     if (cp.stage === "discover") {
-      await discover(input, cp, jobId, controller.signal);
+      await discover(input, cp, jobId, controller.signal, teamId);
       cp.stage = "work";
       await persist();
     }
@@ -273,7 +273,7 @@ export async function runResearchJob(jobId: string): Promise<void> {
   }
 }
 
-async function discover(input: ResearchInput, cp: ResearchCheckpoint, jobId: string, signal: AbortSignal) {
+async function discover(input: ResearchInput, cp: ResearchCheckpoint, jobId: string, signal: AbortSignal, teamId: string) {
   const items: ResearchItem[] = [];
   if (input.text) {
     items.push({ key: "pasted", provider: "pasted", title: input.text.title, url: input.text.url, status: "pending" });
@@ -282,7 +282,7 @@ async function discover(input: ResearchInput, cp: ResearchCheckpoint, jobId: str
   if (input.search && !input.text && !(input.urls?.length)) {
     await event(jobId, "discover", `Searching for sources on: ${input.claim}`);
     const want = Math.min(10, input.maxCards * 3);
-    const [web, oa] = await Promise.all([discoverWeb(input.claim, { context: input.context, maxCandidates: want, signal }), discoverOpenAlex(input.claim, { max: 3, signal })]);
+    const [web, oa] = await Promise.all([discoverWeb(input.claim, { context: input.context, maxCandidates: want, signal, teamId }), discoverOpenAlex(input.claim, { max: 3, signal })]);
     cp.discovery = { queries: web.queries, seen: web.seen.length + oa.candidates.length, ms: web.ms, error: web.error, openalex: oa.candidates.length };
     if (web.error) await event(jobId, "discover", `Web search failed: ${web.error}`, "warn");
     // Web leads first (chosen after reading results), then open-access scholarship.
@@ -305,7 +305,7 @@ async function retrieve(it: ResearchItem, input: ResearchInput, teamId: string, 
       Object.assign(it, { status: "fetched", sourceId: row.id, method: "user_paste" });
       return;
     }
-    const f = await fetchSource(it.url!);
+    const f = await fetchSource(it.url!, { teamId });
     it.ms = { ...it.ms, fetch: Date.now() - t0 };
     it.method = f.method;
     if (!f.ok) {

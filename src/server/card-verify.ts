@@ -48,7 +48,7 @@ export async function checkCardAgainstSource(teamId: string, cardId: string): Pr
   const url = citation.url?.trim();
   if (!url || !/^https?:\/\//i.test(url)) return { status, outcome: "no_link", note: "This card's citation has no link to check it against. Add the URL in the citation, then check again.", issues: [] };
 
-  const f = await fetchSource(url);
+  const f = await fetchSource(url, { teamId });
   const at = new Date().toISOString();
   if (!f.ok || !f.text.trim()) {
     const why = f.blocked === "paywall" ? "the page is behind a paywall" : f.blocked === "robots" ? "the site asks not to be read by software" : f.blocked === "bot_protection" ? "the site blocked automated reading" : f.error ?? "the page couldn't be read";

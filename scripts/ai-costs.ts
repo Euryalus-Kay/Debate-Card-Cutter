@@ -4,23 +4,15 @@
  */
 import { sql } from "drizzle-orm";
 import { db } from "@/server/db/client";
+import { costOf } from "@/server/ai/cost";
 
-const PRICE: Record<string, { in: number; out: number; cacheRead: number; cacheWrite1h: number }> = {
-  "claude-opus-5-5": { in: 4, out: 20, cacheRead: 0.2, cacheWrite1h: 8 },
-  "claude-sonnet-5": { in: 2, out: 10, cacheRead: 0.2, cacheWrite1h: 4 },
-  "claude-haiku-4-5": { in: 1, out: 5, cacheRead: 0.1, cacheWrite1h: 2 },
-};
-const rows = (await db().execute(sql`select name, ms, ok, data from telemetry where kind = 'ai' and ok = true order by id`)).rows as { name: string; ms: number; data: { usage?: { inputTokens?: number; outputTokens?: number; cachedInputTokens?: number; cacheWriteTokens?: number } } | null }[];
+const rows = (await db().execute(sql`select name, ms, ok, data from telemetry where kind = 'ai' and ok = true order by id`)).rows as { name: string; ms: number; data: { usage?: Parameters<typeof costOf>[1] & { inputTokens?: number; outputTokens?: number } } | null }[];
 const by = new Map<string, { n: number; cost: number; ms: number; inTok: number; outTok: number }>();
 for (const r of rows) {
   const [task, model] = r.name.split(":");
-  const p = PRICE[model];
   const u = r.data?.usage;
-  if (!p || !u) continue;
-  const cached = u.cachedInputTokens ?? 0;
-  const written = u.cacheWriteTokens ?? 0;
-  const fresh = Math.max(0, (u.inputTokens ?? 0) - cached - written);
-  const cost = (fresh * p.in + cached * p.cacheRead + written * p.cacheWrite1h + (u.outputTokens ?? 0) * p.out) / 1e6;
+  const cost = costOf(model, u);
+  if (cost === null || !u) continue;
   const k = `${task} (${model})`;
   const e = by.get(k) ?? { n: 0, cost: 0, ms: 0, inTok: 0, outTok: 0 };
   e.n++;

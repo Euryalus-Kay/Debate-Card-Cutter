@@ -55,8 +55,43 @@ export function SettingsPage() {
           </div>
         </section>
         <RateCalibration />
+        <AiSpend teamId={team.id} />
       </div>
     </div>
+  );
+}
+
+/** What the team's AI use cost this month, by feature (estimated from token counts). */
+function AiSpend({ teamId }: { teamId: string }) {
+  const q = useQuery({ queryKey: ["ai-usage", teamId], queryFn: () => api<{ month: { usd: number; byFeature: { feature: string; calls: number; usd: number }[] }; lastMonth: { usd: number }; note: string }>(`/api/teams/${teamId}/ai-usage`) });
+  const d = q.data;
+  return (
+    <section className="rounded-xl border border-line bg-elev p-4">
+      <h2 className="text-sm font-semibold">AI use this month</h2>
+      {!d ? (
+        <p className="mt-2 text-[13px] text-muted">Loading…</p>
+      ) : (
+        <>
+          <p className="mt-1 text-[13px]">
+            About <span className="font-semibold">${d.month.usd.toFixed(2)}</span> so far{d.lastMonth.usd ? ` (last month: $${d.lastMonth.usd.toFixed(2)})` : ""}.
+          </p>
+          {d.month.byFeature.length ? (
+            <table className="mt-2 w-full text-[12.5px]">
+              <tbody className="divide-y divide-line">
+                {d.month.byFeature.map((f) => (
+                  <tr key={f.feature}>
+                    <td className="py-1">{f.feature}</td>
+                    <td className="py-1 text-right text-muted">{f.calls} run{f.calls === 1 ? "" : "s"}</td>
+                    <td className="py-1 pl-3 text-right font-mono">${f.usd.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : null}
+          <p className="mt-2 text-[11.5px] text-faint">{d.note}</p>
+        </>
+      )}
+    </section>
   );
 }
 

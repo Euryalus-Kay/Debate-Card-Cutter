@@ -5,6 +5,7 @@
  * for pages our fetcher can't read (bot walls, some government sites).
  */
 
+import { recordTelemetry } from "@/server/ai/run";
 import { parseHTML } from "linkedom";
 import { Readability } from "@mozilla/readability";
 import Anthropic from "@anthropic-ai/sdk";
@@ -282,18 +283,21 @@ export async function fetchDirect(rawUrl: string): Promise<FetchedSource> {
 }
 
 /** Fallback through Anthropic's web_fetch tool (returns the page text, respects robots.txt). */
-export async function fetchViaAnthropic(rawUrl: string): Promise<FetchedSource> {
+export async function fetchViaAnthropic(rawUrl: string, teamId: string | null = null): Promise<FetchedSource> {
   const base: FetchedSource = { ok: false, url: rawUrl, finalUrl: rawUrl, method: "anthropic_web_fetch", format: "html", text: "", paragraphs: [], metadata: { authors: [] } };
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return { ...base, error: "No Anthropic key for fallback fetch." };
   const client = new Anthropic({ apiKey: key, baseURL: "https://api.anthropic.com" });
   try {
+    const t0 = Date.now();
     const res = await client.messages.create({
       model: "claude-haiku-4-5",
       max_tokens: 200,
       tools: [{ type: "web_fetch_20250910", name: "web_fetch", max_uses: 1, max_content_tokens: 60000 } as never],
       messages: [{ role: "user", content: `Fetch ${rawUrl} and reply only with DONE.` }],
     });
+    const usage = res.usage as unknown as { input_tokens: number; output_tokens: number };
+    void recordTelemetry(teamId, "web_fetch", "claude-haiku-4-5", Date.now() - t0, true, { usage: { inputTokens: usage.input_tokens, outputTokens: usage.output_tokens } });
     for (const b of res.content as unknown as { type: string; content?: { type: string; url?: string; error_code?: string; content?: { title?: string; source?: { type: string; data?: string; media_type?: string } } } }[]) {
       if (b.type !== "web_fetch_tool_result" || !b.content) continue;
       const c = b.content;
@@ -344,11 +348,11 @@ export async function fetchViaAnthropic(rawUrl: string): Promise<FetchedSource> 
   }
 }
 
-export async function fetchSource(url: string): Promise<FetchedSource> {
+export async function fetchSource(url: string, opts: { teamId?: string | null } = {}): Promise<FetchedSource> {
   const direct = await fetchDirect(url);
   if (direct.ok) return direct;
   if (direct.blocked === "robots" || direct.blocked === "paywall") return direct; // respect the site's decision
-  const viaTool = await fetchViaAnthropic(url);
+  const viaTool = await fetchViaAnthropic(url, opts.teamId ?? null);
   if (viaTool.ok) return { ...viaTool, metadata: { ...direct.metadata, ...viaTool.metadata, authors: viaTool.metadata.authors.length ? viaTool.metadata.authors : direct.metadata.authors } };
   return { ...direct, error: `${direct.error ?? "direct fetch failed"}; fallback: ${viaTool.error ?? "failed"}` };
 }

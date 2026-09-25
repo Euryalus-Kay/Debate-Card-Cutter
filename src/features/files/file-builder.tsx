@@ -181,7 +181,7 @@ function BuildForm({ onStarted }: { onStarted: (jobId: string) => void }) {
           <FileText className="size-4" /> Plan the file
         </Button>
       </div>
-      <p className="text-[11.5px] text-faint">Planning costs about $0.40. Nothing is researched until you approve the plan.</p>
+      <p className="text-[11.5px] text-faint">Planning costs about $0.15. Nothing is researched until you approve the plan.</p>
     </form>
   );
 }

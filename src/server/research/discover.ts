@@ -9,6 +9,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { MODELS } from "@/server/ai/models";
+import { recordTelemetry } from "@/server/ai/run";
 
 export interface Candidate {
   url: string;
@@ -70,7 +71,7 @@ function parseCandidates(text: string): { url: string; title?: string; publicati
 
 export async function discoverWeb(
   query: string,
-  opts: { context?: string; maxCandidates?: number; maxSearches?: number; signal?: AbortSignal } = {},
+  opts: { context?: string; maxCandidates?: number; maxSearches?: number; signal?: AbortSignal; teamId?: string | null } = {},
 ): Promise<DiscoveryResult> {
   const t0 = Date.now();
   const key = process.env.ANTHROPIC_API_KEY;
@@ -123,6 +124,8 @@ export async function discoverWeb(
     // If the model's list could not be parsed, fall back to raw results in rank order.
     const candidates = picked.length ? picked : dedupe(seen.map((s) => ({ url: s.url, title: s.title, pageAge: s.pageAge, provider: "anthropic_web_search" as const }))).slice(0, max);
     const u = res.usage as unknown as { input_tokens: number; output_tokens: number; server_tool_use?: { web_search_requests?: number } };
+    // Web search bills per search on top of tokens: recorded so the team's spend includes it.
+    void recordTelemetry(opts.teamId ?? null, "web_discover", MODELS.sonnet5, Date.now() - t0, true, { usage: { inputTokens: u.input_tokens, outputTokens: u.output_tokens }, searches: u.server_tool_use?.web_search_requests ?? queries.length });
     return {
       candidates,
       seen,
