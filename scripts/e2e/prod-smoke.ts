@@ -4,7 +4,9 @@
  * the accounts it created to <scratch>/qa-accounts.json for cleanup with
  * scripts/e2e/prod-cleanup-qa.ts.
  *
- *   npx tsx scripts/e2e/prod-smoke.ts https://clash-debate.vercel.app <scratch-dir> <synthetic-docs-dir>
+ *   npx tsx scripts/e2e/prod-smoke.ts https://clash-debate.vercel.app <scratch-dir> [<synthetic-docs-dir>]
+ *
+ * The documents default to the invented test fixtures in tests/fixtures.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
@@ -14,7 +16,7 @@ import { DocSync } from "@/client/sync/doc-sync";
 import { DRAFT_FRAGMENT } from "@/shared/editor/schema";
 import { fragmentText } from "@/shared/doc-text";
 
-const [base = "https://clash-debate.vercel.app", scratch = ".", docsDir = "."] = process.argv.slice(2);
+const [base = "https://clash-debate.vercel.app", scratch = ".", docsDir = "tests/fixtures"] = process.argv.slice(2);
 const results: { step: string; ok: boolean; ms: number; detail?: string }[] = [];
 const accounts: { email: string; userId?: string; teamId?: string }[] = [];
 
@@ -151,8 +153,8 @@ async function upload(file: string, speech: string, owner: "us" | "opponent") {
 }
 
 await step("upload 1AC + 1NC .docx to Blob and add to the flow", async () => {
-  const a = await upload("SYNTHETIC 1AC.docx", "1AC", "us");
-  const n = await upload("SYNTHETIC 1NC.docx", "1NC", "opponent");
+  const a = await upload("synthetic-1ac.docx", "1AC", "us");
+  const n = await upload("synthetic-1nc.docx", "1NC", "opponent");
   return { a, n };
 });
 
@@ -201,6 +203,63 @@ await step("two clients sync the draft (A writes, B sees; B writes, A sees)", as
   assert(text.includes("Partner replied."), "owner never received the partner's edit");
 });
 
+type OpEv = { t: string; id?: string; data?: unknown; message?: string };
+/** Start an AI operation and read its stream to the end. `onOp` gets the operation id as soon as it's known. */
+async function runOp(c: Client, body: Record<string, unknown>, onOp?: (id: string) => void): Promise<{ done: OpEv | null; events: OpEv[]; firstMs: number | null; totalMs: number }> {
+  const t0 = Date.now();
+  const res = await c.req("/api/ai/ops", { method: "POST", json: body });
+  assert(res.status === 200 && res.body, `status ${res.status} ${res.status !== 200 ? (await res.text()).slice(0, 200) : ""}`);
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  let first: number | null = null;
+  let done: OpEv | null = null;
+  const events: OpEv[] = [];
+  for (;;) {
+    const { value, done: end } = await reader.read();
+    if (end) break;
+    if (first === null) first = Date.now() - t0;
+    buf += dec.decode(value, { stream: true });
+    let i: number;
+    while ((i = buf.indexOf("\n")) >= 0) {
+      const line = buf.slice(0, i).trim();
+      buf = buf.slice(i + 1);
+      if (!line) continue;
+      const ev = JSON.parse(line) as OpEv;
+      events.push(ev);
+      if (ev.t === "op" && ev.id) onOp?.(ev.id);
+      if (ev.t === "done" || ev.t === "error") done = ev;
+    }
+  }
+  return { done, events, firstMs: first, totalMs: Date.now() - t0 };
+}
+
+const stateDocId = await step("round state document is reachable", async () => {
+  const r = await A.json<{ round: { stateDocId: string } }>(`/api/rounds/${roundId}`);
+  assert(r.status === 200 && r.body.round?.stateDocId, `status ${r.status}`);
+  return r.body.round.stateDocId;
+});
+
+await step("typed notes from their 1NC reach the flow (extract_flow)", async () => {
+  const sync = new DocSync(stateDocId!, new Y.Doc(), {
+    persistence: false,
+    endpoint: (id) => `${base}/api/docs/${id}/sync`,
+    fetch: ((url: string, init?: RequestInit) => fetch(url, { ...init, headers: { ...(init?.headers ?? {}), cookie: A.cookie(), origin: base } })) as typeof fetch,
+    idleIntervalMs: 700,
+    debounceMs: 50,
+  });
+  await sync.start();
+  sync.doc.transact(() => sync.doc.getText(`heard:1NC:${accounts[0].userId}`).insert(0, "Topicality\n1. we meet is wrong - the plan isn't a program\n2. limits - explodes the topic\n"));
+  await sync.flush();
+  sync.stop();
+  const r = await runOp(A, { kind: "extract_flow", roundId, speech: "1NC", mode: "fast" });
+  assert(r.done?.t === "done", `no result: ${JSON.stringify(r.done).slice(0, 300)}`);
+  const out = r.done.data as { created: string[] };
+  assert(out.created.length >= 2, `created ${out.created.length} arguments`);
+  assert(r.events.some((e) => e.t === "progress"), "no progress events");
+  return { created: out.created.length, totalMs: r.totalMs };
+});
+
 await step("AI drafts the 2AC (fast mode, streamed)", async () => {
   const res = await A.req("/api/ai/ops", { method: "POST", json: { kind: "draft_speech", roundId, speech: "2AC", draftId, mode: "fast" } });
   assert(res.status === 200 && res.body, `status ${res.status}`);
@@ -229,6 +288,37 @@ await step("AI drafts the 2AC (fast mode, streamed)", async () => {
   const sections = done.data?.output?.sections ?? [];
   assert(sections.length > 0, "draft had no sections");
   return { firstByteMs: first, totalMs: Date.now() - t0, sections: sections.length };
+});
+
+await step("the AI updates the 2AC for what's new (patch_speech), placing answers by position", async () => {
+  const r = await runOp(A, { kind: "patch_speech", roundId, speech: "2AC", draftId, mode: "fast" });
+  assert(r.done?.t === "done", `no result: ${JSON.stringify(r.done).slice(0, 300)}`);
+  const out = r.done.data as { upToDate: boolean; output: { adds: { targets: string[] }[] }; addInfo: Record<string, { where: string }> };
+  assert(!out.upToDate && out.output.adds.length > 0, "no answers proposed for the typed arguments");
+  return { adds: out.output.adds.length, where: Object.values(out.addInfo)[0]?.where, totalMs: r.totalMs };
+});
+
+await step("the AI rewrites a few selected words (edit_span), and flags nothing invented", async () => {
+  const r = await runOp(A, { kind: "edit_span", roundId, speech: "2AC", draftId, spanAction: "sharpen", text: "Owner wrote this.", before: "", after: "", mode: "fast" });
+  assert(r.done?.t === "done", `no result: ${JSON.stringify(r.done).slice(0, 300)}`);
+  const out = r.done.data as { replacement: string; warnings: string[] };
+  assert(out.replacement.trim().length > 0, "empty replacement");
+  return { replacement: out.replacement.slice(0, 80), warnings: out.warnings.length };
+});
+
+await step("a partner can stop a running AI job", async () => {
+  let opId: string | null = null;
+  const run = runOp(A, { kind: "draft_speech", roundId, speech: "2AC", draftId, mode: "deep" }, (id) => {
+    opId = id;
+  });
+  const t0 = Date.now();
+  while (!opId && Date.now() - t0 < 10_000) await new Promise((res) => setTimeout(res, 100));
+  assert(opId, "no operation id");
+  const stop = await B.json<{ stopped: boolean }>(`/api/ai/ops/${opId}/cancel`, { method: "POST", json: {} });
+  assert(stop.status === 200 && stop.body.stopped, `stop status ${stop.status}`);
+  const r = await run;
+  assert(r.done?.t === "error" && /Cancelled|Stopped/.test(r.done.message ?? ""), `ended with ${JSON.stringify(r.done).slice(0, 200)}`);
+  return { stoppedAfterMs: r.totalMs };
 });
 
 await step("research job runs in the background on Vercel and cuts a verified card", async () => {
