@@ -112,7 +112,7 @@ export function validateDraft(out: SpeechDraftOutput, ctx: RoundContext, speech:
   const existing = ctx.draft ? draftTargetsFromDraft(ctx.draft) : [];
   const cov = SPEECHES[speech].side === ourSide ? computeCoverage(ctx.graph, speech, [...existing, ...targets], ctx.recorded) : null;
   const proposalSections: CheckSection[] = sections.map((s) => ({ id: s.ref, title: s.title, relation: s.relation, targets: s.targets, role: s.role || null, crossApplyFrom: s.crossApplyFrom || null, analytic: s.analytic, cardCites: s.cardIds.map((c) => ctx.cards.find((x) => x.id === c)?.shortCite ?? ""), parentId: s.parentRef || null, kind: s.kind }));
-  const checks = SPEECHES[speech].side === ourSide ? checkSpeech({ graph: ctx.graph, speech, sections: [...checkSections(ctx.draft), ...proposalSections], recorded: ctx.recorded, judgeLay: ctx.judgeLay }).checks : [];
+  const checks = SPEECHES[speech].side === ourSide ? checkSpeech({ graph: ctx.graph, speech, sections: [...checkSections(ctx.draft), ...proposalSections], recorded: ctx.recorded, judgeLay: ctx.judgeLay, newArgumentPolicy: ctx.newArgumentPolicy }).checks : [];
   const omitted = new Set(out.omitted.flatMap((o) => o.targets));
   const unaddressed = (cov?.items ?? []).filter((i) => i.status === "unanswered" && !omitted.has(i.arg.id)).map((i) => ({ id: i.arg.id, text: i.arg.text }));
   const newInRebuttal = isRebuttal(speech) ? sections.filter((s) => s.relation === "new").map((s) => s.title) : [];
@@ -162,6 +162,23 @@ export interface DraftSpeechInput {
   noLengthFix?: boolean;
 }
 
+/** AI_FAKE: a deterministic draft that answers every item the speech must answer, one position section per flow. */
+function fakeDraft(ctx: RoundContext): SpeechDraftOutput {
+  const items = ctx.coverage?.items ?? [];
+  const positions = [...new Map(items.map((i) => [i.arg.positionId, i.position?.name ?? "Case"])).entries()];
+  const sections: SpeechDraftOutput["sections"] = [];
+  positions.forEach(([pid, name], p) => {
+    sections.push({ ref: `p${p}`, parentRef: "", kind: "position", title: name, relation: "none", targets: [], crossApplyFrom: "", role: "", analytic: "", cardIds: [], needsEvidence: "", budgetSeconds: 10, priority: 1 });
+    items
+      .filter((i) => i.arg.positionId === pid)
+      .forEach((i, n) =>
+        sections.push({ ref: `p${p}a${n}`, parentRef: `p${p}`, kind: "response", title: `${n + 1}. [AI_FAKE] Answer`, relation: "answers", targets: [i.arg.id], crossApplyFrom: "", role: "", analytic: `[AI_FAKE] They say ${i.arg.text.slice(0, 50)}. That's wrong because their evidence assumes the status quo, so it doesn't apply to the plan.`, cardIds: [], needsEvidence: "", budgetSeconds: 15, priority: 2 }),
+      );
+  });
+  if (!sections.length) sections.push({ ref: "o", parentRef: "", kind: "overview", title: "[AI_FAKE] Overview", relation: "none", targets: [], crossApplyFrom: "", role: "", analytic: "[AI_FAKE] The plan solves the harms because it acts nationally, so vote for it.", cardIds: [], needsEvidence: "", budgetSeconds: 20, priority: 1 });
+  return { strategy: { summary: "[AI_FAKE] Answer everything on the flow.", choices: [], risks: [] }, outline: sections.map((x) => x.title), sections, omitted: [], questions: [] };
+}
+
 export async function draftSpeech(input: DraftSpeechInput) {
   const task = input.mode === "deep" ? "speech_draft" : "speech_draft_fast";
   const progress = input.onProgress ? draftProgress(input.onProgress, await taskTiming(task), await taskTiming("section_revise")) : null;
@@ -185,7 +202,7 @@ Output a complete, deliverable speech plan: first the outline (every section tit
     progress?.partial(p as Parameters<NonNullable<typeof progress>["partial"]>[0]);
     input.onPartial?.(p);
   };
-  const res = await runStructured({ task, system, context: ctx.text, prompt, schema: SpeechDraftSchema, onPartial, abortSignal: input.abortSignal, teamId: input.teamId, models: input.models });
+  const res = await runStructured({ task, system, context: ctx.text, prompt, schema: SpeechDraftSchema, onPartial, abortSignal: input.abortSignal, teamId: input.teamId, models: input.models, fake: () => fakeDraft(ctx) });
   progress?.checking(res.output.sections.length);
   let { output, validation } = validateDraft(res.output, ctx, input.speech, round.ourSide, rates);
   if (!input.noLengthFix) {
@@ -278,6 +295,7 @@ Return every section above, using its id as sectionId, with its full rewritten t
         { model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 12000, firstChunkMs: 30000 },
         { model: MODELS.opus55, effort: "low", maxOutputTokens: 12000 },
       ],
+      fake: () => ({ sections: [] }),
     });
     const rewrites = res.output.sections
       .filter((r) => targets.has(r.sectionId) && byRef.has(r.sectionId) && r.analytic.trim())
@@ -365,7 +383,17 @@ ${current}
 
 It targets: ${targets.map((a) => `[${a!.id}] ${a!.text}`).join("; ") || "(no targets)"}
 ${input.instructions ? `Team instruction: ${input.instructions}` : ""}`;
-    const res = await runStructured({ task: "section_alternatives", system, context: ctx.text, prompt, schema: AlternativesSchema, onPartial: input.onPartial, abortSignal: input.abortSignal, teamId: input.teamId });
+    const res = await runStructured({
+      task: "section_alternatives",
+      system,
+      context: ctx.text,
+      prompt,
+      schema: AlternativesSchema,
+      onPartial: input.onPartial,
+      abortSignal: input.abortSignal,
+      teamId: input.teamId,
+      fake: () => ({ options: ["Defense", "Turn", "Group"].map((label) => ({ label: `[AI_FAKE] ${label}`, approach: `[AI_FAKE] ${label} approach`, tradeoff: "[AI_FAKE] tradeoff", title: section.title, analytic: `[AI_FAKE] ${label} because reasons, so it matters.`, cardIds: [], role: "" as const })) }),
+    });
     const valid = new Set(ctx.cards.map((c) => c.id));
     const output: AlternativesOutput = { options: res.output.options.map((o) => ({ ...o, label: stripIds(o.label), approach: stripIds(o.approach), tradeoff: stripIds(o.tradeoff), title: stripIds(o.title), analytic: stripIds(o.analytic), cardIds: o.cardIds.filter((c) => valid.has(c)) })) };
     return { kind: "alternatives" as const, output, baseHash, run: meta(res), contextRefs: ctx.refs, cards: summarizeCards(ctx) };
@@ -380,7 +408,12 @@ ${current}
 It targets: ${targets.map((a) => `[${a!.id}] ${a!.text}${a!.warrant ? ` (warrant: ${a!.warrant})` : ""}`).join("; ") || "(no targets)"}
 
 Return the revised section: its heading (title), the analytic text to say, and which card ids to read (from the section's cards or the provided evidence).`;
-  const res = await runStructured({ task: "section_revise", system, context: ctx.text, prompt, schema: SectionRevisionSchema, onPartial: input.onPartial, abortSignal: input.abortSignal, teamId: input.teamId });
+  const ownText = section.items
+    .filter((i) => i.type === "paragraph")
+    .map((i) => (i as { text: string }).text)
+    .join("\n\n");
+  const ownCards = section.items.filter((i) => i.type === "card").map((i) => (i as { cardId: string | null }).cardId).filter((x): x is string => !!x);
+  const res = await runStructured({ task: "section_revise", system, context: ctx.text, prompt, schema: SectionRevisionSchema, onPartial: input.onPartial, abortSignal: input.abortSignal, teamId: input.teamId, fake: () => ({ title: section.title, analytic: `${ownText} [AI_FAKE ${input.action}]`.trim(), cardIds: ownCards, needsEvidence: "", note: `[AI_FAKE] ${input.action}` }) });
   const valid = new Set(ctx.cards.map((c) => c.id));
   const output: SectionRevisionOutput = { ...res.output, title: stripIds(res.output.title), analytic: stripIds(res.output.analytic), note: stripIds(res.output.note), needsEvidence: stripIds(res.output.needsEvidence), cardIds: res.output.cardIds.filter((c) => valid.has(c)) };
   const seconds = estimateSection(output.analytic, output.title, output.cardIds, ctx, rates);
@@ -482,6 +515,7 @@ Return every section above with its full rewritten text.`;
         { model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 12000, firstChunkMs: 20000 },
         { model: MODELS.opus55, effort: "low", maxOutputTokens: 12000 },
       ],
+      fake: () => ({ sections: [] }),
     });
     for (const r of res.output.sections) {
       const hit = short.find((x) => x.e.sectionId === r.sectionId);
@@ -536,7 +570,32 @@ Return one plan entry for every section id above.`;
     progress?.partial(p as { plan?: unknown[] });
     input.onPartial?.(p);
   };
-  const res = await runStructured({ task: "speech_fit", system, context: ctx.text, prompt, schema: FitPlanSchema, onPartial, abortSignal: input.abortSignal, teamId: input.teamId });
+  const res = await runStructured({
+    task: "speech_fit",
+    system,
+    context: ctx.text,
+    prompt,
+    schema: FitPlanSchema,
+    onPartial,
+    abortSignal: input.abortSignal,
+    teamId: input.teamId,
+    // AI_FAKE: fills add a sentence to every section; cuts halve the words of the longer ones.
+    fake: () => ({
+      summary: `[AI_FAKE] ${fill ? "Fill" : "Fit"} to time.`,
+      sacrificed: [],
+      plan: sections.map((x) => {
+        const text = x.items
+          .filter((i) => i.type === "paragraph")
+          .map((i) => (i as { text: string }).text)
+          .join(" ");
+        const words = text.split(/\s+/).filter(Boolean);
+        const cards = x.items.filter((i) => i.type === "card").map((i) => (i as { cardId: string | null }).cardId).filter((c): c is string => !!c);
+        if (fill) return { sectionId: x.id, action: "expand" as const, targetSeconds: Math.round(ownSeconds(x, rates)) + 10, title: x.title, analytic: `${text} [AI_FAKE] And that matters because it decides the round.`.trim(), cardIds: cards, reason: "[AI_FAKE] more depth" };
+        if (words.length > 20) return { sectionId: x.id, action: "condense" as const, targetSeconds: Math.round(ownSeconds(x, rates) / 2), title: x.title, analytic: words.slice(0, Math.ceil(words.length / 2)).join(" "), cardIds: cards, reason: "[AI_FAKE] shorter" };
+        return { sectionId: x.id, action: "keep" as const, targetSeconds: Math.round(ownSeconds(x, rates)), title: "", analytic: "", cardIds: [], reason: "[AI_FAKE] keep" };
+      }),
+    }),
+  });
 
   // Validate: known sections only; locked sections stay; condensed sections keep only their own cards.
   const byId = new Map(sections.map((s) => [s.id, s]));
@@ -971,7 +1030,7 @@ function validatePatch(out: PatchPlanOutput, ctx: RoundContext, cs: ChangeSet, j
   });
   const cite = (id: string) => ctx.cards.find((c) => c.id === id)?.shortCite ?? "";
   const added: CheckSection[] = adds.map((a) => ({ id: `new:${a.ref}`, title: a.title, relation: a.relation, targets: a.targets, role: a.role || null, crossApplyFrom: a.crossApplyFrom || null, analytic: a.analytic, cardCites: a.cardIds.map(cite), parentId: a.parentRef ? `new:${a.parentRef}` : a.anchor || null, kind: a.kind }));
-  const report = checkSpeech({ graph, speech, sections: [...merged, ...added], recorded: ctx.recorded, judgeLay: ctx.judgeLay });
+  const report = checkSpeech({ graph, speech, sections: [...merged, ...added], recorded: ctx.recorded, judgeLay: ctx.judgeLay, newArgumentPolicy: ctx.newArgumentPolicy });
   const covered = new Set(report.coverage.items.filter((i) => i.status !== "unanswered" && i.status !== "uncertain").map((i) => i.arg.id));
   const notAddressed = new Set(out.notAddressed.flatMap((x) => x.targets));
   const remaining = cs.unanswered.filter((a) => !covered.has(a.id) && !notAddressed.has(a.id)).map((a) => ({ id: a.id, text: a.text }));
@@ -1129,7 +1188,7 @@ export async function interpretFlow(input: InterpretInput) {
 
 TASK: FLOWING. You interpret arguments that were extracted from speech documents. For each argument in the target speech: write a short flow-style claim, the warrant, its role, and whether it is offense. Then link each response to the argument(s) it answers from EARLIER opposing speeches (and extensions to the same side's earlier arguments). Use the document's signposting (numbering, "extend", "they say", "A2") as the strongest signal; mark explicit=true only when the document itself makes the link clear. Never invent links to fill gaps; low confidence is fine and expected. If two positions are clearly the same sheet under different names, report it in positionMerges.`;
   const prompt = `Interpret the ${input.speech} arguments: ${inSpeech.map((a) => `[${a.id}]`).join(", ")}.`;
-  const res = await runStructured({ task: "flow_interpret", system, context: ctx.text, prompt, schema: FlowInterpretSchema, onPartial: input.onPartial, abortSignal: input.abortSignal, teamId: input.teamId });
+  const res = await runStructured({ task: "flow_interpret", system, context: ctx.text, prompt, schema: FlowInterpretSchema, onPartial: input.onPartial, abortSignal: input.abortSignal, teamId: input.teamId, fake: () => ({ args: [], links: [], positionMerges: [], notes: ["[AI_FAKE] no reading"] }) });
   const out = res.output as FlowInterpretOutput;
   const ids = new Set(ctx.graph.args.map((a) => a.id));
   const inSpeechIds = new Set(inSpeech.map((a) => a.id));

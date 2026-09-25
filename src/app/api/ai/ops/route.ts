@@ -109,6 +109,17 @@ export const POST = handle(async (req: Request) => {
   };
   const onProgress = (p: unknown) => sink.push?.({ t: "progress", data: p });
 
+  // "Stop" from either partner marks the operation cancelled in the database; notice it and abort the model call.
+  const watchdog = setInterval(() => {
+    void db()
+      .select({ status: aiOperations.status })
+      .from(aiOperations)
+      .where(eq(aiOperations.id, opId))
+      .then(([r]) => {
+        if (r?.status === "cancelled") abort.abort();
+      })
+      .catch(() => {});
+  }, 2500);
   const work = (async () => {
     try {
       let result: unknown;
@@ -203,15 +214,19 @@ export const POST = handle(async (req: Request) => {
       await db()
         .update(aiOperations)
         .set({ status: "complete", output: result as never, model: r.run?.model ?? "", usage: { ...(r.run ?? {}) } as never, contextRefs: (r.contextRefs ?? {}) as never, partialText: "", updatedAt: new Date(), ...(nothingToApply ? { dismissedAt: new Date() } : {}) })
-        .where(eq(aiOperations.id, opId));
+        // A stop that arrived as it finished still wins: the result isn't shown.
+        .where(and(eq(aiOperations.id, opId), eq(aiOperations.status, "streaming")));
+      if (abort.signal.aborted) throw new Error("Cancelled.");
       sink.push?.({ t: "done", data: result });
     } catch (e) {
-      const message = e instanceof HttpError || e instanceof AiRunError || e instanceof Error ? e.message : "AI request failed.";
+      const message = abort.signal.aborted ? "Cancelled." : e instanceof HttpError || e instanceof AiRunError || e instanceof Error ? e.message : "AI request failed.";
       await db()
         .update(aiOperations)
         .set({ status: abort.signal.aborted ? "cancelled" : "failed", error: message, usage: e instanceof AiRunError ? ({ attempts: e.attempts } as never) : null, updatedAt: new Date() })
         .where(eq(aiOperations.id, opId));
       sink.push?.({ t: "error", message });
+    } finally {
+      clearInterval(watchdog);
     }
   })();
   // Keep the function alive until the work finishes, even if the client leaves.

@@ -73,6 +73,16 @@ describe("checkSpeech", () => {
     expect(r.checks.map((c) => c.code)).not.toContain("ext2_not_ours");
   });
 
+  it("new arguments in rebuttals follow the format's rule", () => {
+    const s = [section("n", [], { relation: "new", title: "New add-on", analytic: "A brand new advantage because reasons, so vote aff." })];
+    const conventional = checkSpeech({ graph: graph(), speech: "1AR", sections: s, recorded: new Set() });
+    expect(conventional.checks.map((c) => c.code)).toContain("new_in_rebuttal");
+    const permissive = checkSpeech({ graph: graph(), speech: "1AR", sections: s, recorded: new Set(), newArgumentPolicy: "permissive" });
+    expect(permissive.checks.map((c) => c.code)).not.toContain("new_in_rebuttal");
+    const strict = checkSpeech({ graph: graph(), speech: "2AR", sections: [section("e", ["n1"], { cardCites: ["Brand New 26"] })], recorded: new Set(), newArgumentPolicy: "strict" });
+    expect(strict.checks.map((c) => c.code)).toContain("new_evidence_final");
+  });
+
   it("the 1NR isn't asked to answer what the 2NC already covered", () => {
     const g = graph([arg("x1", "pol", "2AC", "aff", "no_link", "No link"), arg("x2", "cp", "2AC", "aff", "perm", "Perm do both"), arg("c1", "pol", "2NC", "neg", "link", "Link extension")]);
     const cov1NR = computeCoverage(g, "1NR", [], new Set(["2AC", "2NC"]));

@@ -32,7 +32,8 @@ interface Block {
   kind: "heading" | "card" | "analytic";
   level: number | null;
   text: string;
-  data: { citation?: Citation; body?: BodyBlock[] } | null;
+  /** cards: citation and body; analytics: the explanation paragraphs under the tag */
+  data: { citation?: Citation; body?: BodyBlock[]; detail?: string[] } | null;
 }
 
 export function FilesView() {
@@ -103,13 +104,13 @@ function FileOutline({ uploadId }: { uploadId: string }) {
       const lib = await fetchCards(team.id, items.map((b) => cardIds[String(b.idx)]).filter((x): x is string => !!x));
       const content: PMNodeJSON[] = [{ type: "heading", attrs: { level: 4 }, content: [{ type: "text", text: blocks[i].text }] }];
       for (const b of items) {
-        if (b.kind === "heading" && b.level === 4) {
-          // A lone Verbatim tag with no card body is an analytic.
-          content.push({ type: "paragraph", content: [{ type: "text", text: b.text }] });
-        } else if (b.kind === "heading") {
+        if (b.kind === "heading") {
+          // A sub-heading inside the block (a hat or a "2NC —" label) keeps its place as a bold line.
           content.push({ type: "paragraph", content: [{ type: "text", text: b.text, marks: [{ type: "bold" }] }] });
         } else if (b.kind === "analytic") {
+          // The analytic's tag, then the explanation written under it in the file.
           if (b.text.trim()) content.push({ type: "paragraph", content: [{ type: "text", text: b.text }] });
+          for (const d of b.data?.detail ?? []) if (d.trim()) content.push({ type: "paragraph", content: [{ type: "text", text: d.trim() }] });
         } else if (b.kind === "card") {
           const id = cardIds[String(b.idx)];
           const c = id ? lib.get(id) : undefined;

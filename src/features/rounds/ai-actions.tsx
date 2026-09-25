@@ -26,6 +26,20 @@ function draftHash(editor: Editor | null): string | null {
   return editor ? sectionContentHash(editor.getJSON() as PMNodeJSON) : null;
 }
 
+/** A job that failed, or that someone stopped (then it simply closes, with no error). */
+function failed(pid: string, e: unknown, quiet = false) {
+  const message = (e as Error).message;
+  const stopped = /^(Cancelled\.|Stopped by)/.test(message);
+  useProposals.getState().update(pid, { status: stopped || quiet ? "dismissed" : "failed", error: stopped ? null : message, progress: null });
+  activityEnd(pid, stopped ? "dismissed" : "failed", stopped ? "Stopped" : undefined);
+  if (!stopped && !quiet) toast(message, "bad");
+}
+
+/** Stop a running AI job (the server notices within a few seconds). */
+export async function stopOp(opId: string) {
+  await api(`/api/ai/ops/${opId}/cancel`, { method: "POST", json: {} }).catch(() => {});
+}
+
 /** Stream events into the proposal, and into the shared activity so the partner sees it. */
 function onEvent(pid: string, e: OpEvent) {
   const store = useProposals.getState();
@@ -56,9 +70,7 @@ export async function startDraftOp(args: { round: RoundRecord; speech: SpeechId;
     useProposals.getState().update(pid, { status: "ready", result: result as never, note: null, progress: null });
     activityEnd(pid, "ready");
   } catch (e) {
-    useProposals.getState().update(pid, { status: "failed", error: (e as Error).message });
-    activityEnd(pid, "failed");
-    toast((e as Error).message, "bad");
+    failed(pid, e);
   }
 }
 
@@ -76,9 +88,7 @@ export async function startFitOp(args: { round: RoundRecord; speech: SpeechId; d
     useProposals.getState().update(pid, { status: "ready", result: result as never, progress: null });
     activityEnd(pid, "ready");
   } catch (e) {
-    useProposals.getState().update(pid, { status: "failed", error: (e as Error).message });
-    activityEnd(pid, "failed");
-    toast((e as Error).message, "bad");
+    failed(pid, e);
   }
 }
 
@@ -105,9 +115,7 @@ export async function startPatchOp(args: { round: RoundRecord; speech: SpeechId;
     activityEnd(pid, result.upToDate ? "dismissed" : "ready", result.upToDate ? "Nothing to change" : undefined);
     return result;
   } catch (e) {
-    activityEnd(pid, "failed");
-    useProposals.getState().update(pid, { status: args.auto ? "dismissed" : "failed", error: (e as Error).message });
-    if (!args.auto) toast((e as Error).message, "bad");
+    failed(pid, e, args.auto);
     return null;
   }
 }
@@ -136,9 +144,7 @@ export async function runSectionAi(args: { round: RoundRecord; speech: SpeechId;
     useProposals.getState().update(pid, { status: "ready", result: result as never });
     activityEnd(pid, "ready");
   } catch (e) {
-    useProposals.getState().update(pid, { status: "failed", error: (e as Error).message });
-    activityEnd(pid, "failed");
-    toast((e as Error).message, "bad");
+    failed(pid, e);
   }
 }
 

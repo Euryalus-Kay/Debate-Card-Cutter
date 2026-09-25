@@ -116,6 +116,7 @@ function provenanceText(a: ArgUnit): string {
 
 function ArgDetails({ round, doc, graph }: { round: RoundRecord; doc: Y.Doc | null; graph: RoundGraph | null }) {
   const ws = useWorkspace();
+  const { user } = useApp();
   const arg = graph?.args.find((a) => a.id === ws.selectedArgId) ?? null;
   const [linking, setLinking] = useState(false);
   const pos = graph?.positions.find((p) => p.id === arg?.positionId);
@@ -195,7 +196,7 @@ function ArgDetails({ round, doc, graph }: { round: RoundRecord; doc: Y.Doc | nu
               <button
                 key={c.id}
                 onClick={() => {
-                  doc.transact(() => upsertRelation(doc, { id: makeId("rel"), type: "answers", from: arg.id, to: [c.id], provenance: { type: "user_note", by: "me" }, status: "confirmed" }));
+                  doc.transact(() => upsertRelation(doc, { id: makeId("rel"), type: "answers", from: arg.id, to: [c.id], provenance: { type: "user_note", by: user.id }, status: "confirmed" }));
                   setLinking(false);
                 }}
                 className="block w-full border-b border-line px-2 py-1.5 text-left text-xs last:border-0 hover:bg-hover"

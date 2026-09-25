@@ -12,7 +12,7 @@ import { getFormat, speechSeconds, SPEECH_IDS, SPEECHES, type SpeechId } from "@
 import type { RoundGraph } from "@/domain/flow";
 import { capRatesForJudge, estimate, formatClock } from "@/domain/timing";
 import { itemLoad, type DraftItem } from "@/shared/draft-model";
-import { prepUsedMs, readActivity, readPrefs, readSlots, readTimers, updatePrefs, updateSlot, type SlotRecord } from "@/shared/round-doc";
+import { confirmDocumented, prepUsedMs, readActivity, readPrefs, readSlots, readTimers, updatePrefs, updateSlot, type SlotRecord } from "@/shared/round-doc";
 import { useRateProfile } from "@/client/use-settings";
 import type { RoundBundle, RoundRecord } from "./types";
 import { useWorkspace } from "./store";
@@ -398,7 +398,14 @@ function OpponentSpeechView({ round, bundle, doc, speech, slots, aiEnabled, user
               <CheckCircle2 className="size-3.5" /> {slot?.status === "delivered" ? "Delivered" : "Mark delivered"}
             </Button>
             <Tooltip content="Confirm that everything in their document was read, except cards you mark as not read. Until then, items stay 'documented, not confirmed'.">
-              <Button size="sm" variant={slot?.readConfirmed ? "subtle" : "secondary"} onClick={() => doc && doc.transact(() => updateSlot(doc, speech, { readConfirmed: !slot?.readConfirmed }))}>
+              <Button size="sm" variant={slot?.readConfirmed ? "subtle" : "secondary"} onClick={() =>
+                  doc &&
+                  doc.transact(() => {
+                    updateSlot(doc, speech, { readConfirmed: !slot?.readConfirmed });
+                    confirmDocumented(doc, speech, !slot?.readConfirmed);
+                  })
+                }
+              >
                 {slot?.readConfirmed ? "Read confirmed" : "Confirm read as documented"}
               </Button>
             </Tooltip>

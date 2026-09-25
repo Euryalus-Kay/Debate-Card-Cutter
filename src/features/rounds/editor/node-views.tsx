@@ -175,6 +175,7 @@ export function CardView(props: ReactNodeViewProps) {
   const inBasket = attrs.cardId ? ws.basket.includes(String(attrs.cardId)) : false;
   const [rehighlight, setRehighlight] = useState(false);
   const { team } = useApp();
+  const skipped = attrs.read === "skipped";
   // Read time for this card at the speaker's pace (highlighted words, plus its tag and cite).
   const readSecs = estimate({ cardWords: countWords(readAloud(body).text), tagWords: countWords(tag) + 2, analyticWords: 0, cards: 1, transitions: 0 }, ctx.rates).seconds;
   const vMeta =
@@ -189,7 +190,7 @@ export function CardView(props: ReactNodeViewProps) {
             : { icon: <ShieldQuestion className="size-3.5" />, tone: "warn" as const, label: "Unverified", hint: "The original source could not be checked." };
 
   return (
-    <NodeViewWrapper className={cn("node-card group relative", inBasket && "rounded-md ring-1 ring-accent/40")} data-card="" data-verification={edited ? "edited" : v}>
+    <NodeViewWrapper className={cn("node-card group relative", inBasket && "rounded-md ring-1 ring-accent/40", skipped && "opacity-50")} data-card="" data-verification={edited ? "edited" : v}>
       {/* Status strip: floats right so the tag wraps around it; always visible (evidence integrity). */}
       <div contentEditable={false} className="card-status float-right ml-3 flex select-none items-center gap-1 pt-0.5">
         <Tooltip content="Time to read this card (tag, cite, and highlighted text) at the speaker's pace">
@@ -222,6 +223,18 @@ export function CardView(props: ReactNodeViewProps) {
             </button>
           </Tooltip>
         ) : null}
+        <Tooltip content={skipped ? "Marked not read: when the speech is marked delivered, the flow won't count this card. Click to undo." : "Mark as not read (skipped in the speech), so the flow doesn't count it."}>
+          <button
+            className={cn("rounded px-1 py-0.5 text-[11px] hover:bg-hover", skipped ? "bg-warn-soft text-warn" : "text-faint hover:text-fg")}
+            aria-label={skipped ? "Mark card as read" : "Mark card as not read"}
+            onClick={() => {
+              const pos = props.getPos();
+              if (typeof pos === "number") props.editor.view.dispatch(props.editor.state.tr.setNodeAttribute(pos, "read", skipped ? "planned" : "skipped"));
+            }}
+          >
+            {skipped ? "Skipped" : "Skip"}
+          </button>
+        </Tooltip>
         <Tooltip content="Open the full card (source, highlighting, history)">
           <button className="rounded p-0.5 text-faint hover:bg-hover hover:text-fg" aria-label="Open card" onClick={() => ctx.onCardOpen((attrs.cardId as string) ?? null, String(attrs.id))}>
             <ExternalLink className="size-3.5" />

@@ -192,7 +192,7 @@ export type DraftItem =
   | { type: "heading"; level: number; text: string }
   | { type: "paragraph"; text: string }
   | { type: "note"; text: string }
-  | { type: "card"; instanceId: string; cardId: string | null; tag: string; shortCite: string; fullCite: string; body: BodyBlock[]; verification: string; textEdited: boolean }
+  | { type: "card"; instanceId: string; cardId: string | null; tag: string; shortCite: string; fullCite: string; body: BodyBlock[]; verification: string; textEdited: boolean; read?: string }
   | { type: "section"; section: DraftSection };
 
 export interface DraftSection {
@@ -266,6 +266,7 @@ function itemFrom(n: PMNodeJSON): DraftItem | null {
         body: pmCardBody(n),
         verification: String(n.attrs?.verification ?? "unverified"),
         textEdited: !!n.attrs?.textEdited,
+        read: String(n.attrs?.read ?? "planned"),
       };
     }
     case "bulletList":

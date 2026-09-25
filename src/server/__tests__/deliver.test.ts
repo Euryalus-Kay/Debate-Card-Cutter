@@ -58,4 +58,37 @@ describe("delivering a speech", () => {
     expect(labels("p_cp")).toEqual(["1 Perm do both", "2 Solvency deficit"]);
     expect(ours.every((a) => a.delivery === "confirmed")).toBe(true);
   });
+
+  it("a card marked skipped isn't counted as read, and a section of only skipped cards wasn't said", async () => {
+    const { id: roundId, stateDocId } = await createRound("t1", "u1", RoundInput.parse({ ourSide: "aff" }));
+    await applyServerChange(
+      stateDocId,
+      (doc) => {
+        upsertPosition(doc, { id: "p_da", name: "Politics DA", kind: "da", side: "neg", introducedIn: "1NC", order: 0 });
+        for (const id of ["b1", "b2"]) upsertArg(doc, { id, positionId: "p_da", speech: "1NC", side: "neg", order: 1, label: "1", text: id, role: "claim", cardIds: [], provenance: { type: "user_note", by: "u1" }, delivery: "confirmed" });
+      },
+      { userId: "u1", origin: "test" },
+    );
+    const draftId = await createDraft({ teamId: "t1", roundId, speech: "2AC", userId: "u1" });
+    const card = (id: string, read: string) => ({ type: "card", attrs: { id, cardId: `card_${id}`, read }, content: [{ type: "cardTag", content: [{ type: "text", text: "Tag" }] }, { type: "cardCite", attrs: { short: `Lee 2${id.slice(-1)}`, full: "Lee" } }, { type: "cardBody", content: [{ type: "cardPara", content: [{ type: "text", text: "Words." }] }] }] });
+    await applyServerChange(
+      draftId,
+      (doc) => {
+        const json = {
+          type: "doc",
+          content: [
+            { type: "section", attrs: { id: "s1", kind: "response", relation: "answers", targets: ["b1"] }, content: [{ type: "heading", attrs: { level: 4 }, content: [{ type: "text", text: "Read card" }] }, card("c1", "planned"), card("c2", "skipped")] },
+            { type: "section", attrs: { id: "s2", kind: "response", relation: "answers", targets: ["b2"] }, content: [{ type: "heading", attrs: { level: 4 }, content: [{ type: "text", text: "Skipped card" }] }, card("c3", "skipped")] },
+          ],
+        };
+        prosemirrorJSONToYXmlFragment(draftSchema(), json, doc.getXmlFragment(DRAFT_FRAGMENT));
+      },
+      { userId: "u1", origin: "test" },
+    );
+    await deliverDraft(draftId, "u1");
+    const { doc } = await loadDoc(stateDocId);
+    const ours = Object.fromEntries(readArgs(doc).filter((a) => a.speech === "2AC").map((a) => [a.text, a]));
+    expect(ours["Read card"]).toMatchObject({ delivery: "confirmed", cardIds: ["card_c1"], cites: ["Lee 21"] });
+    expect(ours["Skipped card"].delivery).toBe("not_read");
+  });
 });

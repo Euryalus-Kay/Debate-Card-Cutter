@@ -76,8 +76,13 @@ export async function deliverDraft(docId: string, userId: string): Promise<{ ver
     if (!positionId) continue;
     const order = (perPosition.get(positionId) ?? 0) + 1;
     perPosition.set(positionId, order);
-    const text = s.title || firstSentence(s.items.filter((i) => i.type === "paragraph").map((i) => (i as { text: string }).text).join(" "));
-    const cites = s.items.filter((i): i is Extract<DraftItem, { type: "card" }> => i.type === "card").map((c) => c.shortCite).filter(Boolean);
+    const own = s.items.filter((i) => i.type === "paragraph").map((i) => (i as { text: string }).text).join(" ");
+    const text = s.title || firstSentence(own);
+    // Cards marked "skipped" weren't read: they aren't on the flow, and a section of only skipped cards wasn't said.
+    const allCards = s.items.filter((i): i is Extract<DraftItem, { type: "card" }> => i.type === "card");
+    const readCards = allCards.filter((c) => c.read !== "skipped");
+    const cites = readCards.map((c) => c.shortCite).filter(Boolean);
+    const unsaid = allCards.length > 0 && !readCards.length && !own.trim();
     const unit: ArgUnit = {
       id: `dl_${docId.slice(-8)}_${s.id}`,
       positionId,
@@ -87,10 +92,10 @@ export async function deliverDraft(docId: string, userId: string): Promise<{ ver
       label: String(order),
       text: text.slice(0, 300),
       role: (s.role as ArgRole) || "claim",
-      cardIds: s.items.filter((i): i is Extract<DraftItem, { type: "card" }> => i.type === "card").map((c) => c.cardId).filter((x): x is string => !!x),
+      cardIds: readCards.map((c) => c.cardId).filter((x): x is string => !!x),
       cites,
       provenance: { type: "draft", draftId: docId, sectionId: s.id },
-      delivery: "confirmed",
+      delivery: unsaid ? "not_read" : "confirmed",
     };
     const relType: RelationType | null = s.relation === "answers" || s.relation === "group" ? "answers" : s.relation === "cross_apply" ? "cross_applies" : s.relation === "extend" ? "extends" : null;
     units.push({ unit, rel: relType && s.targets.length ? { type: relType, to: s.targets, grouped: s.relation === "group" } : undefined });
@@ -99,7 +104,8 @@ export async function deliverDraft(docId: string, userId: string): Promise<{ ver
     round.stateDocId,
     (doc: Y.Doc) => {
       // Replace units (and new positions) from any previous delivery of this draft.
-      for (const a of readArgs(doc)) if (a.provenance.type === "draft" && a.provenance.draftId === docId && !units.some((u) => u.unit.id === a.id)) deleteArg(doc, a.id);
+      // Arguments from sections that vanished go, unless a person corrected them on the flow.
+      for (const a of readArgs(doc)) if (a.provenance.type === "draft" && a.provenance.draftId === docId && !units.some((u) => u.unit.id === a.id) && !a.humanEdited) deleteArg(doc, a.id);
       const prefix = `dp_${docId.slice(-8)}_`;
       for (const p of readPositions(doc)) if (p.id.startsWith(prefix) && !newPositions.some((n) => n.id === p.id)) deletePosition(doc, p.id);
       for (const p of newPositions) upsertPosition(doc, p);

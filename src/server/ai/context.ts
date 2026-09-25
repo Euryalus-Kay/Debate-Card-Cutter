@@ -12,7 +12,7 @@ import { rounds, uploads } from "@/server/db/schema";
 import { loadDoc } from "@/server/docs/store";
 import { getCards, searchCards, type CardRow } from "@/server/cards";
 import { computeCoverage, possiblyKickedPositions, liveOffenseOnKickedPositions, POSITION_KIND_LABEL, type ArgUnit, type CoverageReport, type RoundGraph } from "@/domain/flow";
-import { DEFAULT_CX, getFormat, SPEECH_IDS, SPEECHES, speechSeconds, speechesToAnswer, type SpeechId } from "@/domain/format";
+import { DEFAULT_CX, getFormat, SPEECH_IDS, SPEECHES, speechSeconds, speechesToAnswer, type NewArgumentPolicy, type SpeechId } from "@/domain/format";
 import { cardLoad, readAloud } from "@/domain/card";
 import { fullCite, shortCite } from "@/domain/citation";
 import { capRatesForJudge, estimateSeconds, presetProfile, wordsForSeconds, type JudgeSpeed, type RatePresetId, type RateProfile } from "@/domain/timing";
@@ -39,6 +39,7 @@ export interface RoundContext {
   judgeRateCap: RatePresetId | null;
   /** the judge's paradigm says lay or parent judge */
   judgeLay: boolean;
+  newArgumentPolicy: NewArgumentPolicy;
   refs: { stateHeadSeq: number; draftHeadSeq: number | null; cardIds: string[] };
 }
 
@@ -270,6 +271,7 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
     rates,
     judgeRateCap,
     judgeLay: judgeRecord?.profile?.experience?.value === "lay" || judgeRecord?.profile?.experience?.value === "parent",
+    newArgumentPolicy: fmt.newArgumentPolicy,
     refs: { stateHeadSeq, draftHeadSeq, cardIds: [...selected, ...draftCards, ...library].map((c) => c.id) },
   };
 }

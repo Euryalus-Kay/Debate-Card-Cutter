@@ -15,6 +15,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [ageOk, setAgeOk] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -55,8 +56,14 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           <Field label="Password" hint={mode === "signup" ? "At least 10 characters." : undefined}>
             <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={mode === "signup" ? 10 : undefined} autoComplete={mode === "signup" ? "new-password" : "current-password"} />
           </Field>
+          {mode === "signup" ? (
+            <label className="flex items-start gap-2 text-[12.5px] text-muted">
+              <input type="checkbox" className="mt-0.5" checked={ageOk} onChange={(e) => setAgeOk(e.target.checked)} required />
+              <span>I&apos;m 13 or older, and a parent or guardian knows I use Clash. Clash uses AI (Anthropic&apos;s Claude) to suggest drafts and edits; nothing goes into a speech until you accept it.</span>
+            </label>
+          ) : null}
           {error ? <p className="rounded-md bg-bad-soft px-3 py-2 text-[13px] text-bad">{error}</p> : null}
-          <Button type="submit" variant="primary" loading={busy}>
+          <Button type="submit" variant="primary" loading={busy} disabled={mode === "signup" && !ageOk}>
             {mode === "signup" ? "Create account" : "Sign in"}
           </Button>
         </form>

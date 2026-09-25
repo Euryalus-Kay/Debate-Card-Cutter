@@ -11,6 +11,7 @@ import { makeId } from "@/shared/editor/schema";
 import type { RoundRecord } from "./types";
 import { useWorkspace } from "./store";
 import { DeliveryBadge } from "./coverage-panel";
+import { useApp } from "@/components/shell/app-shell";
 
 const COLUMNS: { key: string; speeches: SpeechId[]; label: string }[] = [
   { key: "1AC", speeches: ["1AC"], label: "1AC" },
@@ -160,6 +161,7 @@ function FlowCell({ arg, selected, related }: { arg: ArgUnit; selected: boolean;
 }
 
 function QuickAdd({ doc, positionId, speech, order }: { doc: Y.Doc; positionId: string; speech: SpeechId; order: number }) {
+  const { user } = useApp();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   if (!open)
@@ -186,7 +188,7 @@ function QuickAdd({ doc, positionId, speech, order }: { doc: Y.Doc; positionId: 
               text: text.trim(),
               role: "claim",
               cardIds: [],
-              provenance: { type: "user_note", by: "me" },
+              provenance: { type: "user_note", by: user.id },
               delivery: "confirmed",
             },
             { byHuman: true },

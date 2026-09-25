@@ -19,7 +19,7 @@ import { applyDraft, applyPatch, applyRevision, fetchCards, findSectionNode, rem
 import type { RoundRecord } from "./types";
 import { getActiveEditor, getRoundDoc } from "./editor/active-editor";
 import { saveVersionBeforeAi } from "./history-dialog";
-import { startFitOp } from "./ai-actions";
+import { startFitOp, stopOp } from "./ai-actions";
 import { AiProgress, useNow } from "./ai-progress";
 import { activityDecided } from "./ai-activity";
 
@@ -178,6 +178,11 @@ function ProposalCard({ p, round }: { p: Proposal; round: RoundRecord }) {
         <span className="text-[13px] font-semibold">{title}</span>
         <Badge tone={p.status === "ready" ? "accent" : p.status === "applied" ? "ok" : p.status === "failed" ? "bad" : "neutral"}>{p.status}</Badge>
         {!isCurrentDraft ? <span className="ml-auto text-[11px] text-faint">other draft</span> : null}
+        {p.status === "running" && p.opId ? (
+          <Button size="xs" variant="ghost" className={cn(isCurrentDraft && "ml-auto")} onClick={() => void stopOp(p.opId!)}>
+            Stop
+          </Button>
+        ) : null}
       </div>
       {p.error ? <p className="text-xs text-bad">{p.error}</p> : null}
       {p.kind === "draft" ? (

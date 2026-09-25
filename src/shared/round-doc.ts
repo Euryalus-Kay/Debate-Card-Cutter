@@ -194,7 +194,13 @@ export function deletePosition(doc: Y.Doc, id: string): void {
   setFields(entityMap(doc, RD.positions), id, { deleted: true });
 }
 
-export function upsertArg(doc: Y.Doc, a: Partial<ArgUnit> & { id: string }, opts: { byHuman?: boolean } = {}): void {
+/**
+ * Write an argument. A human correction (byHuman) protects the whole argument
+ * from automated refreshes; a human choice about one field (humanField, e.g.
+ * marking a card "not read") protects only the fields written, so the AI can
+ * still refine the rest.
+ */
+export function upsertArg(doc: Y.Doc, a: Partial<ArgUnit> & { id: string }, opts: { byHuman?: boolean; humanField?: boolean } = {}): void {
   const existing = entityMap(doc, RD.args).get(a.id);
   if (existing && existing.get("humanEdited") && !opts.byHuman) {
     // Never let an automated refresh overwrite a human correction.
@@ -203,7 +209,29 @@ export function upsertArg(doc: Y.Doc, a: Partial<ArgUnit> & { id: string }, opts
     setFields(entityMap(doc, RD.args), a.id, safe);
     return;
   }
-  setFields(entityMap(doc, RD.args), a.id, { ...a, ...(opts.byHuman ? { humanEdited: true } : {}) });
+  const locked = new Set<string>((existing?.get("humanFields") as string[] | undefined) ?? []);
+  const fields: Record<string, unknown> = opts.byHuman || opts.humanField ? { ...a } : Object.fromEntries(Object.entries(a).filter(([k]) => !locked.has(k)));
+  if (opts.humanField) fields.humanFields = [...new Set([...locked, ...Object.keys(a).filter((k) => k !== "id")])];
+  setFields(entityMap(doc, RD.args), a.id, { ...fields, ...(opts.byHuman ? { humanEdited: true } : {}) });
+}
+
+/**
+ * "Confirm read as documented": arguments from their document become delivered
+ * (except cards marked not read); undoing it puts them back to documented.
+ */
+export function confirmDocumented(doc: Y.Doc, speech: SpeechId, confirmed: boolean): number {
+  let n = 0;
+  for (const a of readArgs(doc)) {
+    if (a.speech !== speech || a.provenance.type !== "document") continue;
+    if (confirmed && a.delivery === "documented") {
+      upsertArg(doc, { id: a.id, delivery: "confirmed" });
+      n++;
+    } else if (!confirmed && a.delivery === "confirmed") {
+      upsertArg(doc, { id: a.id, delivery: "documented" });
+      n++;
+    }
+  }
+  return n;
 }
 
 export function deleteArg(doc: Y.Doc, id: string): void {

@@ -52,8 +52,8 @@ export function CoveragePanel({ round, doc, graph, recorded, slots, aiEnabled }:
   const checked = useMemo(() => {
     if (!graph || !speech || !ours) return null;
     const exp = round.judges?.[0]?.profile?.experience?.value;
-    return checkSpeech({ graph, speech, sections: checkSections(draft), recorded, judgeLay: exp === "lay" || exp === "parent" });
-  }, [graph, speech, ours, draft, recorded, round.judges]);
+    return checkSpeech({ graph, speech, sections: checkSections(draft), recorded, judgeLay: exp === "lay" || exp === "parent", newArgumentPolicy: getFormat(round.formatId, round.formatOverrides as never).newArgumentPolicy });
+  }, [graph, speech, ours, draft, recorded, round.judges, round.formatId, round.formatOverrides]);
   const report = checked?.coverage ?? null;
   const [showAllChecks, setShowAllChecks] = useState(false);
   // What an update of the open draft would answer (final rebuttals: only the flows the draft goes for).

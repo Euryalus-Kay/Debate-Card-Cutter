@@ -8,7 +8,7 @@
  */
 
 import { blockExclusions, computeCoverage, droppedByThem, isLive, type ArgUnit, type CoverageReport, type DraftTarget, type RoundGraph, type TheirDrop } from "./flow";
-import { isRebuttal, SPEECHES, speechesToAnswer, type SpeechId } from "./format";
+import { isBefore, isRebuttal, SPEECHES, speechesToAnswer, type NewArgumentPolicy, type SpeechId } from "./format";
 import type { Draft, DraftSection } from "@/shared/draft-model";
 import { allSections } from "@/shared/draft-model";
 import { analyticChecks } from "./analytic-checks";
@@ -84,7 +84,7 @@ export function draftTargetsOf(sections: CheckSection[]): DraftTarget[] {
     .map((s) => ({ sectionId: s.id, title: s.title, relation: (s.relation === "none" ? "answers" : s.relation) as DraftTarget["relation"], targets: s.targets, turn: s.role === "link_turn" || s.role === "impact_turn" }));
 }
 
-export function checkSpeech(input: { graph: RoundGraph; speech: SpeechId; sections: CheckSection[]; recorded: Set<SpeechId>; judgeLay?: boolean }): SpeechCheckReport {
+export function checkSpeech(input: { graph: RoundGraph; speech: SpeechId; sections: CheckSection[]; recorded: Set<SpeechId>; judgeLay?: boolean; newArgumentPolicy?: NewArgumentPolicy }): SpeechCheckReport {
   const { graph, speech, sections, recorded } = input;
   const checks: SpeechCheck[] = [];
   const side = SPEECHES[speech].side;
@@ -180,6 +180,16 @@ export function checkSpeech(input: { graph: RoundGraph; speech: SpeechId; sectio
   }
   if (speech === "2AR") {
     for (const s of sections.filter((x) => x.relation === "extend")) for (const a of targetsOf(s)) if (a.side === side && a.speech !== "1AR") checks.push({ code: "2ar_no_1ar_ancestor", severity: "warning", message: `"${s.title}" extends our ${a.speech} argument; the 2AR can only go for what the 1AR extended.`, sectionIds: [s.id] });
+  }
+  // The format's new-argument rule: no new arguments in rebuttals (new evidence extending an old one is fine,
+  // except under "strict" in the final rebuttals). "permissive" leagues allow them.
+  const policy = input.newArgumentPolicy ?? "conventional";
+  if (isRebuttal(speech) && policy !== "permissive") {
+    for (const s of sections.filter((x) => x.relation === "new" && x.kind !== "overview" && x.kind !== "position")) checks.push({ code: "new_in_rebuttal", severity: "warning", message: `"${s.title || "A section"}" is a new argument in a rebuttal; this format doesn't allow them (answering their new arguments is fine).`, sectionIds: [s.id] });
+    if (policy === "strict" && (speech === "2NR" || speech === "2AR")) {
+      const earlier = new Set(graph.args.filter((a) => a.side === side && isBefore(a.speech, speech)).flatMap((a) => a.cites ?? []).map((c) => c.toLowerCase()));
+      for (const s of sections) for (const c of s.cardCites) if (c && !earlier.has(c.toLowerCase())) checks.push({ code: "new_evidence_final", severity: "warning", message: `"${s.title || "A section"}" reads ${c}, which wasn't read earlier; this format bars new evidence in the final rebuttals.`, sectionIds: [s.id] });
+    }
   }
   // Expert norms for each analytic and block (docs/research/analytics-and-blocks.md §7).
   checks.push(...analyticChecks({ graph, speech, sections, judgeLay: input.judgeLay }));

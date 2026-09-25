@@ -1,4 +1,4 @@
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import { handle, requireAccess, requireUser } from "@/server/authz";
 import { db } from "@/server/db/client";
 import { aiOperations } from "@/server/db/schema";
@@ -7,6 +7,11 @@ export const GET = handle(async (_req: Request, ctx: { params: Promise<{ roundId
   const { roundId } = await ctx.params;
   const u = await requireUser();
   await requireAccess(u.id, "round", roundId);
+  // An operation still "streaming" long after the longest a request can run died with its server function.
+  await db()
+    .update(aiOperations)
+    .set({ status: "failed", error: "The AI stopped responding (the request was interrupted). Try again.", updatedAt: new Date() })
+    .where(and(eq(aiOperations.roundId, roundId), eq(aiOperations.status, "streaming"), lt(aiOperations.updatedAt, sql`now() - interval '6 minutes'`)));
   const ops = await db()
     .select({ id: aiOperations.id, kind: aiOperations.kind, target: aiOperations.target, status: aiOperations.status, model: aiOperations.model, error: aiOperations.error, instruction: aiOperations.instruction, appliedAt: aiOperations.appliedAt, dismissedAt: aiOperations.dismissedAt, createdAt: aiOperations.createdAt, createdBy: aiOperations.createdBy, usage: aiOperations.usage, docId: aiOperations.docId })
     .from(aiOperations)
