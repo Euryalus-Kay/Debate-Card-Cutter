@@ -191,7 +191,7 @@ A typical round (two or three drafts, a fit, a few rewrites, one research job) c
 | EXT-03 | Consider making the GitHub repo private | Recommended |
 | EXT-05 | Speech-to-text key: an OpenAI API key from a parent-owned account (18+) with a monthly spend limit, added as `OPENAI_API_KEY` in the Vercel dashboard (never in chat) | Optional: without it, live listening uses Chrome's on-device recognition and transcript paste/upload works |
 | EXT-06 | Library import to production: migration `0003_library_meta` | Done 09-25 (applied before deploying; production had 0 users and 0 cards) |
-| EXT-07 | Library checks cache: migration `0004_evidence_checks` on production before the next deploy (done by me) | Pending |
+| EXT-07 | Library checks cache: migration `0004_evidence_checks` on production | Done 09-25 (applied before deploying) |
 | EXT-04 | Optional search keys (Tavily/Exa) to widen discovery beyond Anthropic web search + OpenAlex | Optional; research works without them |
 
 ## 5. Test results
@@ -260,4 +260,5 @@ Each entry is marked **verified**, **partially verified**, or **unverified**.
 | 09-25 | Library retrieval and re-tags on PGlite (fake model): fits from our side only, unlabeled cards found, cards in the speech skipped, no cross-team results, cache reused and made stale by a new card; new tags kept only when the card's words support them | 12 tests pass | verified |
 | 09-25 | **Library reuse in a draft** (E2E, fake model, a fresh team): our blocks in the library → the 2AC reads the fitting cards under the right answers with checked new tags; the unrelated card isn't read; the proposal shows what fit and the new tags | pass | verified (`tests/e2e/library-reuse.spec.ts`) |
 | 09-25 | Unit/integration suite; E2E suite on the fake-model server | 234 tests (37 files); 16 passed, 1 skipped (real model) | verified |
+| 09-25 | **Production after deploying B2/B3** (commit 5326a7c + smoke change; migration 0004 applied first): the 2AC draft ran the library check against a library holding only the opponent's imported 1NC and read none of it | 21/21; QA data and 4 files removed; 0 users | verified |
 

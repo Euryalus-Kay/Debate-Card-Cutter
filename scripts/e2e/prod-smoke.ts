@@ -59,7 +59,9 @@ async function step<T>(name: string, fn: () => Promise<T>): Promise<T | undefine
   const t0 = Date.now();
   try {
     const v = await fn();
-    results.push({ step: name, ok: true, ms: Date.now() - t0 });
+    // What the step measured (timings, counts), kept short; ids and strings of text are left out.
+    const detail = v && typeof v === "object" ? JSON.stringify(v, (k, x) => (typeof x === "string" && (x.length > 80 || /^(card|team|rnd|draft|op|upl)_/.test(x)) ? undefined : x)).slice(0, 400) : undefined;
+    results.push({ step: name, ok: true, ms: Date.now() - t0, detail });
     console.log(`✓ ${name} (${Date.now() - t0} ms)`);
     return v;
   } catch (e) {
