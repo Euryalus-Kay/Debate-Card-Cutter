@@ -8,6 +8,7 @@ import { and, eq, gte, lt, sql } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { rateHits, teams, telemetry } from "@/server/db/schema";
 import { costOf } from "@/server/ai/cost";
+import { aiFake } from "@/server/ai/run";
 import { HttpError } from "@/server/authz";
 
 export const LIMITS = {
@@ -17,7 +18,7 @@ export const LIMITS = {
   library_find: { n: 60, sec: 60, what: "library checks" },
   transcribe: { n: 12, sec: 60, what: "transcription requests" },
   research: { n: 30, sec: 3600, what: "research jobs" },
-  file_build: { n: 6, sec: 3600, what: "file plans" },
+  file_build: { n: 20, sec: 3600, what: "file plans" },
   library_check: { n: 3, sec: 3600, what: "bulk source checks" },
   card_check: { n: 60, sec: 60, what: "source checks" },
   import: { n: 30, sec: 3600, what: "file imports" },
@@ -25,6 +26,8 @@ export const LIMITS = {
 export type LimitKind = keyof typeof LIMITS;
 
 export async function rateLimit(kind: LimitKind, userId: string): Promise<void> {
+  // The fake model (tests, local development) spends nothing, so there is nothing to protect.
+  if (aiFake()) return;
   const { n, sec, what } = LIMITS[kind];
   const key = `${kind}:${userId}`;
   const [{ c }] = (await db()
