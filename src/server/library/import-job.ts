@@ -22,6 +22,7 @@ import { structureDocument, type ImportedCard } from "@/server/ingest/structure"
 import { importCardsBatch } from "@/server/cards";
 import type { BodyBlock } from "@/domain/card";
 import { applyLabels, CHUNK, needsSegmentation, segmentChunk, type LabelRuns } from "./segment";
+import { continueJob } from "@/server/jobs/continue";
 import { labelCards, metaText, type CardMeta } from "./label";
 
 export const MAX_IMPORT_BYTES = 50 * 1024 * 1024;
@@ -158,6 +159,8 @@ export async function runImportJob(jobId: string): Promise<void> {
   const pause = async () => {
     await writing;
     await db().update(jobs).set({ checkpoint: cp, progress: importProgress(cp), leaseUntil: null, updatedAt: new Date() }).where(eq(jobs.id, jobId));
+    // Keep going without anyone watching: the next run starts now (polling would also resume it).
+    await continueJob(jobId, job.attempts);
   };
 
   try {

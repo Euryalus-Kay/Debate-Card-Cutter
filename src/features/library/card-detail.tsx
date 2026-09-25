@@ -44,6 +44,7 @@ export function CardDetail({ cardId }: { cardId: string }) {
   const [cite, setCite] = useState<Citation | null>(null);
   const [dirty, setDirty] = useState(false);
   const [rehighlight, setRehighlight] = useState(false);
+  const [checking, setChecking] = useState(false);
   const { team } = useApp();
   // Load the form from each new server version of the card.
   const [loaded, setLoaded] = useState<string | null>(null);
@@ -83,6 +84,19 @@ export function CardDetail({ cardId }: { cardId: string }) {
     }
   }
 
+  async function checkSource() {
+    setChecking(true);
+    try {
+      const r = await api<{ outcome: string; note: string }>(`/api/cards/${cardId}/verify`, { method: "POST" });
+      toast(r.note, r.outcome === "verified" ? "ok" : r.outcome === "mismatch" ? "bad" : "warn");
+      await qc.invalidateQueries({ queryKey: ["card", cardId] });
+    } catch (e) {
+      toast((e as Error).message, "bad");
+    } finally {
+      setChecking(false);
+    }
+  }
+
   const setAuthor = (i: number, field: "name" | "qualifications", value: string) => {
     const authors = [...cite.authors];
     authors[i] = { ...authors[i], [field]: value, ...(field === "qualifications" ? { qualificationsProvenance: "user" as const } : {}) };
@@ -100,8 +114,18 @@ export function CardDetail({ cardId }: { cardId: string }) {
           <VerificationBadge status={card.verificationStatus} />
           <Badge>{card.origin.replace("_", " ")}</Badge>
           {card.importedFrom?.fileName ? <span className="text-xs text-faint">from {card.importedFrom.fileName}</span> : null}
+          {card.citation.url && card.verificationStatus !== "verified" ? (
+            <Button size="xs" variant="ghost" loading={checking} onClick={checkSource}>
+              Check against the source
+            </Button>
+          ) : null}
           <span className="ml-auto text-xs text-faint">v{card.version}</span>
         </div>
+        {card.verificationStatus === "mismatch" && card.verification.issues.length ? (
+          <div className="mb-3 rounded-md bg-bad-soft px-2 py-1.5 text-xs text-bad">
+            Not on the page as cut: {card.verification.issues.slice(0, 3).map((i) => i.message).join(" ")}
+          </div>
+        ) : null}
         <Textarea rows={2} value={tag} onChange={(e) => (setTag(e.target.value), setDirty(true))} className="text-[15px] font-semibold" aria-label="Tag" />
         <div className="mt-3 rounded-xl border border-line bg-elev p-3">
           <div className="text-[13px]">

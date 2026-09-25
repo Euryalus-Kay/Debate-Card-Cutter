@@ -20,6 +20,7 @@ import { fetchSource, paragraphsOf } from "./fetcher";
 import { saveFetchedSource, saveTextSource, type SourceRow } from "./sources";
 import { cutCard } from "./cut";
 import { buildCitation } from "./cite";
+import { continueJob } from "@/server/jobs/continue";
 
 export const ResearchInput = z.object({
   claim: z.string().trim().min(3).max(600),
@@ -236,8 +237,9 @@ export async function runResearchJob(jobId: string): Promise<void> {
     }
     const remaining = cp.items.some((i) => i.status === "pending" || i.status === "fetched");
     if (remaining && cp.cardsMade < input.maxCards) {
-      // Out of time for this invocation: release the lease; the next poll resumes.
+      // Out of time for this invocation: release the lease and start the next run (a poll would also resume it).
       await db().update(jobs).set({ checkpoint: cp, progress: progressOf(cp), leaseUntil: null, updatedAt: new Date() }).where(eq(jobs.id, jobId));
+      await continueJob(jobId, job.attempts);
       return;
     }
     for (const it of cp.items) if (it.status === "pending" || it.status === "fetched") it.status = "skipped";

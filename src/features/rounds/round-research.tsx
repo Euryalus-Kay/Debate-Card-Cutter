@@ -149,6 +149,32 @@ function ResearchForm({ round, dialog }: { round: RoundRecord; dialog: DialogSta
   const [urls, setUrls] = useState("");
   const [n, setN] = useState(dialog.sectionId ? 1 : 2);
   const [busy, setBusy] = useState(false);
+  // Library first (B4): a card the team already has costs nothing and is ready now.
+  const [asked, setAsked] = useState(dialog.claim.trim());
+  const lib = useQuery({
+    queryKey: ["library-find", round.id, asked],
+    queryFn: () => api<{ cards: LibraryHit[]; checked: boolean }>("/api/library/find", { method: "POST", json: { roundId: round.id, claim: asked, context: dialog.context || undefined } }),
+    enabled: asked.length >= 3,
+    staleTime: 60_000,
+    retry: false,
+  });
+  const [used, setUsed] = useState<Set<string>>(new Set());
+
+  async function insertLibraryCard(cardId: string) {
+    const draftId = dialog.draftId ?? useWorkspace.getState().draftId;
+    const editor = draftId ? getActiveEditor(draftId) : null;
+    if (!editor) return toast("Open the speech draft to insert the card.", "warn");
+    const c = (await fetchCards(team.id, [cardId])).get(cardId);
+    if (!c) return;
+    const node = cardNode(c);
+    if (dialog.sectionId) {
+      const r = insertCardIntoSection(editor, dialog.sectionId, node);
+      if (r === "locked") return toast("That section is locked. Unlock it first.", "warn");
+      if (r === "missing") return toast("That section no longer exists.", "warn");
+      toast(r === "replaced_note" ? "Card placed where the section needed evidence." : "Card added to the section.", "ok");
+    } else editor.chain().focus().insertContent(node).run();
+    setUsed((s) => new Set(s).add(cardId));
+  }
 
   async function submit() {
     if (claim.trim().length < 3) return toast("Describe what the card should say.", "warn");
@@ -171,6 +197,33 @@ function ResearchForm({ round, dialog }: { round: RoundRecord; dialog: DialogSta
 
   return (
       <div className="space-y-3">
+        {lib.isFetching ? (
+          <div className="flex items-center gap-2 text-[12px] text-muted">
+            <Spinner className="size-3.5" /> Checking your library first…
+          </div>
+        ) : lib.data?.cards.length ? (
+          <div className="rounded-lg border border-line bg-sunken p-2">
+            <div className="mb-1.5 text-[12px] font-medium">Already in your library</div>
+            <ul className="space-y-1.5">
+              {lib.data.cards.map((c) => (
+                <li key={c.id} className="text-[12.5px]">
+                  <div className="flex items-start gap-1.5">
+                    <span className="min-w-0 flex-1 font-semibold leading-snug">{c.tag}</span>
+                    <VerificationBadge status={c.verificationStatus} />
+                  </div>
+                  <div className="text-[11.5px] text-muted">
+                    {c.shortCite} · {c.fit >= 3 ? "proves it" : "helps"}: {c.use}
+                  </div>
+                  <Button size="xs" className="mt-1" variant={used.has(c.id) ? "ghost" : "primary"} onClick={() => void insertLibraryCard(c.id)} disabled={used.has(c.id)}>
+                    {used.has(c.id) ? "Inserted" : dialog.sectionId ? "Use this card" : "Insert at cursor"}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : lib.data?.checked ? (
+          <div className="text-[12px] text-muted">Nothing in your library proves this yet, so cut a new card.</div>
+        ) : null}
         <Field label="The card should say">
           <Textarea value={claim} onChange={(e) => setClaim(e.target.value)} rows={3} aria-label="Claim" />
         </Field>
@@ -191,12 +244,26 @@ function ResearchForm({ round, dialog }: { round: RoundRecord; dialog: DialogSta
               ))}
             </Select>
           </label>
-          <Button variant="primary" className="ml-auto" onClick={submit} disabled={busy}>
-            {busy ? <Spinner /> : <FlaskConical className="size-4" />} Start
+          {claim.trim() !== asked && claim.trim().length >= 3 ? (
+            <Button variant="ghost" className="ml-auto" onClick={() => setAsked(claim.trim())}>
+              Check the library again
+            </Button>
+          ) : null}
+          <Button variant="primary" className={claim.trim() !== asked && claim.trim().length >= 3 ? "" : "ml-auto"} onClick={submit} disabled={busy}>
+            {busy ? <Spinner /> : <FlaskConical className="size-4" />} Cut a new card
           </Button>
         </div>
       </div>
   );
+}
+
+interface LibraryHit {
+  id: string;
+  tag: string;
+  shortCite: string;
+  verificationStatus: string;
+  fit: number;
+  use: string;
 }
 
 interface JobPoll {

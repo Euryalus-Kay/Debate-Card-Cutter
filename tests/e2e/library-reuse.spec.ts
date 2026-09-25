@@ -34,5 +34,16 @@ test("a draft reads a library card only where it fits what the speech must answe
   await expect(editor(A.page)).toContainText("Card says an interstate compact needs every member legislature");
   await expect(editor(A.page)).not.toContainText("Moreau 24");
   await expect(editor(A.page)).toContainText("Haldane 25");
+
+  // Before cutting a new card, the library is checked first; a card that proves the claim is one click away.
+  await A.page.getByRole("tab", { name: /Evidence/ }).click();
+  await A.page.getByLabel("Search cards").fill("interstate compact takes years to ratify");
+  await A.page.getByRole("button", { name: "Cut new cards from the web" }).click();
+  const dialog = A.page.getByRole("dialog");
+  await expect(dialog.getByText("Already in your library")).toBeVisible({ timeout: 20_000 });
+  await expect(dialog.getByText(/Castellanos 25 · proves it/)).toBeVisible();
+  await expect(dialog.getByText("Moreau 24")).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Insert at cursor" }).click();
+  await expect(dialog.getByRole("button", { name: "Inserted" })).toBeVisible();
   await A.context.close();
 });
