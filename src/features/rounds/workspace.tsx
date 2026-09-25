@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/client/api";
 import { useDocSync, useYDocValue } from "@/client/sync/hooks";
-import { Button, cn, Dialog, Spinner, Tabs, TabsList, TabsTrigger, Textarea, toast } from "@/components/ui";
+import { Button, Dialog, Spinner, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, toast } from "@/components/ui";
 import { TeamScope, useApp } from "@/components/shell/app-shell";
 import { nextSpeechFor, SPEECH_IDS, type SpeechId } from "@/domain/format";
 import { readGraph, readSlots, recordedSpeeches } from "@/shared/round-doc";
@@ -128,12 +128,13 @@ export function RoundWorkspace({ roundId }: { roundId: string }) {
               <TabsTrigger value="speech">{ws.speech ?? "Speech"}</TabsTrigger>
               <TabsTrigger value="flow">Flow</TabsTrigger>
             </TabsList>
-            <div className={cn("min-h-0 flex-1", ws.center !== "speech" && "hidden")}>
+            {/* Both stay mounted (the editor keeps its state); the inactive one is hidden. */}
+            <TabsContent value="speech" forceMount className="min-h-0 flex-1 data-[state=inactive]:hidden">
               <SpeechPanel round={round} bundle={bundle.data!} doc={doc} graph={graph} slots={slots} aiEnabled={aiEnabled} userId={user.id} />
-            </div>
-            <div className={cn("min-h-0 flex-1 overflow-auto", ws.center !== "flow" && "hidden")}>
+            </TabsContent>
+            <TabsContent value="flow" forceMount className="min-h-0 flex-1 overflow-auto data-[state=inactive]:hidden">
               <FlowGrid round={round} doc={doc} graph={graph} />
-            </div>
+            </TabsContent>
           </Tabs>
         </section>
         <aside className="hidden w-[380px] shrink-0 flex-col border-l border-line bg-elev xl:flex">

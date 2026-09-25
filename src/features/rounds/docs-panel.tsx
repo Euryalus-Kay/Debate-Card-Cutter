@@ -330,7 +330,8 @@ export function OpponentDocView({ upload, doc }: { upload: UploadRecord; roundId
               {arg && doc ? (
                 <Tooltip content={notRead ? "Marked not read — excluded from what you must answer. Click to undo." : "Mark this as not read (it's in the doc but they skipped it)."}>
                   <button
-                    className="absolute right-0 top-1 rounded p-1 text-faint opacity-0 hover:bg-hover group-hover:opacity-100"
+                    aria-label={notRead ? "Mark as read" : "Mark as not read"}
+                    className="absolute right-0 top-1 rounded p-1 text-faint opacity-0 hover:bg-hover focus:opacity-100 group-hover:opacity-100"
                     onClick={() => doc.transact(() => upsertArg(doc, { id: arg.id, delivery: notRead ? "documented" : "not_read" }, { humanField: true }))}
                   >
                     {notRead ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}

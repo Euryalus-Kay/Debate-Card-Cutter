@@ -22,7 +22,7 @@ type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "subtle";
 type ButtonSize = "sm" | "md" | "xs";
 
 const variants: Record<ButtonVariant, string> = {
-  primary: "bg-accent text-white hover:brightness-110 active:brightness-95 shadow-sm",
+  primary: "bg-accent text-on-accent hover:brightness-110 active:brightness-95 shadow-sm",
   secondary: "bg-elev text-fg border border-line hover:bg-hover",
   ghost: "text-fg hover:bg-hover",
   subtle: "bg-sunken text-fg hover:bg-hover",

@@ -95,7 +95,7 @@ export function AppShell({ user, team, teams, children }: { user: ShellUser; tea
       <div className="flex h-dvh overflow-hidden">
         <aside className={cn("flex shrink-0 flex-col border-r border-line bg-elev transition-[width] duration-150", collapsed ? "w-14" : "w-56")}>
           <div className="flex h-12 items-center gap-2 border-b border-line px-3">
-            <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-accent text-sm font-bold text-white">C</div>
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-accent text-sm font-bold text-on-accent">C</div>
             {!collapsed ? (
               <Menu>
                 <MenuTrigger className="flex min-w-0 flex-1 items-center gap-1 rounded-md px-1.5 py-1 text-left hover:bg-hover">

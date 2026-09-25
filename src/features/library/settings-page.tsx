@@ -199,7 +199,7 @@ function RateCalibration() {
         </div>
         <p className="mt-1 text-xs text-muted">Paste what you&apos;ll read (highlighted card text or analytics), start the timer, read it at round speed, stop.</p>
         <div className="mt-2 flex gap-2">
-          <Select value={kind} onChange={(e) => setKind(e.target.value as "card" | "analytic")} className="w-44">
+          <Select value={kind} onChange={(e) => setKind(e.target.value as "card" | "analytic")} className="w-44" aria-label="What you'll read">
             <option value="card">Card text</option>
             <option value="analytic">Analytics</option>
           </Select>
