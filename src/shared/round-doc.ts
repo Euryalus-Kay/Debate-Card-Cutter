@@ -9,7 +9,7 @@
 
 import * as Y from "yjs";
 import type { ArgUnit, Decision, Position, Relation, RoundGraph } from "@/domain/flow";
-import type { Side, SpeechId, SpeechStatus } from "@/domain/format";
+import type { CxId, Side, SpeechId, SpeechStatus } from "@/domain/format";
 import { SPEECH_IDS } from "@/domain/format";
 
 export const RD = {
@@ -247,4 +247,44 @@ export function roundDocText(doc: Y.Doc): string {
   for (const p of readPositions(doc)) parts.push(p.name);
   for (const a of readArgs(doc)) parts.push([a.label, a.text, a.warrant].filter(Boolean).join(" "));
   return parts.join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Cross-examination notes (SEQ-4): kept apart from the flow. A CX admission is
+// not an argument until a speech uses it.
+// ---------------------------------------------------------------------------
+
+/** One top-level Y.Text per CX period (top-level types merge safely when both partners create them). */
+export function cxText(doc: Y.Doc, cx: CxId): Y.Text {
+  return doc.getText(`cx:${cx}`);
+}
+
+export function readCxNotes(doc: Y.Doc): Partial<Record<CxId, string>> {
+  const out: Partial<Record<CxId, string>> = {};
+  for (const id of ["CX1", "CX2", "CX3", "CX4"] as CxId[]) {
+    const t = cxText(doc, id).toString();
+    if (t.trim()) out[id] = t;
+  }
+  return out;
+}
+
+/**
+ * Apply a textarea's new value to a Y.Text as a minimal edit (common prefix and
+ * suffix untouched), so a partner's concurrent typing elsewhere is preserved.
+ */
+export function applyTextDiff(t: Y.Text, next: string): void {
+  const cur = t.toString();
+  if (cur === next) return;
+  let start = 0;
+  while (start < cur.length && start < next.length && cur[start] === next[start]) start++;
+  let endCur = cur.length;
+  let endNext = next.length;
+  while (endCur > start && endNext > start && cur[endCur - 1] === next[endNext - 1]) {
+    endCur--;
+    endNext--;
+  }
+  t.doc!.transact(() => {
+    if (endCur > start) t.delete(start, endCur - start);
+    if (endNext > start) t.insert(start, next.slice(start, endNext));
+  });
 }

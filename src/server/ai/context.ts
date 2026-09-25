@@ -12,13 +12,13 @@ import { rounds } from "@/server/db/schema";
 import { loadDoc } from "@/server/docs/store";
 import { getCards, searchCards, type CardRow } from "@/server/cards";
 import { computeCoverage, possiblyKickedPositions, liveOffenseOnKickedPositions, POSITION_KIND_LABEL, type ArgUnit, type CoverageReport, type RoundGraph } from "@/domain/flow";
-import { getFormat, SPEECH_IDS, SPEECHES, speechSeconds, speechesToAnswer, type SpeechId } from "@/domain/format";
+import { DEFAULT_CX, getFormat, SPEECH_IDS, SPEECHES, speechSeconds, speechesToAnswer, type SpeechId } from "@/domain/format";
 import { cardLoad, readAloud } from "@/domain/card";
 import { fullCite, shortCite } from "@/domain/citation";
 import { capRatesForJudge, estimateSeconds, presetProfile, wordsForSeconds, type JudgeSpeed, type RatePresetId, type RateProfile } from "@/domain/timing";
 import { renderJudgeProfile } from "./paradigm";
 import type { StoredJudge } from "@/server/judges";
-import { readGraph, readSlots, readStrategy } from "@/shared/round-doc";
+import { readCxNotes, readGraph, readSlots, readStrategy } from "@/shared/round-doc";
 import { draftSchema, DRAFT_FRAGMENT } from "@/shared/editor/schema";
 import { allSections, draftFromPM, sectionContentHash, type Draft, type PMNodeJSON } from "@/shared/draft-model";
 import { draftTargetsFromDraft } from "./draft-targets";
@@ -187,6 +187,12 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
     lines.push(`- Paradigm excerpt: """${judge.paradigmText.slice(0, 1500)}"""`);
   } else {
     lines.push(judge?.paradigmText?.trim() ? `- Judge ${judge.name || ""} paradigm (quoted; infer preferences only from what it explicitly says):\n"""${judge.paradigmText.slice(0, 4000)}"""` : `- No judge paradigm provided: do not assume judge preferences.`);
+  }
+  const cxNotes = readCxNotes(stateDoc);
+  if (Object.keys(cxNotes).length) {
+    lines.push("");
+    lines.push(`CROSS-EX NOTES (the team's notes of what was asked and answered; NOT arguments on the flow unless a speech makes them — cite them as "in cross-ex they said…")`);
+    for (const cx of DEFAULT_CX) if (cxNotes[cx.id]) lines.push(`- CX of the ${cx.after} (${cx.asker} asks ${cx.answerer}):\n"""${cxNotes[cx.id]!.slice(0, 2000)}"""`);
   }
   lines.push("");
   lines.push(`RECORD STATUS (what exists for each speech)`);

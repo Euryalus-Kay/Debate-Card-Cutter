@@ -13,6 +13,7 @@ import { useWorkspace, type RightTab } from "./store";
 import { DocsPanel } from "./docs-panel";
 import { EvidencePanel } from "./evidence-panel";
 import { AiPanel } from "./ai-panel";
+import { CxPanel } from "./cx-panel";
 
 export function SidePanel({ round, bundle, doc, graph, aiEnabled }: { round: RoundRecord; bundle: RoundBundle; doc: Y.Doc | null; graph: RoundGraph | null; aiEnabled: boolean }) {
   const ws = useWorkspace();
@@ -22,6 +23,7 @@ export function SidePanel({ round, bundle, doc, graph, aiEnabled }: { round: Rou
         <TabsTrigger value="details">Details</TabsTrigger>
         <TabsTrigger value="evidence">Evidence</TabsTrigger>
         <TabsTrigger value="docs">Docs</TabsTrigger>
+        <TabsTrigger value="cx">CX</TabsTrigger>
         <TabsTrigger value="ai">AI</TabsTrigger>
       </TabsList>
       <TabsContent value="details" className="min-h-0 flex-1 overflow-y-auto">
@@ -32,6 +34,9 @@ export function SidePanel({ round, bundle, doc, graph, aiEnabled }: { round: Rou
       </TabsContent>
       <TabsContent value="docs" className="flex min-h-0 flex-1 flex-col">
         <DocsPanel round={round} bundle={bundle} aiEnabled={aiEnabled} />
+      </TabsContent>
+      <TabsContent value="cx" className="min-h-0 flex-1 overflow-y-auto">
+        <CxPanel round={round} doc={doc} />
       </TabsContent>
       <TabsContent value="ai" className="flex min-h-0 flex-1 flex-col">
         <AiPanel round={round} aiEnabled={aiEnabled} />

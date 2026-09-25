@@ -4,7 +4,7 @@ import { create } from "zustand";
 import type { SpeechId } from "@/domain/format";
 
 export type CenterTab = "speech" | "flow";
-export type RightTab = "details" | "evidence" | "docs" | "ai";
+export type RightTab = "details" | "evidence" | "docs" | "cx" | "ai";
 
 interface WorkspaceState {
   roundId: string | null;

@@ -80,3 +80,24 @@ test("someone outside the team cannot open the round", async ({ browser }) => {
   await A.context.close();
   await C.context.close();
 });
+
+test("cross-ex notes are shared live between partners", async ({ browser }) => {
+  const A = await signedIn(browser, "a");
+  const B = await signedIn(browser, "b");
+  const roundId = await roundWithDocs(A.page.request, await teamOf(A.page.request), `cx-${Date.now()}`);
+  for (const p of [A.page, B.page]) {
+    await p.goto(`/rounds/${roundId}`);
+    await p.getByRole("tab", { name: "CX" }).click();
+  }
+  const boxA = A.page.getByLabel("Notes: CX of the 1NC");
+  const boxB = B.page.getByLabel("Notes: CX of the 1NC");
+  await boxA.click();
+  await A.page.keyboard.type("Q: what's the net benefit to the CP? A: the politics DA.");
+  await expect(boxB).toHaveValue(/net benefit to the CP/, { timeout: 30_000 });
+  await boxB.click();
+  await B.page.keyboard.press("End");
+  await B.page.keyboard.type(" (they said no solvency advocate)");
+  await expect(boxA).toHaveValue(/no solvency advocate/, { timeout: 30_000 });
+  await A.context.close();
+  await B.context.close();
+});

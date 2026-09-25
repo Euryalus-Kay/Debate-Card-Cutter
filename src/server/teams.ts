@@ -1,6 +1,6 @@
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { atomic, db } from "@/server/db/client";
-import { teamInvites, teamMembers, teams, user } from "@/server/db/schema";
+import { teamInvites, userSettings, teamMembers, teams, user } from "@/server/db/schema";
 import { HttpError } from "@/server/authz";
 import { newId, randomToken } from "@/server/ids";
 import { sha256Hex } from "@/server/docs/store";
@@ -31,10 +31,12 @@ export async function teamsForUser(userId: string) {
 }
 
 export async function teamMembersList(teamId: string) {
+  // Speaking-rate profiles are shared within the team: the partner's draft is timed at the partner's pace.
   return db()
-    .select({ userId: user.id, name: user.name, email: user.email, role: teamMembers.role, initials: teamMembers.initials })
+    .select({ userId: user.id, name: user.name, email: user.email, role: teamMembers.role, initials: teamMembers.initials, rateProfile: userSettings.rateProfile })
     .from(teamMembers)
     .innerJoin(user, eq(user.id, teamMembers.userId))
+    .leftJoin(userSettings, eq(userSettings.userId, teamMembers.userId))
     .where(eq(teamMembers.teamId, teamId));
 }
 

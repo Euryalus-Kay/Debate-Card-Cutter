@@ -13,6 +13,7 @@ import type { SyncSnapshot } from "@/client/sync/doc-sync";
 import type { RoundRecord } from "./types";
 import { useWorkspace } from "./store";
 import { JudgeChip } from "./judge";
+import { SpeakersButton } from "./speakers";
 
 export function SyncIndicator({ snapshots }: { snapshots: (SyncSnapshot | null)[] }) {
   const s = snapshots.filter(Boolean) as SyncSnapshot[];
@@ -69,11 +70,12 @@ function PrepClock({ doc, side, label, budgetMs, offsetMs, isOurs }: { doc: Y.Do
         running ? "border-accent bg-accent-soft text-accent-text" : "border-line bg-elev text-muted hover:bg-hover",
         remaining < 0 && "border-bad text-bad",
       )}
-      title={`${label} prep. Click to ${running ? "stop" : "start"}; your partner sees the same clock.`}
+      title={`${label} prep. Click to ${running ? "stop" : "start"}; your partner sees the same clock.${remaining < 0 ? " Over the prep limit: check the tournament's rule (some deduct it from the next speech)." : ""}`}
+      aria-label={`${label} prep ${remaining < 0 ? `over by ${formatClock(-remaining / 1000)}` : `${formatClock(remaining / 1000)} left`}, ${running ? "running" : "stopped"}`}
     >
       {running ? <Pause className="size-3" /> : <Play className="size-3" />}
       <span className={cn("font-medium", isOurs ? "text-fg" : "")}>{label}</span>
-      <span className="font-mono text-[12.5px]">{formatClock(remaining / 1000)}</span>
+      <span className="font-mono text-[12.5px]">{remaining < 0 ? `+${formatClock(-remaining / 1000)} over` : formatClock(remaining / 1000)}</span>
     </button>
   );
 }
@@ -123,6 +125,7 @@ export function TopBar({
   offsetMs,
   others,
   onPhase,
+  onSettings,
   onOverride,
   aiEnabled,
 }: {
@@ -134,6 +137,7 @@ export function TopBar({
   offsetMs: number;
   others: { name?: string; section?: string }[];
   onPhase: (p: RoundRecord["phase"]) => void;
+  onSettings: (settings: RoundRecord["settings"]) => void;
   onOverride: () => void;
   aiEnabled: boolean;
 }) {
@@ -155,6 +159,7 @@ export function TopBar({
         <SpeechStepper slots={slots} ourSide={round.ourSide} hasDoc={hasDoc} />
       </div>
       <div className="ml-auto flex items-center gap-2">
+        <SpeakersButton round={round} />
         <JudgeChip round={round} />
         {doc ? (
           <>
@@ -178,6 +183,10 @@ export function TopBar({
             <MenuItem onSelect={() => onPhase("prep")}>Prep (before the round)</MenuItem>
             <MenuItem onSelect={() => onPhase("live")}>Live (round in progress)</MenuItem>
             <MenuItem onSelect={() => onPhase("done")}>Done</MenuItem>
+            <MenuSeparator />
+            <MenuLabel>Prep overage (tournament rule)</MenuLabel>
+            <MenuItem onSelect={() => onSettings({ ...round.settings, prepOverage: "warn" })}>{(round.settings?.prepOverage ?? "warn") === "warn" ? "✓ " : ""}Warn only</MenuItem>
+            <MenuItem onSelect={() => onSettings({ ...round.settings, prepOverage: "deduct" })}>{round.settings?.prepOverage === "deduct" ? "✓ " : ""}Deduct from our next speech</MenuItem>
             <MenuSeparator />
             <MenuLabel>AI policy: {round.aiPolicy === "prep_only" ? "prep only" : round.aiPolicy}</MenuLabel>
             {!aiEnabled && round.aiPolicy !== "off" ? <MenuItem onSelect={onOverride}>Override for this round…</MenuItem> : null}

@@ -60,13 +60,25 @@ export function RoundWorkspace({ roundId }: { roundId: string }) {
     return s;
   }, [hasDoc, slots, graph]);
 
-  // Default the selected speech to the next one we give (speeches with any record count as having happened).
+  // Default the selected speech: the one in the URL (so a mid-round refresh keeps your place), else the
+  // next one we give (speeches with any record count as having happened).
   useEffect(() => {
     if (!round || !slots || ws.roundId !== roundId || ws.speech) return;
+    const fromUrl = new URLSearchParams(window.location.search).get("speech");
+    if (fromUrl && (SPEECH_IDS as readonly string[]).includes(fromUrl)) return ws.set({ speech: fromUrl as SpeechId });
     const st = SPEECH_IDS.map((id) => ({ speech: id, status: recorded.has(id) ? ("delivered" as const) : slots[id].status, hasDocument: hasDoc.has(id), hasNotes: !!slots[id].notes }));
     ws.set({ speech: nextSpeechFor(round.ourSide, st) ?? (round.ourSide === "aff" ? "2AR" : "2NR") });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [round?.id, slots, ws.roundId, ws.speech, recorded]);
+
+  // Keep the selected speech in the URL.
+  useEffect(() => {
+    if (!ws.speech || ws.roundId !== roundId) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("speech") === ws.speech) return;
+    url.searchParams.set("speech", ws.speech);
+    window.history.replaceState(window.history.state, "", url);
+  }, [ws.speech, ws.roundId, roundId]);
 
   const draftSnaps = useMemo(() => [stateSnap], [stateSnap]);
 
@@ -100,6 +112,7 @@ export function RoundWorkspace({ roundId }: { roundId: string }) {
         offsetMs={stateSnap?.serverOffsetMs ?? 0}
         others={(stateSnap?.others ?? []).map((o) => ({ name: o.state.name, section: o.state.section }))}
         onPhase={(phase) => patchRound({ phase })}
+        onSettings={(settings) => patchRound({ settings })}
         onOverride={() => setOverrideOpen(true)}
         aiEnabled={aiEnabled}
       />

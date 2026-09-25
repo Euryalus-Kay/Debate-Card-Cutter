@@ -34,7 +34,12 @@ export const RoundInput = z.object({
   phase: z.enum(["prep", "live", "done"]).default("prep"),
   speakerOverrides: z.partialRecord(z.enum(["1AC", "1NC", "2AC", "2NC", "1NR", "1AR", "2NR", "2AR"]), z.string().max(80)).default({}),
   settings: z
-    .object({ omissionPolicy: z.enum(["nsda", "permissive"]).optional(), judgeKick: z.enum(["yes", "no", "if_asked", "unknown"]).optional() })
+    .object({
+      omissionPolicy: z.enum(["nsda", "permissive"]).optional(),
+      judgeKick: z.enum(["yes", "no", "if_asked", "unknown"]).optional(),
+      /** tournament rule for prep overage: warn only, or deduct it from the team's next speech (e.g. KSHSAA, NDT) */
+      prepOverage: z.enum(["warn", "deduct"]).optional(),
+    })
     .default({}),
 });
 

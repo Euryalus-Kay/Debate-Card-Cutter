@@ -19,7 +19,7 @@ export interface RoundRecord {
   phase: "prep" | "live" | "done";
   aiOverride: { by: string; at: string; reason: string } | null;
   speakerOverrides: Partial<Record<SpeechId, string>>;
-  settings: { omissionPolicy?: "nsda" | "permissive"; judgeKick?: string };
+  settings: { omissionPolicy?: "nsda" | "permissive"; judgeKick?: string; prepOverage?: "warn" | "deduct" };
   stateDocId: string;
   createdAt: string;
   updatedAt: string;

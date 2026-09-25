@@ -9,13 +9,13 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { handle, HttpError, requireAccess, requireUser } from "@/server/authz";
 import { db } from "@/server/db/client";
-import { aiOperations, documents, rounds, userSettings } from "@/server/db/schema";
+import { aiOperations, documents, rounds } from "@/server/db/schema";
 import { newId } from "@/server/ids";
 import { draftSpeech, fitSpeech, interpretFlow, reviseSection, type SectionAction } from "@/server/ai/ops";
 import { AiRunError } from "@/server/ai/run";
 import { aiAllowed } from "@/server/ai/policy";
+import { ratesForSpeech } from "@/server/speakers";
 import { SPEECH_IDS, type SpeechId } from "@/domain/format";
-import type { RateProfile } from "@/domain/timing";
 
 export const maxDuration = 300;
 
@@ -46,8 +46,8 @@ export const POST = handle(async (req: Request) => {
     const [d] = await db().select({ roundId: documents.roundId }).from(documents).where(eq(documents.id, input.draftId));
     if (!d || d.roundId !== input.roundId) throw new HttpError(404, "Draft not found in this round.");
   }
-  const [settings] = await db().select({ rateProfile: userSettings.rateProfile }).from(userSettings).where(eq(userSettings.userId, u.id));
-  const rates = (settings?.rateProfile ?? null) as RateProfile | null;
+  // Time the speech at the pace of whoever gives it (roster / per-speech override), else the requester's.
+  const { rates } = await ratesForSpeech(round, input.speech as SpeechId, u.id);
 
   const opId = newId("aop");
   await db()

@@ -40,3 +40,25 @@ describe("round doc", () => {
     expect(prepUsedMs(readTimers(d), "aff", 999_999)).toBe(30_000);
   });
 });
+
+describe("cross-ex notes", () => {
+  it("merge both partners' concurrent typing and stay out of the flow", async () => {
+    const { applyTextDiff, cxText, readCxNotes, readArgs } = await import("../round-doc");
+    const Y = await import("yjs");
+    const a = new Y.Doc();
+    const b = new Y.Doc();
+    applyTextDiff(cxText(a, "CX1"), "Q: solvency?\n");
+    Y.applyUpdate(b, Y.encodeStateAsUpdate(a));
+    // Both type at the same time in different places.
+    applyTextDiff(cxText(a, "CX1"), "Q: solvency?\nA: plan takes 10 years.\n");
+    applyTextDiff(cxText(b, "CX1"), "Q (2N): solvency?\n");
+    Y.applyUpdate(a, Y.encodeStateAsUpdate(b));
+    Y.applyUpdate(b, Y.encodeStateAsUpdate(a));
+    const text = cxText(a, "CX1").toString();
+    expect(text).toContain("A: plan takes 10 years.");
+    expect(text).toContain("(2N)");
+    expect(cxText(b, "CX1").toString()).toBe(text);
+    expect(readCxNotes(a).CX1).toBe(text);
+    expect(readArgs(a)).toHaveLength(0);
+  });
+});

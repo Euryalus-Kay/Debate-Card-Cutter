@@ -8,17 +8,18 @@ import { api, downloadFrom } from "@/client/api";
 import { flushDoc, useDocSync, useYDocValue } from "@/client/sync/hooks";
 import { Badge, Button, cn, EmptyState, Menu, MenuContent, MenuItem, MenuTrigger, Textarea, Tooltip, toast } from "@/components/ui";
 import { useApp } from "@/components/shell/app-shell";
-import { getFormat, speechSeconds, SPEECHES, type SpeechId } from "@/domain/format";
+import { getFormat, speechSeconds, SPEECH_IDS, SPEECHES, type SpeechId } from "@/domain/format";
 import type { RoundGraph } from "@/domain/flow";
 import { capRatesForJudge, estimate, formatClock } from "@/domain/timing";
 import { itemLoad, type DraftItem } from "@/shared/draft-model";
-import { readSlots, updateSlot, type SlotRecord } from "@/shared/round-doc";
+import { prepUsedMs, readSlots, readTimers, updateSlot, type SlotRecord } from "@/shared/round-doc";
 import { useRateProfile } from "@/client/use-settings";
 import type { RoundBundle, RoundRecord } from "./types";
 import { useWorkspace } from "./store";
 import { claimForSection, useRoundResearch } from "./round-research";
 import { findSectionNode } from "./proposals";
 import { HistoryDialog } from "./history-dialog";
+import { speechSpeaker, useTeamMembers } from "./speakers";
 import { EditorRoundCtx } from "./editor/context";
 import { EditorToolbar, SpeechEditorView, useSpeechEditor } from "./editor/speech-editor";
 import { useDraft } from "./draft-hooks";
@@ -78,12 +79,21 @@ function OurSpeechView({ round, bundle, doc, graph, speech, aiEnabled, userId }:
     return () => registerEditor(ws.draftId!, null);
   }, [editor, ws.draftId]);
   const draft = useDraft(draftDoc);
-  const baseRates = useRateProfile();
-  // Estimate at the judge's pace when their paradigm limits speed (TIME-6).
+  const ownRates = useRateProfile();
+  // Time the speech at its speaker's pace (FMT-2), capped at the judge's pace if their paradigm limits speed (TIME-6).
+  const members = useTeamMembers(round.teamId);
+  const speaker = speechSpeaker(round, speech, members.data?.members, ownRates);
   const judgeSpeed = round.judges?.[0]?.profile?.speed?.value;
-  const { profile: rates, cap: judgeCap } = useMemo(() => capRatesForJudge(baseRates, judgeSpeed), [baseRates, judgeSpeed]);
+  const { profile: rates, cap: judgeCap } = useMemo(() => capRatesForJudge(speaker.rates, judgeSpeed), [speaker.rates, judgeSpeed]);
   const fmt = getFormat(round.formatId, round.formatOverrides as never);
-  const limit = speechSeconds(fmt, speech);
+  // Prep overage, when the tournament deducts it, comes off our next undelivered speech.
+  const timers = useYDocValue(doc, readTimers);
+  const slotsNow = useYDocValue(doc, readSlots);
+  const now = useNow(!!timers?.running);
+  const overSec = timers ? Math.max(0, (prepUsedMs(timers, round.ourSide, now) - fmt.prepSecondsPerTeam * 1000) / 1000) : 0;
+  const nextOurs = slotsNow ? SPEECH_IDS.find((s) => SPEECHES[s].side === round.ourSide && slotsNow[s].status !== "delivered") : undefined;
+  const deduction = round.settings?.prepOverage === "deduct" && overSec > 0 && nextOurs === speech ? Math.round(overSec) : 0;
+  const limit = speechSeconds(fmt, speech) - deduction;
   const partnerSections = useMemo(() => new Map((snapshot?.others ?? []).filter((o) => o.state.section).map((o) => [o.state.section!, o.state.name ?? "Partner"])), [snapshot?.others]);
 
   useEffect(() => {
@@ -250,7 +260,9 @@ function OurSpeechView({ round, bundle, doc, graph, speech, aiEnabled, userId }:
             <span className="text-faint">
               range {formatClock(total * (1 - u))}–{formatClock(total * (1 + u))}
               {rates.observations.length ? "" : " · uncalibrated"}
+              {speaker.name ? ` · ${speaker.name}${speaker.usesSpeakerRates ? "'s pace" : " (uncalibrated, your pace)"}` : ""}
               {judgeCap ? ` · at the judge's ${judgeCap} pace` : ""}
+              {deduction ? ` · ${formatClock(deduction)} prep overage deducted` : ""}
             </span>
             {over > 0 ? <Badge tone="bad">over by ~{formatClock(over)}</Badge> : total > 0 ? <Badge tone="ok">{formatClock(limit - total)} to spare</Badge> : null}
             {aiEnabled && ws.draftId && (over > 0 || (total > 0 && total < limit * 0.9)) ? (
@@ -329,4 +341,15 @@ function OpponentSpeechView({ round, bundle, doc, speech, slots }: { round: Roun
       )}
     </div>
   );
+}
+
+/** Current time, ticking once a second while `active` (e.g. a prep clock is running). */
+function useNow(active: boolean): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!active) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [active]);
+  return now;
 }
