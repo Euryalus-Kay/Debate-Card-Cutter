@@ -16,6 +16,8 @@ export interface TopicPack {
   brief: string;
   /** a short glossary for reading flow notes */
   glossary: string;
+  /** names of this topic's common positions, to list them first among the library's arguments */
+  positions: RegExp;
 }
 
 const NHI_BRIEF = `TOPIC BRIEF — 2026–27 NSDA/NFHS policy topic (background for understanding and planning; NOT evidence: never quote it, cite it, or state its facts in a speech unless a provided card says them)
@@ -64,6 +66,7 @@ export const TOPICS: TopicPack[] = [
     match: /national\s+health\s+insurance|health\s+insurance/i,
     brief: `${NHI_BRIEF}\n\n${THEORY}`,
     glossary: NHI_GLOSSARY,
+    positions: /midterm|politics|capital flight|deficit|tax|pharma|innovation|states? cp|nhs|public option|\baca\b|universal|single.?payer|\bnhi\b|multi.?payer|national health|medicare|coverage|costs|inequality|hospital|wait|federalism|commodif|health/i,
   },
 ];
 

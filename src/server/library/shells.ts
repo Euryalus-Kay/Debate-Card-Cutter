@@ -12,6 +12,7 @@ import type { CardMeta } from "@/domain/card-label";
 import { bodyHash, type BodyBlock } from "@/domain/card";
 import type { SpeechId } from "@/domain/format";
 import { sideOf, speechOf } from "./analytics-import";
+import { CURRENT_TOPIC } from "@/domain/topics";
 
 export interface FileBlock {
   key: string;
@@ -35,13 +36,24 @@ export function positionTokens(name: string): string[] {
   return [...new Set(name.toLowerCase().replace(/[^a-z0-9]+/g, " ").split(" ").filter((w) => w.length > 1 && !GENERIC.has(w)))];
 }
 
-/** The team's positions, from its cards' labels (for choosing what a speech runs). */
-export async function libraryPositions(teamId: string): Promise<{ side: string; name: string; cards: number }[]> {
+/** Words that mark a card as on this season's topic (national health insurance). */
+const TOPICAL = String.raw`(health|insur|medicare|medicaid|single.payer|\mnhi\M|\maca\M|hospital|physician|patient|pharma|drug|premium|uninsured|coverage)`;
+
+/**
+ * The team's positions, from its cards' labels (for choosing what a speech runs), this season's first: ranked
+ * by how many of their cards are about the topic, then by size.
+ */
+export async function libraryPositions(teamId: string): Promise<{ side: string; name: string; cards: number; topical: number }[]> {
   const rows = (await db().execute(sql`
-    select coalesce(meta->>'side', '') as side, meta->>'position' as name, count(*)::int as cards
+    select coalesce(meta->>'side', '') as side, meta->>'position' as name, count(*)::int as cards,
+      count(*) filter (where plain_text ~* ${TOPICAL})::int as topical
     from ${cards} where team_id = ${teamId} and deleted_at is null and coalesce(meta->>'position', '') <> ''
-    group by 1, 2 having count(*) >= 2 order by 3 desc limit 120`)) as unknown as { rows: { side: string; name: string; cards: number }[] };
-  return rows.rows;
+    group by 1, 2 having count(*) >= 2 order by 4 desc, 3 desc limit 200`)) as unknown as { rows: { side: string; name: string; cards: number; topical: number }[] };
+  // This season's arguments first: named like the topic's common positions, or mostly about the topic.
+  const named = (n: string) => (CURRENT_TOPIC.positions.test(n) ? 1 : 0);
+  const mostly = (r: { cards: number; topical: number }) => (r.topical / r.cards >= 0.5 ? 1 : 0);
+  // Named positions by size; among the rest, mostly-topical ones first.
+  return rows.rows.sort((a, b) => named(b.name) - named(a.name) || (named(a.name) ? 0 : mostly(b) - mostly(a)) || b.topical - a.topical || b.cards - a.cards).slice(0, 120);
 }
 
 /** Library positions named in a speech's instructions or strategy notes. */
