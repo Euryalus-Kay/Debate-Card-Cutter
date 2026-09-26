@@ -1,6 +1,6 @@
 # Clash — Final QA Report (Phase G)
 
-Date: 2026-09-25. Branch `rebuild/v2`. Production: https://clash-debate.vercel.app (0 users; every QA account and file removed after each check).
+Date: 2026-09-25. Branch `main` (release `v2.0.1`; v1 is kept at tag `v1-final`). Production: https://clash-debate.vercel.app (0 users; every QA account and file removed after each check).
 Decisions, problems and the full test log are in [PROJECT_RECORD.md](PROJECT_RECORD.md). Each result below is marked **verified**, **partly verified**, or **not verified**.
 
 ## 1. Summary
@@ -152,6 +152,7 @@ Each deploy was preceded by its migrations (0003–0006), applied while producti
   - CX help (10 questions), the spend view, the budget (a partner can't change it), and opponent memory;
   - Word export, and outsider checks.
 - **Cleanup:** QA accounts and files removed; production has 0 users, teams, rounds, and cards.
+- **Final deploy** (commit 6733f2e, with the P-50 import fix), served at https://clash-debate.vercel.app: the smoke test passed again, 22/22 steps. The optional one-card file build was skipped, since nothing it uses changed; it passed on the deploy before. QA data was removed again, leaving 0 users.
 - **Environment:** Vercel holds `ANTHROPIC_API_KEY` and no Gemini key. `OPENAI_API_KEY` is not set, so server speech-to-text is off.
 
 ## 12. Walkthrough (fake model, synthetic data)
