@@ -33,3 +33,12 @@ describe("read each card once per speech", () => {
     expect(r.validation.repeatedCards).toEqual(["Smith 24"]);
   });
 });
+
+describe("text a model cut off", () => {
+  it("ends at the last whole sentence, or is refused", async () => {
+    const { wholeSentences } = await import("@/server/ai/ops");
+    expect(wholeSentences("The link is clear. The plan costs trillions, so the")).toBe("The link is clear.");
+    expect(wholeSentences("A complete answer.")).toBe("A complete answer.");
+    expect(wholeSentences("Short. And then most of the text trails off without any end at all here and here")).toBe("");
+  });
+});

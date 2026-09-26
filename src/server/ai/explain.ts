@@ -38,6 +38,8 @@ export const ExplainSchema = z.object({
 });
 export type Explanation = z.infer<typeof ExplainSchema> & { title: string; whose: "ours" | "theirs" | "library"; flags: string[] };
 
+const EXPLAIN_VERSION = 2;
+
 const SYSTEM = `You explain policy debate evidence and arguments to a high school debater in very simple words, like a patient coach talking to a 13-year-old who is new to the topic. Short sentences, everyday words; explain any debate term or hard word you use.
 Base everything on the card's or argument's own words and on general debate knowledge (what a disad, link, perm or kritik is). Never add facts, numbers, studies, names or quotes that aren't in what you were given; if it doesn't say something, say that it doesn't.
 Fields:
@@ -50,6 +52,8 @@ Fields:
 interface Subject {
   title: string;
   whose: "ours" | "theirs" | "library";
+  /** a library card's side, from its label */
+  side?: "aff" | "neg" | "either";
   text: string;
   roundLine?: string;
   resolution?: string | null;
@@ -88,7 +92,7 @@ export async function explainSubject(teamId: string, target: ExplainTarget): Pro
     const meta = c.meta && "side" in c.meta ? (c.meta as CardMeta) : null;
     const round = target.roundId ? await roundOf(teamId, target.roundId) : null;
     const whose = round && meta && meta.side !== "either" ? (meta.side === round.ourSide ? "ours" : "theirs") : round ? "ours" : "library";
-    return { title: c.tag, whose, text: cardBlock(c.tag, `${shortCite(c.citation)} — ${fullCite(c.citation).slice(0, 240)}`, c.body, labelLine(meta) || undefined), resolution: round?.resolution, roundLine: round ? `We are ${round.ourSide.toUpperCase()} in this round.` : undefined, aiRound: round ?? undefined };
+    return { title: c.tag, whose, side: meta?.side, text: cardBlock(c.tag, `${shortCite(c.citation)} — ${fullCite(c.citation).slice(0, 240)}`, c.body, labelLine(meta) || undefined), resolution: round?.resolution, roundLine: round ? `We are ${round.ourSide.toUpperCase()} in this round.` : undefined, aiRound: round ?? undefined };
   }
   const round = await roundOf(teamId, target.roundId);
   const graph = readGraph((await loadDoc(round.stateDocId)).doc, round.ourSide);
@@ -114,11 +118,17 @@ export async function explainSubject(teamId: string, target: ExplainTarget): Pro
 
 export async function explain(teamId: string, target: ExplainTarget, opts: { abortSignal?: AbortSignal } = {}): Promise<Explanation> {
   const subject = await explainSubject(teamId, target);
-  const key = createHash("sha256").update(JSON.stringify([teamId, target.kind, subject.whose, subject.roundLine ?? "", subject.text])).digest("hex");
+  // The version changes when the prompt does, so better explanations replace older ones.
+  const key = createHash("sha256").update(JSON.stringify([EXPLAIN_VERSION, teamId, target.kind, subject.whose, subject.side ?? "", subject.roundLine ?? "", subject.text])).digest("hex");
   const [hit] = await db().select({ data: explanations.data }).from(explanations).where(eq(explanations.key, key));
   if (hit) return hit.data as Explanation;
   const topic = topicFor(subject.resolution);
-  const whoseLine = subject.whose === "theirs" ? "This is the OTHER team's material: explain it and how to answer it." : subject.whose === "ours" ? "This is OUR team's material: explain it and how to use it." : "This card is in our team's library: explain it and how to use it.";
+  const whoseLine =
+    subject.whose === "theirs"
+      ? "This is the OTHER team's material: explain it and how to answer it."
+      : subject.whose === "ours"
+        ? "This is OUR team's material: explain it; in respond, give tips for using it; in watch, how the other side would attack it."
+        : `This card is in our team's library${subject.side && subject.side !== "either" ? ` (an ${subject.side.toUpperCase()} card)` : ""}: explain it; in respond, give tips for USING it well (when to read it, what to say with it); in watch, how the other side would attack it.`;
   const prompt = [topic?.brief ?? "", subject.roundLine ?? "", whoseLine, "", subject.text, "", "Explain it in very simple words."].filter((l, i) => l || i > 0).join("\n");
   const res = await runStructured({
     task: "explain",

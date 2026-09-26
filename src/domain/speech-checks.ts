@@ -34,6 +34,7 @@ export interface SpeechCheck {
   message: string;
   sectionIds?: string[];
   argIds?: string[];
+  positionIds?: string[];
 }
 
 export interface SpeechCheckReport {
@@ -181,6 +182,33 @@ export function checkSpeech(input: { graph: RoundGraph; speech: SpeechId; sectio
   }
   if (speech === "2AR") {
     for (const s of sections.filter((x) => x.relation === "extend")) for (const a of targetsOf(s)) if (a.side === side && a.speech !== "1AR") checks.push({ code: "2ar_no_1ar_ancestor", severity: "warning", message: `"${s.title}" extends our ${a.speech} argument; the 2AR can only go for what the 1AR extended.`, sectionIds: [s.id] });
+  }
+  // Carry our own arguments forward (EXT): what isn't extended is gone for the rest of the round.
+  const kicked = new Set(graph.decisions.filter((d) => d.kind === "kick" || d.kind === "concede").flatMap((d) => d.targets));
+  const ourLive = (pid: string, speeches: SpeechId[]) => graph.args.some((a) => a.positionId === pid && a.side === side && speeches.includes(a.speech) && isLive(a));
+  const touches = (pid: string) => sections.some((x) => targetsOf(x).some((a) => a.positionId === pid)) || sections.some((x) => !x.parentId && matchPosition(x.title, [posById.get(pid)!].filter(Boolean))?.id === pid);
+  if (speech === "1NR") {
+    // The block as a unit extends every 1NC position or kicks it; the 1NR is the last chance.
+    for (const p of graph.positions.filter((q) => q.side === side && q.introducedIn === "1NC" && offCase(q.kind) && !kicked.has(q.id))) {
+      if (!ourLive(p.id, ["1NC"]) || ourLive(p.id, ["2NC"]) || touches(p.id)) continue;
+      checks.push({ code: "block_dropped_position", severity: "critical", message: `Neither the 2NC nor this 1NR extends the 1NC's ${p.name}: extend it (so the 2NR can go for it) or kick it on purpose.`, positionIds: [p.id] });
+    }
+  }
+  if (speech === "1AR") {
+    const advantages = graph.positions.filter((q) => q.side === side && q.kind === "advantage" && !kicked.has(q.id) && ourLive(q.id, ["1AC", "2AC"]));
+    const extended = advantages.filter((q) => touches(q.id));
+    if (advantages.length && !extended.length) checks.push({ code: "no_advantage_extended", severity: "critical", message: `No advantage is extended: the 2AR can only win on an impact the 1AR carried forward.` });
+    for (const q of advantages.filter((x) => !extended.includes(x))) checks.push({ code: "advantage_dropped", severity: "warning", message: `The ${q.name} advantage isn't extended; after the 1AR it's gone. Extend its impact or drop it on purpose.`, positionIds: [q.id] });
+  }
+  if (speech === "2NR" || speech === "2AR") {
+    // A position the speech goes for needs its terminal impact extended, not just a link or an internal link.
+    const goingFor = graph.positions.filter((q) => q.side === side && !kicked.has(q.id) && sections.some((x) => targetsOf(x).some((a) => a.positionId === q.id && a.side === side)));
+    for (const q of goingFor) {
+      const impacts = graph.args.filter((a) => a.positionId === q.id && a.side === side && a.role === "impact" && isBefore(a.speech, speech) && isLive(a));
+      if (!impacts.length) continue;
+      const extendsImpact = sections.some((x) => targetsOf(x).some((a) => impacts.some((i) => i.id === a.id)) || (x.role === "impact" && targetsOf(x).some((a) => a.positionId === q.id)));
+      if (!extendsImpact) checks.push({ code: "no_terminal_impact", severity: "critical", message: `Going for ${q.name} without extending its terminal impact (${[...new Set(impacts.flatMap((i) => i.cites ?? []))].slice(0, 2).join(", ") || impacts[0].text.slice(0, 60)}): extend it and weigh it.`, positionIds: [q.id] });
+    }
   }
   // One story per position: a block or rebuttal that reads an impact on our position extends the impact already
   // read (same scenario, same authors), rather than swapping in a new one.

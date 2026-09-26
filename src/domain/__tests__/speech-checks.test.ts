@@ -103,3 +103,39 @@ describe("one story per position", () => {
     expect(shifts[0].message).toContain("Lee 26");
   });
 });
+
+describe("carrying our own arguments forward", () => {
+  const neg = (extra: ArgUnit[] = []): RoundGraph => ({
+    ourSide: "neg",
+    positions: [pos("pol", "da", "Politics DA"), pos("cp", "cp", "States CP"), pos("adv", "advantage", "Advantage 1", "aff", "1AC")],
+    args: [
+      arg("n1", "pol", "1NC", "neg", "link", "Plan drains political capital"),
+      arg("n2", "pol", "1NC", "neg", "impact", "Capital loss kills the invented treaty", { cites: ["Ruiz 25"] }),
+      arg("n3", "cp", "1NC", "neg", "cp_text", "The fifty states should establish national health insurance"),
+      arg("a1", "adv", "1AC", "aff", "impact", "Uninsurance causes 26,000 deaths a year", { cites: ["Lee 26"] }),
+      arg("r1", "pol", "2AC", "aff", "no_link", "The bill already died"),
+      ...extra,
+    ],
+    relations: [],
+    decisions: [],
+  });
+  const all = new Set<SpeechId>(["1AC", "1NC", "2AC", "2NC", "1NR", "1AR", "2NR", "2AR"]);
+
+  it("1NR: a 1NC position neither the 2NC nor the 1NR extends is flagged; one the 2NC extended is not", () => {
+    const g = neg([arg("e1", "pol", "2NC", "neg", "link", "Extend the link")]);
+    const r = checkSpeech({ graph: g, speech: "1NR", sections: [section("s1", ["n1"], { relation: "extend" })], recorded: all });
+    expect(r.checks.filter((c) => c.code === "block_dropped_position").map((c) => c.message)).toEqual([expect.stringContaining("States CP")]);
+  });
+
+  it("2NR: going for a DA without extending its impact is critical", () => {
+    const without = checkSpeech({ graph: neg(), speech: "2NR", sections: [section("s1", ["n1"], { relation: "extend" })], recorded: all });
+    expect(without.checks.some((c) => c.code === "no_terminal_impact" && c.severity === "critical" && c.message.includes("Ruiz 25"))).toBe(true);
+    const withImpact = checkSpeech({ graph: neg(), speech: "2NR", sections: [section("s1", ["n1"], { relation: "extend" }), section("s2", ["n2"], { relation: "extend", role: "impact" })], recorded: all });
+    expect(withImpact.checks.some((c) => c.code === "no_terminal_impact")).toBe(false);
+  });
+
+  it("1AR: extending no advantage is critical", () => {
+    const r = checkSpeech({ graph: graph(), speech: "1AR", sections: [section("s1", ["n1"])], recorded: all });
+    expect(r.checks.some((c) => c.code === "no_advantage_extended" && c.severity === "critical")).toBe(true);
+  });
+});

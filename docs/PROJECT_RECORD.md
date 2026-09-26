@@ -228,6 +228,7 @@ Each entry is marked **verified**, **partially verified**, or **unverified**.
 | Date | Area | Result | Status |
 |---|---|---|---|
 | 09-25 | Domain logic: formats, timing/calibration, citations, quote verification, coverage, contradictions | 39 unit tests pass | verified |
+| 09-26 | Full-round simulation (`scripts/bench/round-sim.ts`): the engine against itself on the team's season library, all 8 speeches, each speech flowed by the other side from its Word doc; a separate expert-judge model reads the round | Run 1: judge 4/10; 2NR 3/10 (5 drops, 7 items unanswered). Fixes P-54. Run 2: 5/10; 2NR 5/10 (0 unanswered); every speech after the 1NC answers everything in front of it. Remaining in run 2: our own positions not carried forward (the 1AR dropped an advantage), terminal impacts not extended, a contradictory link story in the block, cut-off sentences; fixed by carry-forward checks in the repair pass and a sentence guard. Summaries: `docs/evals/results/round-sim-run*-summary.json` (full reports stay private) | verified (model judge; one judge family) |
 | 09-25 | DOCX export → import round trip (headings, cites, underline/emphasis/highlight spans, omissions) | pass | verified (synthetic fixture; real Verbatim files pending) |
 | 09-25 | Editor integrity guards (card text protected, marks editable, locks, id de-duplication) | 7 tests pass (happy-dom) | verified |
 | 09-25 | Doc store on PGlite: convergence, dedupe, compaction, server-side changes | 4 tests pass | verified |

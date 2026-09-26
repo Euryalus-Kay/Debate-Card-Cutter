@@ -297,6 +297,15 @@ Output a complete, deliverable speech plan: first the outline (every section tit
 
 const fmtSec = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
 
+/** Text a model cut off mid-sentence ("…so the") ends at its last whole sentence; a rewrite with none is refused. */
+export function wholeSentences(text: string): string {
+  const t = text.trim();
+  if (!t || /[.!?…"”’)\]]$/.test(t)) return t;
+  const end = Math.max(t.lastIndexOf(". "), t.lastIndexOf("? "), t.lastIndexOf("! "), t.lastIndexOf(".\n"));
+  const kept = end >= 0 ? t.slice(0, end + 1) : "";
+  return kept.split(/\s+/).length >= 3 ? kept : "";
+}
+
 /**
  * The repair pass: arguments the draft must answer but doesn't (their arguments on every position a constructive
  * or the 1AR must cover; in the last rebuttals, those on the positions the speech goes for) each get a short
@@ -318,13 +327,25 @@ export async function coverDrops(output: SpeechDraftOutput, validation: Validati
     return cov.items.filter((i) => i.status === "unanswered" && inPlay.has(i.arg.positionId) && answer.includes(i.arg.speech)).map((i) => i.arg);
   };
   const missing = (last ? lastMissing() : validation.unaddressed.map((u) => argById.get(u.id)).filter((a): a is NonNullable<typeof a> => !!a)).slice(0, 12);
-  if (!missing.length || input.abortSignal?.aborted) return null;
-  input.onStatus?.(`${missing.length} argument${missing.length === 1 ? "" : "s"} still unanswered; answering ${missing.length === 1 ? "it" : "them"}`);
+  // Our own arguments the speech must carry forward: a 1NC position the block would drop, the 1AR's advantages,
+  // the terminal impact of what the last rebuttal goes for.
+  const CARRY = new Set(["block_dropped_position", "no_advantage_extended", "no_terminal_impact"]);
+  const carry = (validation.checks ?? []).filter((c) => CARRY.has(c.code));
+  const side = SPEECHES[input.speech].side;
+  const carryPositions = new Set(carry.flatMap((c) => c.positionIds ?? (c.code === "no_advantage_extended" ? ctx.graph.positions.filter((p) => p.side === side && p.kind === "advantage").map((p) => p.id) : [])));
+  const carryArgs = ctx.graph.args.filter((a) => carryPositions.has(a.positionId) && a.side === side && isBefore(a.speech, input.speech) && isLive(a)).slice(0, 24);
+  if ((!missing.length && !carry.length) || input.abortSignal?.aborted) return null;
+  input.onStatus?.(missing.length ? `${missing.length} argument${missing.length === 1 ? "" : "s"} still unanswered; answering ${missing.length === 1 ? "it" : "them"}` : "Carrying our arguments forward");
   const posName = new Map(ctx.graph.positions.map((p) => [p.id, p.name]));
   const positions = output.sections.filter((s) => !s.parentRef).map((s) => `${s.ref} — ${s.title}`);
-  const prompt = `Your draft of the ${input.speech} leaves these arguments unanswered (ids in brackets):
+  const prompt = `${missing.length ? `Your draft of the ${input.speech} leaves these arguments unanswered (ids in brackets):
 ${missing.map((a) => `- [${a.id}] (${posName.get(a.positionId) ?? "?"}) ${a.speech}${a.label ? ` #${a.label}` : ""}: ${a.text.slice(0, 300)}`).join("\n")}
-
+` : ""}${carry.length ? `
+OUR ARGUMENTS TO CARRY FORWARD (the speech must extend these; ids in brackets):
+${carry.map((c) => `- ${c.message}`).join("\n")}
+${carryArgs.map((a) => `  [${a.id}] (${posName.get(a.positionId) ?? "?"}, ${a.speech}, ${a.role.replace("_", " ")}) ${a.text.slice(0, 200)}${a.cites?.length ? ` (${a.cites.join(", ")})` : ""}`).join("\n")}
+For each, write an extension section: kind "response", relation "extend", targets = the ids you extend, parentRef = its position's section ref if there is one, 25–60 words: extend the author and the warrant, answer what they said against it, and say why it outweighs.
+` : ""}
 THE TOP-LEVEL SECTIONS OF YOUR DRAFT (ref — title):
 ${positions.join("\n")}
 
@@ -345,9 +366,11 @@ Write one short answer section for each argument: kind "response", relation "ans
       fake: () => ({ sections: [] }),
     });
     const refs = new Set(output.sections.map((s) => s.ref));
+    const wanted = new Set([...missing.map((m) => m.id), ...carryArgs.map((a) => a.id)]);
     const added = res.output.sections
-      .filter((s) => s.targets.some((t) => missing.some((m) => m.id === t)))
-      .map((s, i) => ({ ...s, ref: `fix${i + 1}`, parentRef: refs.has(s.parentRef) ? s.parentRef : "", relation: "answers" as const, kind: s.kind || "response" }));
+      .filter((s) => s.targets.some((x) => wanted.has(x)))
+      .map((s, i) => ({ ...s, analytic: wholeSentences(s.analytic), ref: `fix${i + 1}`, parentRef: refs.has(s.parentRef) ? s.parentRef : "", relation: s.targets.some((x) => carryArgs.some((a) => a.id === x)) ? ("extend" as const) : ("answers" as const), kind: s.kind || "response" }))
+      .filter((s) => s.analytic.trim());
     if (!added.length) return null;
     return validateDraft({ ...output, sections: [...output.sections, ...added] }, ctx, input.speech, ourSide, ctx.rates);
   } catch (e) {
@@ -449,6 +472,7 @@ Return every section above, using its id as sectionId, with its full rewritten t
     );
     const res = { output: { sections: results.flatMap((r) => r.output.sections) } };
     const rewrites = res.output.sections
+      .map((r) => ({ ...r, analytic: wholeSentences(r.analytic) }))
       .filter((r) => targets.has(r.sectionId) && byRef.has(r.sectionId) && r.analytic.trim())
       .map((r) => ({ id: r.sectionId, have: countWords(byRef.get(r.sectionId)!.analytic), got: countWords(r.analytic), want: targets.get(r.sectionId)!, priority: byRef.get(r.sectionId)!.priority, text: r.analytic.trim() }));
     const keep = acceptRewrites(mode, rewrites, before, limit * 0.98, secondsPerWord);
