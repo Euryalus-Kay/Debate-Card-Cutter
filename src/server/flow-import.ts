@@ -98,7 +98,8 @@ export async function importUploadToFlow(roundId: string, uploadId: string, user
       side,
       order: n,
       label: String(n),
-      text: b.text.slice(0, 400),
+      // An analytic's own explanation (the paragraphs under its tag) is part of the argument to answer.
+      text: [b.text, ...((b.data as { detail?: string[] } | null)?.detail ?? [])].join(" ").replace(/\s+/g, " ").trim().slice(0, 600),
       role: "claim",
       cardIds: [],
       cites: b.kind === "card" && data.cite?.short ? [data.cite.short] : [],

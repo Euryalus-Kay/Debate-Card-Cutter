@@ -352,6 +352,24 @@ export async function cutCard(req: CutRequest): Promise<CutResult> {
         /* keep the tag; lint still flags it */
       }
     }
+    // A card never goes out without a tag: write one from the read text, or reject the cut.
+    if (!built.tag.trim()) {
+      try {
+        const fix = await runStructured({
+          task: "section_revise",
+          system: "You write debate tags: one sentence, at most 25 words, no stronger than the read text. Every number you use must appear exactly as written in the card.",
+          prompt: `The card was cut for this claim: ${req.claim}\nRead-aloud text: ${readAloud(built.body).text}\nWrite its tag.`,
+          schema: z.object({ tag: z.string() }),
+          abortSignal: req.signal,
+          teamId: req.teamId ?? null,
+        });
+        const tag = fix.output.tag.trim().replace(/\s+/g, " ");
+        if (tag && !tagWarnings(tag, built.body).some((w) => w.code === "number_not_in_body")) built.tag = tag;
+      } catch {
+        /* rejected below */
+      }
+      if (!built.tag.trim()) return { run, numbered, built: null, rejectedReason: "The excerpt came back without a tag." };
+    }
     return { run, numbered, built };
   } catch (e) {
     return { run, numbered, built: null, rejectedReason: e instanceof Error ? e.message : String(e) };

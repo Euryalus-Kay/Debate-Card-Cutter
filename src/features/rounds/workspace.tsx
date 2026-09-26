@@ -18,13 +18,9 @@ import { ResearchDialog } from "./round-research";
 import { SidePanel } from "./side-panel";
 import { setRoundDoc } from "./editor/active-editor";
 import { setActivityUser } from "./ai-activity";
+import { aiEnabledFor } from "./ai-enabled";
 
-export function aiEnabledFor(round: RoundRecord): boolean {
-  if (round.aiOverride) return true;
-  if (round.aiPolicy === "allowed") return true;
-  if (round.aiPolicy === "prep_only") return round.phase === "prep";
-  return false;
-}
+export { aiEnabledFor } from "./ai-enabled";
 
 export function RoundWorkspace({ roundId }: { roundId: string }) {
   const { user } = useApp();

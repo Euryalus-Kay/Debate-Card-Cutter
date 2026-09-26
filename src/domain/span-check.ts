@@ -28,7 +28,7 @@ export function spanWarnings(input: { replacement: string; allowed: string }): s
 }
 
 /** Words a tag may use without the card saying them (debate vocabulary, not claims about the world). */
-const TAG_VOCAB = new Set("aff affirmative neg negative plan counterplan cp da disad disadvantage perm permutation squo status quo usfg alt alternative kritik extend extension even turn turns link links impact impacts uniqueness unique non no yes not the and but or so because only also both".split(" "));
+const TAG_VOCAB = new Set("aff affirmative neg negative plan counterplan cp da disad disadvantage perm permutation squo status quo usfg alt alternative kritik extend extension even turn turns link links impact impacts uniqueness unique non no yes not the and but or so because only also both nhi m4a aca u.s us usa america american americans".split(" "));
 
 /**
  * Problems with a new tag the AI proposes for a library card (B3): it may say what the card proves here,
@@ -37,14 +37,17 @@ const TAG_VOCAB = new Set("aff affirmative neg negative plan counterplan cp da d
 export function retagProblems(tag: string, card: { tag: string; text: string }): string[] {
   const allowed = `${card.tag}\n${card.text}`;
   const out = spanWarnings({ replacement: tag, allowed }).map((w) => w.replace(" isn't a card in this speech or on the flow", " isn't in the card").replace(" isn't in this section, its cards, or the flow", " isn't in the card"));
-  const lower = allowed.toLowerCase();
+  const lower = allowed.toLowerCase().replace(/[’‘`]/g, "'");
+  const known = new Set(lower.split(/[^a-z']+/).filter(Boolean).map((w) => w.replace(/'s$/, "")));
+  // "Democratic" is in a card that says "Democrats": the same word stem (first six letters) counts.
+  const stemIn = (w: string) => lower.includes(w) || (w.length >= 6 && [...known].some((k) => k.length >= 6 && k.slice(0, 6) === w.slice(0, 6)));
   const names = new Set<string>();
   const words = tag.split(/\s+/);
   words.forEach((w, i) => {
-    const bare = w.replace(/^[^A-Za-z]+|[^A-Za-z]+$/g, "");
+    const bare = w.replace(/^[^A-Za-z]+|[^A-Za-z.]+$/g, "").replace(/[’‘`]/g, "'").replace(/'s$/i, "").replace(/\.$/, "");
     const sentenceStart = i === 0 || /[.!?:—–-]$/.test(words[i - 1] ?? "");
     if (bare.length < 3 || sentenceStart || !/^[A-Z]/.test(bare) || TAG_VOCAB.has(bare.toLowerCase())) return;
-    if (!lower.includes(bare.toLowerCase())) names.add(bare);
+    if (!stemIn(bare.toLowerCase())) names.add(bare);
   });
   if (names.size) out.push(`Names ${[...names].join(", ")}, which the card doesn't mention.`);
   return out;

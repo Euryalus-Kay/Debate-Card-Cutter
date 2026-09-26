@@ -178,8 +178,10 @@ export function draftToExportNodes(draft: Draft, opts: { title?: string; include
           const first = s.items[0];
           const rest = first?.type === "heading" ? s.items.slice(1) : s.items;
           if (first?.type === "heading" && first.text.trim()) {
-            // Position-level sections become Blocks (H3); responses become Tags (H4), as in Verbatim speech docs.
-            out.push(depth === 0 && s.kind !== "response" ? { kind: "heading", level: 3, text: first.text } : { kind: "analytic", text: first.text });
+            // Top-level sections are positions (a 1NC's T, DA and CP, or the 2AC's answers to one of them): Blocks
+            // (H3), so whoever flows the doc gets one position each. Sections inside them are Tags (H4), as in
+            // Verbatim speech docs; their analytics follow as the tag's text.
+            out.push(depth === 0 ? { kind: "heading", level: 3, text: first.text } : { kind: "analytic", text: first.text, asTag: true });
           }
           walk(rest, depth + 1);
           break;

@@ -30,6 +30,8 @@ export interface Validation {
   retags?: RetagNote[];
   retagsRefused?: RetagRefusedNote[];
   library?: { offered: number; used: number };
+  repeatedCards?: string[];
+  partialShells?: { position: string; title: string; used: number; total: number }[];
 }
 
 export interface RetagNote {

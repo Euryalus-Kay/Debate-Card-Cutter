@@ -6,7 +6,8 @@
 
 import { and, eq } from "drizzle-orm";
 import { db } from "@/server/db/client";
-import { aiOperations, cards, documents, jobs, rounds, sources, teamMembers, uploads } from "@/server/db/schema";
+import { aiOperations, cards, documents, jobs, rounds, sources, teamMembers, uploads, user } from "@/server/db/schema";
+import { joinSiteTeam, siteTeamId } from "@/server/teams";
 import { currentUser, type SessionUser } from "@/server/auth";
 
 export class HttpError extends Error {
@@ -33,7 +34,15 @@ export async function membership(userId: string, teamId: string): Promise<{ role
 }
 
 export async function requireTeam(userId: string, teamId: string) {
-  const m = await membership(userId, teamId);
+  let m = await membership(userId, teamId);
+  // The site's shared team is everyone's: an account that hasn't joined it yet joins on first use.
+  if (!m && teamId === (await siteTeamId())) {
+    const [who] = await db().select({ name: user.name }).from(user).where(eq(user.id, userId));
+    if (who) {
+      await joinSiteTeam(userId, who.name);
+      m = await membership(userId, teamId);
+    }
+  }
   // 404 rather than 403 so outsiders cannot probe for team ids.
   if (!m) throw new HttpError(404, "Not found.");
   return m;

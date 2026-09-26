@@ -9,6 +9,7 @@
 
 import { blockExclusions, computeCoverage, droppedByThem, isLive, type ArgUnit, type CoverageReport, type DraftTarget, type RoundGraph, type TheirDrop } from "./flow";
 import { isBefore, isRebuttal, SPEECHES, speechesToAnswer, type NewArgumentPolicy, type SpeechId } from "./format";
+import { matchPosition } from "./positions";
 import type { Draft, DraftSection } from "@/shared/draft-model";
 import { allSections } from "@/shared/draft-model";
 import { analyticChecks } from "./analytic-checks";
@@ -180,6 +181,26 @@ export function checkSpeech(input: { graph: RoundGraph; speech: SpeechId; sectio
   }
   if (speech === "2AR") {
     for (const s of sections.filter((x) => x.relation === "extend")) for (const a of targetsOf(s)) if (a.side === side && a.speech !== "1AR") checks.push({ code: "2ar_no_1ar_ancestor", severity: "warning", message: `"${s.title}" extends our ${a.speech} argument; the 2AR can only go for what the 1AR extended.`, sectionIds: [s.id] });
+  }
+  // One story per position: a block or rebuttal that reads an impact on our position extends the impact already
+  // read (same scenario, same authors), rather than swapping in a new one.
+  if (speech !== "1AC" && speech !== "1NC" && speech !== "2AC") {
+    const earlierImpacts = new Map<string, ArgUnit[]>();
+    for (const a of graph.args) if (a.side === side && a.role === "impact" && isBefore(a.speech, speech)) earlierImpacts.set(a.positionId, [...(earlierImpacts.get(a.positionId) ?? []), a]);
+    const byId = new Map(sections.map((x) => [x.id, x]));
+    const positionOfSection = (x: CheckSection): string | null => {
+      const own = targetsOf(x).find((a) => posById.get(a.positionId)?.side === side)?.positionId;
+      if (own) return own;
+      const parent = x.parentId ? byId.get(x.parentId) : null;
+      return parent ? positionOfSection(parent) ?? (matchPosition(parent.title, graph.positions.filter((p) => p.side === side))?.id ?? null) : null;
+    };
+    for (const x of sections.filter((y) => y.role === "impact")) {
+      const pid = positionOfSection(x);
+      const before = pid ? earlierImpacts.get(pid) : undefined;
+      if (!pid || !before?.length || targetsOf(x).some((a) => before.some((b) => b.id === a.id))) continue;
+      const cites = [...new Set(before.flatMap((b) => b.cites ?? []))].slice(0, 3).join(", ");
+      checks.push({ code: "story_shift", severity: speech === "2NR" || speech === "2AR" ? "critical" : "warning", message: `"${x.title || "An impact"}" on ${nameOf(pid)} isn't the impact already read${cites ? ` (${cites})` : ""}: extend that story, or label this as an additional impact${speech === "2NR" || speech === "2AR" ? " (too late for a new one now)" : ""}.`, sectionIds: [x.id] });
+    }
   }
   // The format's new-argument rule: no new arguments in rebuttals (new evidence extending an old one is fine,
   // except under "strict" in the final rebuttals). "permissive" leagues allow them.

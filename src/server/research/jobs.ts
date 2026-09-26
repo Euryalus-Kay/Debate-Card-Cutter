@@ -15,7 +15,7 @@ import { newId } from "@/server/ids";
 import { createCard } from "@/server/cards";
 import { bodyHash, type Card } from "@/domain/card";
 import { citationGaps } from "@/domain/citation";
-import { discoverOpenAlex, discoverWeb, dedupe, normalizeUrl, type Candidate } from "./discover";
+import { discoverOpenAlex, discoverWeb, dedupe, normalizeUrl, workByDoi, type Candidate } from "./discover";
 import { fetchSource, paragraphsOf } from "./fetcher";
 import { saveFetchedSource, saveTextSource, type SourceRow } from "./sources";
 import { cutCard } from "./cut";
@@ -390,10 +390,13 @@ async function cut(it: ResearchItem, input: ResearchInput, teamId: string, userI
       return;
     }
     const pages = src.paragraphPages ? pageRange(src.paragraphPages, r.built.paragraphRange) : undefined;
+    // A scholarly page found by web search has no database record yet: its DOI gets one (authors in order).
+    const doi = meta?.metadata?.doi;
+    const bibliographic = it.bibliographic?.authors?.length || !doi ? it.bibliographic : ((await workByDoi(doi)) ?? it.bibliographic);
     const { citation, rejected } = buildCitation({
       url: pasted?.url ?? meta?.finalUrl ?? it.url ?? "",
       metadata: meta?.metadata ?? { authors: [] },
-      bibliographic: it.bibliographic,
+      bibliographic,
       byline: r.run.output.byline,
       sourceText: src.fullText,
       pages,

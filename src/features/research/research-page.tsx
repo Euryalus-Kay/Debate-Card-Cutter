@@ -77,14 +77,15 @@ export function ResearchPage() {
   const qc = useQueryClient();
 
   const [mode, setMode] = useState<Mode>("search");
-  const [claim, setClaim] = useState("");
-  const [context, setContext] = useState("");
+  // A link from the library's gap review can fill in the claim, context, and what the card is for.
+  const [claim, setClaim] = useState(params.get("claim")?.slice(0, 500) ?? "");
+  const [context, setContext] = useState(params.get("context")?.slice(0, 1000) ?? "");
   const [urls, setUrls] = useState("");
   const [paste, setPaste] = useState({ body: "", title: "", authors: "", qualifications: "", date: "", publication: "", url: "" });
   const [maxCards, setMaxCards] = useState(3);
   const [starting, setStarting] = useState(false);
   // What the card is for: its speech sets excerpt and read length; its side what counts as ours in the library.
-  const [forKey, setForKey] = useState<string>("2AC:aff");
+  const [forKey, setForKey] = useState<string>(FOR_OPTIONS.some(([k]) => k === params.get("for")) ? params.get("for")! : "2AC:aff");
   const [use, side] = forKey.split(":") as [CardUse, "aff" | "neg"];
   // Library first: a card the team already has costs nothing and is ready now.
   const [asked, setAsked] = useState<{ claim: string; context: string; side: "aff" | "neg" } | null>(null);

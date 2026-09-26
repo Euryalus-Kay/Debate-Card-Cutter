@@ -89,3 +89,17 @@ describe("checkSpeech", () => {
     expect(cov1NR.items.map((i) => i.arg.id)).toEqual(["x2"]);
   });
 });
+
+describe("one story per position", () => {
+  it("a 1AR impact on our advantage that isn't the 1AC's impact is a new story; extending it is fine", () => {
+    const g = graph([arg("n3", "adv", "2NC", "neg", "impact_mitigation", "Uninsurance deaths are overstated")]);
+    const newStory = section("s1", [], { role: "impact", title: "New impact: democracy collapses", relation: "new", parentId: "p1" });
+    const extend = section("s2", ["a1", "n3"], { role: "impact", title: "Extend Lee 26: 26,000 deaths", relation: "extend", parentId: "p1" });
+    const parent = section("p1", [], { kind: "position", relation: "none", title: "Advantage 1" });
+    const r = checkSpeech({ graph: g, speech: "1AR", sections: [parent, newStory, extend], recorded: new Set(["1AC", "1NC", "2AC", "2NC", "1NR"]) });
+    const shifts = r.checks.filter((c) => c.code === "story_shift");
+    expect(shifts).toHaveLength(1);
+    expect(shifts[0].sectionIds).toEqual(["s1"]);
+    expect(shifts[0].message).toContain("Lee 26");
+  });
+});

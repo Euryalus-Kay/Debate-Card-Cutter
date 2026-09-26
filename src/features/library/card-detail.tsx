@@ -18,6 +18,8 @@ import { useRateProfile } from "@/client/use-settings";
 import { VerificationBadge } from "@/features/rounds/evidence-panel";
 import { RehighlightDialog } from "@/features/cards/rehighlight-dialog";
 import { useApp } from "@/components/shell/app-shell";
+import type { CardMeta } from "@/domain/card-label";
+import { ExplainButton } from "@/features/explain/explain-button";
 
 interface CardData {
   id: string;
@@ -30,6 +32,7 @@ interface CardData {
   commentary: string;
   labels: string[];
   importedFrom: { fileName?: string } | null;
+  meta?: CardMeta | Record<string, never> | null;
   version: number;
   updatedAt: string;
 }
@@ -115,6 +118,7 @@ export function CardDetail({ cardId }: { cardId: string }) {
           <VerificationBadge status={card.verificationStatus} />
           <Badge>{card.origin.replace("_", " ")}</Badge>
           {card.importedFrom?.fileName ? <span className="text-xs text-faint">from {card.importedFrom.fileName}</span> : null}
+          <ExplainButton teamId={team.id} target={{ kind: "card", cardId: card.id }} label="Explain in simple words" />
           {card.citation.url && card.verificationStatus !== "verified" ? (
             <Button size="xs" variant="ghost" loading={checking} onClick={checkSource}>
               Check against the source
@@ -148,6 +152,7 @@ export function CardDetail({ cardId }: { cardId: string }) {
           </div>
         ) : null}
         <Textarea rows={2} value={tag} onChange={(e) => (setTag(e.target.value), setDirty(true))} className="text-[15px] font-semibold" aria-label="Tag" />
+        {card.meta && "side" in card.meta ? <CardLabels meta={card.meta as CardMeta} tag={tag} onUseTag={(t) => (setTag(t), setDirty(true))} /> : null}
         <div className="mt-3 rounded-xl border border-line bg-elev p-3">
           <div className="text-[13px]">
             <strong>{shortCite(cite)}</strong> <span className="text-muted">{fullCite(cite)}</span>
@@ -258,6 +263,37 @@ export function CardDetail({ cardId }: { cardId: string }) {
           </div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/**
+ * The card's library label: what it proves and where it fits, which the speech AI also reads. A clearer tag is
+ * only a suggestion; the file's tag stays until someone uses it (and saves).
+ */
+function CardLabels({ meta, tag, onUseTag }: { meta: CardMeta; tag: string; onUseTag: (t: string) => void }) {
+  const head = [meta.side === "either" ? "either side" : meta.side, meta.position, meta.role === "other" ? "" : meta.role.replace("_", " ")].filter(Boolean).join(" · ");
+  return (
+    <div className="mt-2 rounded-lg border border-dashed border-line px-3 py-2 text-[12.5px]" aria-label="Library label">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="font-medium">{head}</span>
+        {(meta.speeches ?? []).map((s) => (
+          <Badge key={s}>{s}</Badge>
+        ))}
+        <span className="ml-auto text-[11px] text-faint">label for search and the speech AI</span>
+      </div>
+      {meta.claim ? <div className="mt-1"><span className="text-muted">Proves:</span> {meta.claim}</div> : null}
+      {meta.use ? <div className="mt-0.5"><span className="text-muted">Where it fits:</span> {meta.use}</div> : null}
+      {meta.suggestedTag && meta.suggestedTag !== tag ? (
+        <div className="mt-1.5 flex flex-wrap items-center gap-2 rounded-md bg-sunken px-2 py-1.5">
+          <span className="text-muted">Clearer tag (suggested from the card&apos;s words):</span>
+          <span className="font-medium">{meta.suggestedTag}</span>
+          <Button size="xs" variant="ghost" onClick={() => onUseTag(meta.suggestedTag!)}>
+            Use this tag
+          </Button>
+        </div>
+      ) : null}
+      {meta.dropped?.length ? <div className="mt-1 text-[11px] text-faint">Part of the label was left out because the card&apos;s words don&apos;t support it.</div> : null}
     </div>
   );
 }

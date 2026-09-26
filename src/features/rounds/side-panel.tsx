@@ -19,6 +19,7 @@ import { useDocSync, useYDocValue } from "@/client/sync/hooks";
 import { useApp } from "@/components/shell/app-shell";
 import { readThreads } from "@/shared/comments";
 import type { SpanEnv } from "./editor/span-common";
+import { ExplainButton } from "@/features/explain/explain-button";
 
 export function SidePanel({ round, bundle, doc, graph, aiEnabled }: { round: RoundRecord; bundle: RoundBundle; doc: Y.Doc | null; graph: RoundGraph | null; aiEnabled: boolean }) {
   const ws = useWorkspace();
@@ -40,7 +41,7 @@ export function SidePanel({ round, bundle, doc, graph, aiEnabled }: { round: Rou
         <TabsTrigger value="ai">AI</TabsTrigger>
       </TabsList>
       <TabsContent value="details" className="min-h-0 flex-1 overflow-y-auto">
-        <ArgDetails round={round} doc={doc} graph={graph} />
+        <ArgDetails round={round} doc={doc} graph={graph} aiEnabled={aiEnabled} />
       </TabsContent>
       <TabsContent value="evidence" className="flex min-h-0 flex-1 flex-col">
         <EvidencePanel round={round} aiEnabled={aiEnabled} />
@@ -114,7 +115,7 @@ function provenanceText(a: ArgUnit): string {
   }
 }
 
-function ArgDetails({ round, doc, graph }: { round: RoundRecord; doc: Y.Doc | null; graph: RoundGraph | null }) {
+function ArgDetails({ round, doc, graph, aiEnabled }: { round: RoundRecord; doc: Y.Doc | null; graph: RoundGraph | null; aiEnabled: boolean }) {
   const ws = useWorkspace();
   const { user } = useApp();
   const arg = graph?.args.find((a) => a.id === ws.selectedArgId) ?? null;
@@ -144,6 +145,12 @@ function ArgDetails({ round, doc, graph }: { round: RoundRecord; doc: Y.Doc | nu
           <Badge tone={arg.side === "aff" ? "aff" : "neg"}>{arg.speech}</Badge>
           <span>{pos?.name ?? "Unsorted"}</span>
           {arg.humanEdited ? <Badge tone="accent">corrected</Badge> : null}
+          {aiEnabled ? (
+            <span className="ml-auto flex items-center gap-2">
+              <ExplainButton teamId={round.teamId} target={{ kind: "argument", roundId: round.id, argId: arg.id }} label="Explain this" />
+              {pos ? <ExplainButton teamId={round.teamId} target={{ kind: "position", roundId: round.id, positionId: pos.id }} label={pos.side === round.ourSide ? "Explain our whole argument" : "Explain their whole argument"} /> : null}
+            </span>
+          ) : null}
         </div>
         <Textarea rows={3} defaultValue={arg.text} key={arg.id + arg.text} onBlur={(e) => e.target.value.trim() !== arg.text && update({ text: e.target.value.trim() })} className="text-[13px]" />
         <div className={cn("mt-1 text-[11px]", arg.provenance.type === "ai_inferred" ? "text-info" : "text-faint")}>{provenanceText(arg)}</div>

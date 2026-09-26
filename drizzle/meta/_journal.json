@@ -50,6 +50,20 @@
       "when": 1790375031535,
       "tag": "0006_ai_limits",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790389732033,
+      "tag": "0007_imported_analytics",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790392104293,
+      "tag": "0008_shared_team_explanations",
+      "breakpoints": true
     }
   ]
 }

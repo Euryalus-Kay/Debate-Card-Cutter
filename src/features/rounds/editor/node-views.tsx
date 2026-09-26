@@ -16,6 +16,7 @@ import { useState } from "react";
 import { applyCardMarks } from "../proposals";
 import { RehighlightDialog } from "@/features/cards/rehighlight-dialog";
 import { useApp } from "@/components/shell/app-shell";
+import { ExplainButton } from "@/features/explain/explain-button";
 
 const RELATION_LABEL: Record<string, string> = {
   answers: "Answers",
@@ -216,6 +217,7 @@ export function CardView(props: ReactNodeViewProps) {
             </span>
           </Tooltip>
         ) : null}
+        {ctx.aiEnabled && attrs.cardId ? <ExplainButton teamId={team.id} target={{ kind: "card", cardId: String(attrs.cardId) }} icon className="text-faint hover:text-fg" /> : null}
         {ctx.aiEnabled ? (
           <Tooltip content="Re-highlight to a read length (words never change)">
             <button className="rounded p-0.5 text-faint hover:bg-hover hover:text-fg" aria-label="Re-highlight card" onClick={() => setRehighlight(true)}>

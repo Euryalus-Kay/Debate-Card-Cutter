@@ -47,13 +47,27 @@ export interface StructuredDoc {
   styled: boolean;
 }
 
-const YEAR = "['’‘`]?(?:\\d{2}|\\d{4})";
-// "Smith 22", "Jane Smith 22", "Andreas von Gunten, 15", "Smith and Lee 22", "Smith et al. 22".
+// "22", "2022", "’16", and this season's month-day dates with no year: "9-5", "9/22", "‘8-5".
+const YEAR = "['’‘`]?(?:\\d{1,2}[-/]\\d{1,2}(?:[-/](?:\\d{4}|\\d{2}))?|\\d{4}|\\d{2})";
+const NO_DATE = String.raw`ND|N\.D\.|n\.d\.|[Nn]o\s?[Dd]ate`;
+// "Smith 22", "Jane Smith 22", "Andreas von Gunten, 15", "Seth A. Berkowitz, 2026", "Dr. Ian Lesser, 2025",
+// "Smith and Lee 22", "Martin Mühleisen and Valbona Zeneli, 2025", "Smith et al. 22", "Kelsey Hartigan, et al, 2024".
 const NAME = String.raw`[\p{Lu}][\p{L}'’.\-]+`;
 const PARTICLES = String.raw`(?:von|van|der|den|de|la|le|del|da|di|du|bin|al)`;
-const CITE_START = new RegExp(String.raw`^\s*${NAME}(?:\s(?:${PARTICLES}\s)*${NAME})?(?:\s(?:&|and)\s${NAME}|\s(?:et\.?\s?al\.?))?(?:[\s,]+(?:${YEAR}|ND|N\.D\.|n\.d\.))\b`, "u");
-const SHORT_CITE = new RegExp(String.raw`^[\p{Lu}][\p{L}'’.\-&, ]{0,60}?[\s,]+(?:${YEAR}|ND)\b`, "u");
+const PERSON = String.raw`${NAME}(?:\s(?:[\p{Lu}]\.\s)?(?:${PARTICLES}\s)*${NAME})?`;
+const HONORIFIC = String.raw`(?:(?:Dr|Prof|Professor|Rep|Sen|Gov|Judge|Justice|Hon)\.?\s)?`;
+const CO_AUTHORS = String.raw`(?:\s(?:&|and)\s${PERSON}|,?\s(?:et\.?\s?al\.?))`;
+// A sentence is not a cite: "In March 2020, …" opens with a function word, "Smith 2019 found …" goes on in lowercase.
+const NOT_AN_AUTHOR = String.raw`(?!(?:In|On|At|By|For|From|Since|After|Before|During|Until|As|The|This|That|These|Those|It|We|They|Our|Their|According|Between|Through|Over|Last|Next|Every|Each|Some|Many|Most|All|Both|When|While|If|But|And|Or|So|Of|To|With|Without|Under|Among|Despite|Although|Because|Even|Only|Also|Here|There|Now|Then|Today|Early|Late)\b)`;
+const YEAR_END = String.raw`\b(?![ \t]+[a-z])`;
+const CITE_START = new RegExp(String.raw`^\s*${NOT_AN_AUTHOR}${HONORIFIC}${PERSON}${CO_AUTHORS}?(?:[\s,]+(?:${YEAR}|${NO_DATE}))${YEAR_END}`, "u");
+const SHORT_CITE = new RegExp(String.raw`^[\p{Lu}][\p{L}'’.\-&, ]{0,60}?[\s,]+(?:${YEAR}|ND|[Nn]o\s?[Dd]ate)${YEAR_END}`, "u");
+// A bold surname with the year just after it: "Seth A. **Berkowitz**, 2026 –", "Martin **Mühleisen** and Valbona Zeneli, 2025".
+const BOLD_NAME = new RegExp(String.raw`^${HONORIFIC}${PERSON}$`, "u");
+const YEAR_AFTER_NAME = new RegExp(String.raw`^${CO_AUTHORS}?[\s,]+(?:${YEAR}|${NO_DATE})${YEAR_END}`, "u");
 const URL_RE = /\bhttps?:\/\/[^\s)\]}>"]+/i;
+/** A debater's annotation line, never card text: "<<<1NC Jackson>>>", "<<<CONDENSED, NONE OMITTED>>>". */
+export const MARKER_LINE = /^\s*(?:<<.*>>|\[\[.*\]\])\s*$/;
 
 let junkParagraphs: Set<number> | undefined;
 function isBlank(p: DocParagraph): boolean {
@@ -75,8 +89,15 @@ function shortCiteRun(p: DocParagraph): number {
       if (r.props.bold) {
         // Bold run(s) that read like "Lastname 21"
         let joined = "";
-        for (let j = i; j < p.runs.length && (p.runs[j].props.bold || isCiteStyle(p.runs[j].charStyleName, p.runs[j].charStyle)); j++) joined += p.runs[j].text;
+        let j = i;
+        for (; j < p.runs.length && (p.runs[j].props.bold || isCiteStyle(p.runs[j].charStyleName, p.runs[j].charStyle)); j++) joined += p.runs[j].text;
         if (SHORT_CITE.test(joined.trim())) return i;
+        // …or a bold surname with the year right after it.
+        if (BOLD_NAME.test(joined.trim())) {
+          let after = "";
+          for (let k = j; k < p.runs.length && after.length < 120; k++) after += p.runs[k].text;
+          if (YEAR_AFTER_NAME.test(after)) return i;
+        }
       }
     }
     offset += r.text.length;
@@ -166,8 +187,11 @@ function fullYear(token: string, nowYY = new Date().getFullYear() % 100): number
 
 /** Year token at the end of a short cite: "Smith 21", "Smith ’21", "Bracey 6", "Reed 2K", "Segall 3/12/21". */
 function shortCiteYear(short: string): { year?: number; month?: number; day?: number } {
-  const md = /(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s*$/.exec(short);
+  const md = /(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})\s*$/.exec(short);
   if (md) return { month: Number(md[1]), day: Number(md[2]), year: fullYear(md[3]) };
+  // "Baker 9-8", "Clemens 9/22": month and day, the year left unsaid.
+  const mdOnly = /(?:^|[\s,'’‘`])(\d{1,2})[-/](\d{1,2})\s*$/.exec(short);
+  if (mdOnly && Number(mdOnly[1]) >= 1 && Number(mdOnly[1]) <= 12) return { month: Number(mdOnly[1]), day: Number(mdOnly[2]) };
   const m = /(?:^|[\s,])(['’‘`]?(?:2K\d?|\d{1,4}))\s*$/i.exec(short);
   return m ? { year: fullYear(m[1]) } : {};
 }
@@ -195,24 +219,35 @@ function findDate(text: string): { year: number; month?: number; day?: number; r
 export function citationFromImported(short: string, rest: string, raw: string, prefix = ""): Citation {
   const c: Citation = { authors: [], provenance: {}, raw, rawRest: raw && short && raw.includes(short) ? raw.slice(raw.indexOf(short) + short.length).replace(/^[\s]+/, "") : rest };
   if (prefix) c.rawRest = raw.slice(raw.indexOf(short) + short.length).replace(/^\s+/, "");
-  // Year may sit just outside the bold short cite: "Newburger" + " 21, …"
+  // Co-authors and the year may sit just outside the bold short cite: "Newburger" + " 21, …",
+  // "Mühleisen" + " and Valbona Zeneli, 2025 – …", "Hartigan" + ", et al, 2024 - …".
   let shortFull = short;
-  const lead = /^\s*(['’‘`]?(?:2K\d?|\d{1,4}))\b[\s,]*/i.exec(rest);
-  if (!Object.keys(shortCiteYear(short)).length && lead) {
-    shortFull = `${short} ${lead[1]}`;
+  let coAuthor: string | undefined;
+  const noYear = !Object.keys(shortCiteYear(short)).length && !/\b(?:ND|N\.D\.|no\s?date)\s*$/i.test(short);
+  const co = noYear ? /^\s*(?:(?:&|and)\s+((?:[\p{Lu}][\p{L}'’.\-]+\s?){1,3}?)|(et\.?\s?al\.?))[\s,]+(?=['’‘`]?(?:2K\d?|\d{1,4})\b|ND\b|[Nn]o\s?[Dd]ate)/u.exec(rest) : null;
+  if (co) {
+    coAuthor = co[1]?.trim();
+    shortFull = coAuthor ? `${short} and ${coAuthor.split(/\s+/).pop()}` : `${short} et al.`;
+    rest = rest.slice(co[0].length);
+  }
+  const lead = /^\s*(['’‘`]?(?:\d{1,2}[-/]\d{1,2}(?:[-/]\d{2,4})?|2K\d?|\d{1,4})|ND|no\s?date)\b[\s,]*/i.exec(rest);
+  if (noYear && lead) {
+    shortFull = `${shortFull} ${lead[1]}`;
     rest = rest.slice(lead[0].length);
   }
   const sy = shortCiteYear(shortFull);
-  const name = shortFull.replace(/[\s,]*(?:['’‘`]?(?:2K\d?|\d{1,4})|\d{1,2}\/\d{1,2}\/\d{2,4}|ND|N\.D\.)\s*$/i, "").replace(/,\s*$/, "").trim();
+  const name = shortFull.replace(/[\s,]*(?:['’‘`]?(?:2K\d?|\d{1,4})|['’‘`]?\d{1,2}[-/]\d{1,2}(?:[-/]\d{2,4})?|ND|N\.D\.|no\s?date)\s*$/i, "").replace(/,\s*$/, "").trim();
   if (name) {
-    const family = name.replace(/\s+(et\.?\s?al\.?)$/i, "");
-    const full = prefix && /^[\p{Lu}][\p{L}.'’\- ]{0,40}$/u.test(prefix) ? `${prefix} ${name}` : name;
+    const first = coAuthor ? name.replace(/\s+and\s+\S+$/, "") : name;
+    const family = first.replace(/\s+(et\.?\s?al\.?)$/i, "");
+    const full = prefix && /^[\p{Lu}][\p{L}.'’\- ]{0,40}$/u.test(prefix) ? `${prefix} ${first}` : first;
     c.authors = [{ name: full, family }];
+    if (coAuthor) c.authors.push({ name: coAuthor, family: coAuthor.split(/\s+/).pop() });
     c.provenance.authors = "imported";
     c.shortOverride = shortFull.trim();
   }
   const found = findDate(rest);
-  if (sy.year || found) {
+  if (sy.year || sy.month || found) {
     // Prefer the full date in the cite text when it agrees with the short cite's year.
     if (found && (!sy.year || found.year === sy.year)) c.date = { year: found.year, month: found.month ?? sy.month, day: found.day ?? sy.day, raw: found.raw };
     else c.date = { year: sy.year, month: sy.month, day: sy.day };
@@ -297,10 +332,11 @@ export function structureDocument(paragraphs: DocParagraph[], hints: { cites?: S
         continue;
       }
       // A note line between the tag and its cite joins the tag, so the cite is still found and the card text
-      // stays exactly the source's words.
+      // stays exactly the source's words. A marker line ("<<<1NC Jackson>>>") joins the tag even when card text,
+      // not a cite, follows it.
       if (isNote(next)) {
         const after = nextNonBlank(paragraphs, next + 1);
-        if (after !== -1 && paragraphs[after].headingLevel === 0 && isCiteAt(after) && !isTag(after)) {
+        if (after !== -1 && paragraphs[after].headingLevel === 0 && !isTag(after) && (isCiteAt(after) || MARKER_LINE.test(paragraphs[next].text))) {
           tagText = `${tagText} ${paragraphs[next].text.trim()}`;
           next = after;
         }
@@ -311,7 +347,9 @@ export function structureDocument(paragraphs: DocParagraph[], hints: { cites?: S
       let j = citeLike ? next + 1 : next;
       const bodyParas: DocParagraph[] = [];
       while (j < paragraphs.length && paragraphs[j].headingLevel === 0 && !isTag(j)) {
-        if (!isBlank(paragraphs[j])) bodyParas.push(paragraphs[j]);
+        // Marker lines inside a card are the debater's notes, not the author's words: they join the tag.
+        if (MARKER_LINE.test(paragraphs[j].text)) tagText = `${tagText} ${paragraphs[j].text.trim()}`;
+        else if (!isBlank(paragraphs[j])) bodyParas.push(paragraphs[j]);
         j++;
       }
       const anyFormatting = bodyParas.some(hasCardFormatting);

@@ -2,14 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search, Upload, Library, AlertTriangle, Download, FileText, Hammer } from "lucide-react";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Search, Upload, Library, AlertTriangle, Download, FileText, Hammer, MessageSquareText, Trash2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { api } from "@/client/api";
 import { useApp } from "@/components/shell/app-shell";
 import { Badge, Button, cn, EmptyState, Input, Spinner, toast } from "@/components/ui";
 import { VerificationBadge } from "@/features/rounds/evidence-panel";
 import { ImportList, useImports } from "./imports";
+import { GapsPanel } from "./gaps-panel";
+import { ExplainButton } from "@/features/explain/explain-button";
+import { labelLine, type CardMeta } from "@/domain/card-label";
 
 interface Hit {
   id: string;
@@ -19,6 +22,7 @@ interface Hit {
   origin: string;
   snippet: string;
   labels: string[];
+  meta?: CardMeta | Record<string, never> | null;
   updatedAt: string;
 }
 
@@ -33,7 +37,8 @@ const FILTERS: { key: string; label: string; v: string[] }[] = [
 export function LibraryPage() {
   const { team } = useApp();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<"cards" | "files">(useSearchParams().get("tab") === "files" ? "files" : "cards");
+  const initialTab = useSearchParams().get("tab");
+  const [tab, setTab] = useState<"cards" | "analytics" | "gaps" | "files">(initialTab === "files" || initialTab === "analytics" || initialTab === "gaps" ? initialTab : "cards");
   const [q, setQ] = useState("");
   const [debounced, setDebounced] = useState("");
   const [filter, setFilter] = useState("all");
@@ -47,6 +52,8 @@ export function LibraryPage() {
   const res = useQuery({
     queryKey: ["library", team.id, debounced, filter],
     queryFn: () => api<{ cards: Hit[] }>(`/api/cards?teamId=${team.id}&q=${encodeURIComponent(debounced)}&limit=100${v.map((x) => `&v=${x}`).join("")}`),
+    // Keep showing the last results while a new search loads (no flicker, nothing unmounts under a click).
+    placeholderData: keepPreviousData,
   });
 
   const imports = useImports(team.id);
@@ -82,13 +89,13 @@ export function LibraryPage() {
         </div>
         <ImportList state={imports} teamId={team.id} />
         <div role="tablist" aria-label="Library view" className="mb-4 flex gap-1 border-b border-line">
-          {(["cards", "files"] as const).map((t) => (
+          {(["cards", "analytics", "gaps", "files"] as const).map((t) => (
             <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={cn("-mb-px border-b-2 px-3 py-1.5 text-[13px]", tab === t ? "border-accent font-medium" : "border-transparent text-muted hover:text-fg")}>
-              {t === "cards" ? "Cards" : "Files"}
+              {t === "cards" ? "Cards" : t === "analytics" ? "Analytics" : t === "gaps" ? "Gaps & ideas" : "Files"}
             </button>
           ))}
         </div>
-        {tab === "files" ? <FilesList teamId={team.id} /> : (
+        {tab === "files" ? <FilesList teamId={team.id} /> : tab === "analytics" ? <AnalyticsList teamId={team.id} /> : tab === "gaps" ? <GapsPanel teamId={team.id} /> : (
         <>
         <SourceCheck teamId={team.id} onShowMismatches={() => setFilter("mismatch")} />
         <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -115,11 +122,12 @@ export function LibraryPage() {
         ) : (
           <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-elev">
             {res.data.cards.map((c) => (
-              <li key={c.id}>
-                <Link href={`/library/cards/${c.id}`} className="block px-4 py-3 hover:bg-hover">
+              <li key={c.id} className="flex items-start">
+                <Link href={`/library/cards/${c.id}`} className="block min-w-0 flex-1 px-4 py-3 hover:bg-hover">
                   <div className="flex items-start gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="text-[13.5px] font-semibold leading-snug">{c.tag}</div>
+                      {c.meta && "side" in c.meta ? <div className="mt-0.5 line-clamp-2 text-[12px] text-muted">{labelLine(c.meta as CardMeta)}</div> : null}
                       <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs">
                         <span className="font-semibold">{c.shortCite}</span>
                         <VerificationBadge status={c.verificationStatus} />
@@ -131,6 +139,9 @@ export function LibraryPage() {
                     {c.verificationStatus === "mismatch" ? <AlertTriangle className="size-4 text-bad" /> : null}
                   </div>
                 </Link>
+                <div className="px-2 py-3">
+                  <ExplainButton teamId={team.id} target={{ kind: "card", cardId: c.id }} icon />
+                </div>
               </li>
             ))}
           </ul>
@@ -224,5 +235,88 @@ function FilesList({ teamId }: { teamId: string }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+interface BankEntry {
+  id: string;
+  title: string;
+  position: string;
+  speech: string;
+  side: string;
+  answers: string;
+  analytic: string;
+  cites: string[];
+  source: string;
+  roundId: string | null;
+  tournament: string | null;
+  roundLabel: string | null;
+}
+
+/**
+ * The team's analytics: blocks from imported files and answers from delivered speeches. Drafts adapt the ones
+ * that answer what the speech must answer, on the same side.
+ */
+function AnalyticsList({ teamId }: { teamId: string }) {
+  const qc = useQueryClient();
+  const [q, setQ] = useState("");
+  const [debounced, setDebounced] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(q), 220);
+    return () => clearTimeout(t);
+  }, [q]);
+  const res = useQuery({ queryKey: ["library-analytics", teamId, debounced], queryFn: () => api<{ entries: BankEntry[] }>(`/api/library/analytics?teamId=${teamId}&q=${encodeURIComponent(debounced)}`) });
+  async function remove(id: string) {
+    try {
+      await api(`/api/library/analytics/${id}?teamId=${teamId}`, { method: "DELETE" });
+      await qc.invalidateQueries({ queryKey: ["library-analytics", teamId] });
+    } catch (e) {
+      toast((e as Error).message, "bad");
+    }
+  }
+  return (
+    <>
+      <p className="mb-3 text-[12.5px] text-muted">Blocks of analytics from your imported files and the answers from speeches you delivered. When a draft must answer something similar, the speech AI adapts these (same side only) before writing new ones.</p>
+      <div className="relative mb-4">
+        <Search className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-faint" />
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search analytics: perm, condo, midterms, wait times…" className="pl-8" aria-label="Search analytics" />
+      </div>
+      {res.isLoading ? (
+        <div className="flex justify-center py-16">
+          <Spinner />
+        </div>
+      ) : !res.data?.entries.length ? (
+        <EmptyState icon={<MessageSquareText className="size-8" />} title={debounced ? "No matching analytics" : "No analytics yet"}>
+          Import speech docs or blocks: their analytics are saved here by block. Delivered speeches add their answers too.
+        </EmptyState>
+      ) : (
+        <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-elev">
+          {res.data.entries.map((e) => (
+            <li key={e.id} className="px-4 py-3">
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13.5px] font-semibold leading-snug">{e.title || e.position || "Analytics"}</div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted">
+                    {e.side ? <Badge>{e.side}</Badge> : null}
+                    {e.speech ? <Badge>{e.speech}</Badge> : null}
+                    {e.position ? <span>{e.position}</span> : null}
+                    {e.answers ? <span>· answers {e.answers}</span> : null}
+                    <span className="text-faint">· {e.source ? `from ${e.source}` : [e.tournament, e.roundLabel].filter(Boolean).join(" ") || "a delivered speech"}</span>
+                  </div>
+                  <details className="mt-1.5">
+                    <summary className="line-clamp-2 cursor-pointer text-[12.5px]">{e.analytic.split("\n")[0]}</summary>
+                    <div className="mt-1 whitespace-pre-wrap text-[12.5px]">{e.analytic}</div>
+                    {e.cites.length ? <div className="mt-1 text-[11.5px] text-faint">Cards read in this block: {e.cites.join(", ")}</div> : null}
+                  </details>
+                </div>
+                <button className="shrink-0 rounded p-1 text-faint hover:bg-hover hover:text-bad" aria-label={`Remove ${e.title || "this entry"}`} onClick={() => void remove(e.id)}>
+                  <Trash2 className="size-3.5" />
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }

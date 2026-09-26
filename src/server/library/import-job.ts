@@ -12,10 +12,10 @@
  * Each run works for up to four minutes; the next status poll resumes it.
  */
 
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db/client";
-import { cards, jobs } from "@/server/db/schema";
+import { jobs } from "@/server/db/schema";
 import { newId } from "@/server/ids";
 import { ingest, readPrivateBlob, sniffKind, storeParsedUpload, type IngestResult } from "@/server/uploads";
 import { structureDocument, type ImportedCard } from "@/server/ingest/structure";
@@ -23,7 +23,8 @@ import { importCardsBatch } from "@/server/cards";
 import type { BodyBlock } from "@/domain/card";
 import { applyLabels, CHUNK, needsSegmentation, segmentChunk, type LabelRuns } from "./segment";
 import { continueJob } from "@/server/jobs/continue";
-import { labelCards, metaText, type CardMeta } from "./label";
+import { labelAndSave } from "./label";
+import { saveImportedAnalytics } from "./analytics-import";
 
 export const MAX_IMPORT_BYTES = 50 * 1024 * 1024;
 const LEASE_SECONDS = 90;
@@ -51,6 +52,8 @@ export interface ImportCheckpoint {
   duplicates?: number;
   variants?: number;
   analytics?: number;
+  /** analytic blocks added to the analytics bank */
+  blocks?: number;
   labeled?: number;
   warnings: string[];
 }
@@ -60,7 +63,7 @@ export function importProgress(cp: ImportCheckpoint) {
   return [
     { stage: "read", status: cp.stage === "read" ? "running" : "done", detail: cp.quality ? `${cp.quality.paragraphs} paragraphs` : "" },
     ...(cp.ai ? [{ stage: "split", status: cp.stage === "segment" ? "running" : "done", detail: `${cp.ai.done} of ${cp.ai.total} parts split into cards` }] : []),
-    { stage: "import", status: cp.stage === "import" ? "running" : ["label", "done"].includes(cp.stage) ? "done" : "pending", detail: cp.created ? `${created} new cards, ${cp.duplicates ?? 0} already in the library, ${cp.variants ?? 0} variants` : "" },
+    { stage: "import", status: cp.stage === "import" ? "running" : ["label", "done"].includes(cp.stage) ? "done" : "pending", detail: cp.created ? `${created} new cards, ${cp.duplicates ?? 0} already in the library, ${cp.variants ?? 0} variants${cp.blocks ? `; ${cp.blocks} blocks of analytics saved for drafts` : ""}` : "" },
     { stage: "label", status: cp.stage === "label" ? "running" : cp.stage === "done" ? "done" : "pending", detail: cp.created ? `${cp.labeled ?? 0} of ${created} labeled` : "" },
   ];
 }
@@ -151,7 +154,7 @@ export async function runImportJob(jobId: string): Promise<void> {
         checkpoint: cp,
         progress: importProgress(cp),
         leaseUntil: null,
-        result: { uploadId: cp.uploadId ?? null, created: cp.created?.length ?? 0, duplicates: cp.duplicates ?? 0, variants: cp.variants ?? 0, analytics: cp.analytics ?? 0, labeled: cp.labeled ?? 0, warnings: cp.warnings },
+        result: { uploadId: cp.uploadId ?? null, created: cp.created?.length ?? 0, duplicates: cp.duplicates ?? 0, variants: cp.variants ?? 0, analytics: cp.analytics ?? 0, blocks: cp.blocks ?? 0, labeled: cp.labeled ?? 0, warnings: cp.warnings },
         updatedAt: new Date(),
       })
       .where(eq(jobs.id, jobId));
@@ -223,6 +226,7 @@ export async function runImportJob(jobId: string): Promise<void> {
       cp.duplicates = r.duplicates;
       cp.variants = r.variants;
       cp.analytics = result.structure.counts.analytics;
+      cp.blocks = await saveImportedAnalytics({ teamId, uploadId, fileName: input.fileName, items: result.structure.items });
       cp.labeled = 0;
       cp.stage = input.label && r.created.length ? "label" : "done";
       await persist();
@@ -238,14 +242,8 @@ export async function runImportJob(jobId: string): Promise<void> {
       await pool(PARALLEL, batches.map((_, i) => i), async (b) => {
         if (outOfTime()) return;
         const batch = batches[b];
-        const rows = await db().select({ id: cards.id, tag: cards.tag, shortCite: cards.shortCite, body: cards.body, importedFrom: cards.importedFrom }).from(cards).where(inArray(cards.id, batch));
-        const byId = new Map(rows.map((r) => [r.id, r]));
-        const list = batch.map((id) => byId.get(id)).filter((r): r is NonNullable<typeof r> => !!r);
-        const metas = await labelCards(
-          list.map((r) => ({ tag: r.tag, cite: r.shortCite, body: r.body as BodyBlock[], path: ((r.importedFrom as { path?: string[] } | null)?.path ?? []) as string[], fileName: input.fileName })),
-          { teamId, abortSignal: controller.signal },
-        );
-        await Promise.all(list.map((r, i) => (metas[i] ? db().update(cards).set({ meta: metas[i] as CardMeta, metaText: metaText(metas[i]!) }).where(eq(cards.id, r.id)) : Promise.resolve())));
+        const first = ids.indexOf(batch[0]);
+        await labelAndSave(teamId, batch, { abortSignal: controller.signal, fileName: input.fileName, before: first > 0 ? ids[first - 1] : undefined });
         // Progress counts only batches finished without a gap before them, so a resumed run redoes nothing twice.
         finished.add(b);
         while (finished.has(leading)) leading++;

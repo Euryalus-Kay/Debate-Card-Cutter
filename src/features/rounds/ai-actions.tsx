@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Editor } from "@tiptap/react";
 import type * as Y from "yjs";
 import { Sparkles, Zap, Brain, RefreshCw, Copy } from "lucide-react";
@@ -10,7 +10,7 @@ import { runOp, type OpEvent } from "@/client/ai";
 import { flushDoc } from "@/client/sync/hooks";
 import { Button, cn, Dialog, Field, Textarea, toast } from "@/components/ui";
 import type { RoundGraph } from "@/domain/flow";
-import type { SpeechId } from "@/domain/format";
+import { SPEECHES, type SpeechId } from "@/domain/format";
 import { changeSet, isUpToDate } from "@/domain/patch";
 import { sectionContentHash, type PMNodeJSON } from "@/shared/draft-model";
 import { makeId } from "@/shared/editor/schema";
@@ -274,6 +274,7 @@ export function GenerateDialog({
             ))}
           </div>
         )}
+        {!updating ? <RunFromFiles round={round} speech={speech} instructions={instructions} setInstructions={setInstructions} /> : null}
         <Field label={updating ? "What else to change (optional)" : "Strategy and instructions"} hint={updating ? "e.g. “add a link turn on Politics with the Lee card” or “the 2NC’s 3rd answer was about Medicare, not Medicaid”." : "e.g. “Go for the DA and case turns; kick the CP by conceding the solvency deficit. Spend 1:30 on the perm.”"}>
           <Textarea
             rows={updating ? 3 : 4}
@@ -300,5 +301,36 @@ export function GenerateDialog({
         </div>
       </div>
     </Dialog>
+  );
+}
+
+/**
+ * Positions from the team's files this speech can run: picking one names it in the instructions, and the AI then
+ * reads that position's whole shell from the file (and later speeches extend it from the file's blocks).
+ */
+function RunFromFiles({ round, speech, instructions, setInstructions }: { round: RoundRecord; speech: SpeechId; instructions: string; setInstructions: (s: string) => void }) {
+  const side = SPEECHES[speech].side;
+  const q = useQuery({ queryKey: ["library-positions", round.teamId], queryFn: () => api<{ positions: { side: string; name: string; cards: number }[] }>(`/api/library/positions?teamId=${round.teamId}`), staleTime: 60_000 });
+  const mine = (q.data?.positions ?? []).filter((p) => p.side === side || p.side === "either").slice(0, 16);
+  if (!mine.length || !(speech === "1NC" || speech === "1AC" || speech === "2NC" || speech === "1NR")) return null;
+  const LINE = "Run from our files:";
+  const current = (instructions.split("\n").find((l) => l.startsWith(LINE)) ?? "").slice(LINE.length).split(";").map((x) => x.trim()).filter(Boolean);
+  const toggle = (name: string) => {
+    const next = current.includes(name) ? current.filter((x) => x !== name) : [...current, name];
+    const rest = instructions.split("\n").filter((l) => !l.startsWith(LINE));
+    setInstructions([next.length ? `${LINE} ${next.join("; ")}` : "", ...rest].filter((l, i) => l || i > 0).join("\n").trim());
+  };
+  return (
+    <div className="text-[13px]">
+      <div className="mb-1 font-medium">Run from your files</div>
+      <div className="mb-1.5 text-xs text-muted">Pick positions to read in full: the AI reads each one&apos;s whole shell from your files (every card and analytic, in order), and later speeches extend it from your blocks.</div>
+      <div className="flex flex-wrap gap-1.5">
+        {mine.map((p) => (
+          <button key={p.name} type="button" onClick={() => toggle(p.name)} aria-pressed={current.includes(p.name)} className={cn("rounded-full border px-2.5 py-0.5 text-xs", current.includes(p.name) ? "border-accent bg-accent-soft text-accent-text" : "border-line hover:bg-hover")}>
+            {p.name} <span className="text-faint">{p.cards}</span>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

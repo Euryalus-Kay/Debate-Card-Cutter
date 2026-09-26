@@ -13,11 +13,37 @@ export function initialsFor(name: string): string {
 }
 
 export async function createTeam(userId: string, userName: string, name: string, school = ""): Promise<string> {
+  // On a site with a shared team there is one library: joining it replaces making a separate team.
+  const shared = await joinSiteTeam(userId, userName);
+  if (shared) return shared;
   const id = newId("team");
   await atomic((d) => [
     d.insert(teams).values({ id, name: name.trim() || "My team", school: school.trim(), createdBy: userId }),
     d.insert(teamMembers).values({ teamId: id, userId, role: "owner", initials: initialsFor(userName) }),
   ]);
+  return id;
+}
+
+let siteCache: { at: number; id: string | null } | null = null;
+
+/** Forget the cached shared team (after marking one, and in tests). */
+export function forgetSiteTeam() {
+  siteCache = null;
+}
+
+/** The site's shared team, if the site has one (every account joins it, so everyone sees one library). */
+export async function siteTeamId(): Promise<string | null> {
+  if (siteCache && Date.now() - siteCache.at < 60_000) return siteCache.id;
+  const [t] = await db().select({ id: teams.id }).from(teams).where(eq(teams.siteShared, true)).limit(1);
+  siteCache = { at: Date.now(), id: t?.id ?? null };
+  return siteCache.id;
+}
+
+/** Add the user to the site's shared team (as a member; the owner stays owner). Returns its id, or null. */
+export async function joinSiteTeam(userId: string, userName: string): Promise<string | null> {
+  const id = await siteTeamId();
+  if (!id) return null;
+  await db().insert(teamMembers).values({ teamId: id, userId, role: "member", initials: initialsFor(userName) }).onConflictDoNothing();
   return id;
 }
 

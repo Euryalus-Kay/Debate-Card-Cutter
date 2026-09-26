@@ -8,6 +8,7 @@ import { authClient } from "@/client/auth-client";
 import { flushAndStopAll } from "@/client/sync/hooks";
 import { clearAll, outboxCount } from "@/client/sync/idb";
 import { cn, Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger, Tooltip } from "@/components/ui";
+import { ExplainHost } from "@/features/explain/explain-button";
 
 export interface ShellUser {
   id: string;
@@ -167,6 +168,7 @@ export function AppShell({ user, team, teams, children }: { user: ShellUser; tea
         </aside>
         <main className="min-w-0 flex-1 overflow-hidden">{children}</main>
       </div>
+      <ExplainHost />
     </Ctx.Provider>
   );
 }

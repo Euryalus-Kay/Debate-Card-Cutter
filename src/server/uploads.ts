@@ -66,10 +66,12 @@ export interface IngestResult {
  * headings again; tags (13 pt bold) are left to the tag rules.
  */
 export function inferHeadingsFromSize(paragraphs: DocParagraph[]): DocParagraph[] {
-  if (paragraphs.some((p) => p.headingLevel > 0)) return paragraphs;
+  // In a file with heading styles, only a short line typed at heading size ("DA---Midterms" at 22 pt) counts.
+  const styled = paragraphs.some((p) => p.headingLevel > 0);
   return paragraphs.map((p) => {
     const runs = p.runs.filter((r) => r.text.trim());
-    if (!runs.length || p.text.length > 200 || !runs.every((r) => r.props.bold)) return p;
+    if (p.headingLevel > 0 || !runs.length || p.text.length > (styled ? 120 : 200) || !runs.every((r) => r.props.bold)) return p;
+    if (styled && !runs.every((r) => (r.props.size ?? 0) >= 30)) return p;
     const size = Math.max(...runs.map((r) => r.props.size ?? 0)) / 2;
     const level = size >= 24 ? 1 : size >= 20 ? 2 : size >= 15 ? 3 : 0;
     return level ? { ...p, headingLevel: level as DocParagraph["headingLevel"] } : p;

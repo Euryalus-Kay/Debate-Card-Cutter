@@ -124,10 +124,12 @@ export const teams = pgTable("teams", {
   school: text("school").notNull().default(""),
   /** AI spend allowed per calendar month (USD, estimated from token counts); the owner sets it */
   aiMonthlyCapUsd: integer("ai_monthly_cap_usd").notNull().default(50),
+  /** the site's one shared team: every account on the site is a member, so everyone sees the same library */
+  siteShared: boolean("site_shared").notNull().default(false),
   createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
-});
+}, (t) => [uniqueIndex("teams_site_shared_uq").on(t.siteShared).where(sql`${t.siteShared}`)]);
 
 export const teamMembers = pgTable(
   "team_members",
@@ -585,12 +587,31 @@ export const analyticsBank = pgTable(
     title: text("title").notNull().default(""),
     analytic: text("analytic").notNull(),
     cites: jsonb("cites").notNull().default([]),
+    /** imported analytics: the file they came from (empty for delivered speeches) */
+    source: text("source").notNull().default(""),
+    /** the side that reads it: aff, neg, or "" when unknown */
+    side: text("side").notNull().default(""),
+    uploadId: text("upload_id").references(() => uploads.id, { onDelete: "cascade" }),
     createdAt: createdAt(),
     search: tsvector("search").generatedAlwaysAs(
       sql`setweight(to_tsvector('english', coalesce(answers, '')), 'A') || setweight(to_tsvector('english', coalesce(title, '')), 'A') || setweight(to_tsvector('english', coalesce(position, '')), 'B') || setweight(to_tsvector('english', coalesce(analytic, '')), 'C')`,
     ),
   },
   (t) => [uniqueIndex("analytics_bank_section_idx").on(t.draftId, t.sectionId), index("analytics_bank_team_idx").on(t.teamId), index("analytics_bank_search_idx").using("gin", t.search)],
+);
+
+/** Plain-words explanations of a card or an argument ("Explain"), kept so a partner's click is instant and free. */
+export const explanations = pgTable(
+  "explanations",
+  {
+    key: text("key").primaryKey(),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    data: jsonb("data").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("explanations_team_idx").on(t.teamId)],
 );
 
 /**

@@ -6,6 +6,7 @@
 
 import { guessKind, matchPosition } from "@/domain/positions";
 import { eq } from "drizzle-orm";
+import { z } from "zod";
 import { db } from "@/server/db/client";
 import { rounds } from "@/server/db/schema";
 import { applyServerChange, loadDoc } from "@/server/docs/store";
@@ -19,15 +20,16 @@ import { retagProblems, spanWarnings, stripIds } from "@/domain/span-check";
 import { tagWarnings } from "@/domain/verify";
 import { acceptRewrites, allocateWordChange } from "@/domain/length-plan";
 import { allSections, isHumanEdited, itemLoad, sectionContentHash, type DraftItem, type DraftSection, type PMNodeJSON } from "@/shared/draft-model";
-import { buildRoundContext, renderDraft, type RoundContext } from "./context";
+import { allCardIds, buildRoundContext, renderDraft, type RoundContext } from "./context";
 import { draftTargetsFromDraft } from "./draft-targets";
 import { checkSections, checkSpeech, type CheckSection, type SpeechCheck } from "@/domain/speech-checks";
 import { GLOBAL_RULES, SPEECH_RULES } from "./speech-rules";
+import { topicFor } from "@/domain/topics";
 import { runStructured, type RunResult } from "./run";
 import { draftProgress, extractProgress, fitProgress, patchProgress, taskTiming } from "./progress";
 import type { Progress } from "@/domain/progress";
 import { MODELS } from "./models";
-import { AlternativesSchema, CommentReplySchema, SpanEditSchema, FitPlanSchema, TopUpSchema, FlowExtractSchema, type FlowExtractOutput, FlowInterpretSchema, PatchPlanSchema, type PatchPlanOutput, SectionRevisionSchema, SpeechDraftSchema, type AlternativesOutput, type FitPlanOutput, type FlowInterpretOutput, type SectionRevisionOutput, type SpeechDraftOutput } from "./schemas";
+import { DraftSectionSchema, AlternativesSchema, CommentReplySchema, SpanEditSchema, FitPlanSchema, TopUpSchema, FlowExtractSchema, type FlowExtractOutput, FlowInterpretSchema, PatchPlanSchema, type PatchPlanOutput, SectionRevisionSchema, SpeechDraftSchema, type AlternativesOutput, type FitPlanOutput, type FlowInterpretOutput, type SectionRevisionOutput, type SpeechDraftOutput } from "./schemas";
 import { alreadyAnswered, argBasisHash, changedShare, changeSet, isUpToDate, patchSections, placeAnswer, type ChangeSet, type Placement } from "@/domain/patch";
 import { newId } from "@/server/ids";
 import { heardLines, readGraph, readHeardMarks, type HeardLine } from "@/shared/round-doc";
@@ -64,6 +66,10 @@ export interface Validation {
   retagsRefused?: RetagRefused[];
   /** library cards checked for fit and offered, and how many the proposal reads (B2) */
   library?: { offered: number; used: number };
+  /** second readings of a card in the same speech, removed (the first reading stays) */
+  repeatedCards?: string[];
+  /** shells from the team's files that the draft reads only part of */
+  partialShells?: { position: string; title: string; used: number; total: number }[];
 }
 
 export interface RetagNote {
@@ -151,6 +157,17 @@ export function validateDraft(out: SpeechDraftOutput, ctx: RoundContext, speech:
     sectionSeconds[s.ref] = estimateSection(s.analytic, s.title, cards, ctx, rates);
     return { ...s, targets, cardIds: cards };
   });
+  // A card is read once per speech: a second reading (in this proposal, or of a card already in the draft) is
+  // removed; the section cross-applies the first one instead.
+  const readAlready = new Set(ctx.draft ? allCardIds(ctx.draft) : []);
+  const repeatedCards: string[] = [];
+  for (const s of sections) {
+    s.cardIds = s.cardIds.filter((c) => {
+      if (!readAlready.has(c)) return readAlready.add(c), true;
+      repeatedCards.push(ctx.cards.find((x) => x.id === c)?.shortCite ?? c);
+      return false;
+    });
+  }
   const targets: DraftTarget[] = sections
     .filter((s) => s.relation !== "none" && s.relation !== "new")
     .map((s) => ({ sectionId: s.ref, title: s.title, relation: s.relation as DraftTarget["relation"], targets: s.targets }));
@@ -168,16 +185,23 @@ export function validateDraft(out: SpeechDraftOutput, ctx: RoundContext, speech:
     const argPos = new Map(ctx.graph.args.map((a) => [a.id, a.positionId]));
     positionsNotInBlock = [...new Set(sections.flatMap((s) => s.targets.map((t) => argPos.get(t)).filter((p): p is string => !!p && !allowed.has(p))))].map((pid) => ctx.graph.positions.find((p) => p.id === pid)?.name ?? pid);
   }
+  if (repeatedCards.length) for (const sec of sections) sectionSeconds[sec.ref] = estimateSection(sec.analytic, sec.title, sec.cardIds, ctx, rates);
   const estimated = Object.values(sectionSeconds).reduce((a, b) => a + b, 0);
   // Claims that the other side dropped/conceded something require a confirmed record (COV-5).
   const DROP = /\b(dropped|drops|conceded|concedes|never answered|no answer to|didn'?t answer|did not answer|went unanswered)\b/i;
   const unconfirmed = speechesToAnswerFor(speech).filter((s) => !ctx.confirmed.has(s));
   const unsupportedDropClaims = unconfirmed.length ? sections.filter((s) => DROP.test(s.analytic)).map((s) => s.title) : [];
   const retags = checkCardTags(out.cardTags ?? [], ctx, new Set(sections.flatMap((s) => s.cardIds)));
+  // A shell from the team's files is read whole or not at all.
+  const reading = new Set([...(ctx.draft ? allCardIds(ctx.draft) : []), ...sections.flatMap((s) => s.cardIds)]);
+  const partialShells = (ctx.fileBlocks ?? [])
+    .filter((b) => b.purpose === "shell" && b.cardIds.length > 1)
+    .map((b) => ({ position: b.position, title: b.title, used: b.cardIds.filter((c) => reading.has(c)).length, total: b.cardIds.length }))
+    .filter((b) => b.used > 0 && b.used < b.total);
   const clean = { ...out, strategy: { summary: stripIds(out.strategy.summary), choices: out.strategy.choices.map(stripIds), risks: out.strategy.risks.map(stripIds) }, outline: (out.outline ?? []).map(stripIds), omitted: out.omitted.map((o) => ({ ...o, reason: stripIds(o.reason) })), questions: out.questions.map(stripIds) };
   return {
     output: { ...clean, sections, cardTags: retags.kept },
-    validation: { unsupportedDropClaims, droppedTargets, droppedCards, unaddressed, newInRebuttal, positionsNotInBlock, estimatedSeconds: estimated, limitSeconds: ctx.limitSeconds, sectionSeconds, checks, retags: retags.notes, retagsRefused: retags.refused, library: { offered: ctx.libraryCardIds.length, used: new Set(sections.flatMap((s) => s.cardIds).filter((id) => ctx.libraryCardIds.includes(id))).size } },
+    validation: { unsupportedDropClaims, droppedTargets, droppedCards, unaddressed, newInRebuttal, positionsNotInBlock, estimatedSeconds: estimated, limitSeconds: ctx.limitSeconds, sectionSeconds, checks, retags: retags.notes, retagsRefused: retags.refused, library: { offered: ctx.libraryCardIds.length, used: new Set(sections.flatMap((s) => s.cardIds).filter((id) => ctx.libraryCardIds.includes(id))).size }, repeatedCards, partialShells },
   };
 }
 
@@ -258,6 +282,11 @@ Output a complete, deliverable speech plan: first the outline (every section tit
   const res = await runStructured({ task, system, context: ctx.text, prompt, schema: SpeechDraftSchema, onPartial, abortSignal: input.abortSignal, teamId: input.teamId, models: input.models, fake: () => fakeDraft(ctx) });
   progress?.checking(res.output.sections.length);
   let { output, validation } = validateDraft(res.output, ctx, input.speech, round.ourSide, rates);
+  // Nothing dropped: what the draft still leaves unanswered gets a short answer of its own before anyone sees it.
+  if (!input.noLengthFix) {
+    const covered = await coverDrops(output, validation, ctx, input, round.ourSide, system);
+    if (covered) ({ output, validation } = covered);
+  }
   if (!input.noLengthFix) {
     const onStatus = input.onStatus;
     const fixed = await fitDraftLength(output, validation, ctx, { ...input, onStatus: (st) => (onStatus?.(st), progress?.fitting(st, output.sections.length)) }, round.ourSide, system);
@@ -267,6 +296,57 @@ Output a complete, deliverable speech plan: first the outline (every section tit
 }
 
 const fmtSec = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+
+/**
+ * The repair pass: arguments the draft must answer but doesn't (their arguments on every position a constructive
+ * or the 1AR must cover; in the last rebuttals, those on the positions the speech goes for) each get a short
+ * answer section under their position, written with the round in view. The time fit runs after it.
+ */
+export async function coverDrops(output: SpeechDraftOutput, validation: Validation, ctx: RoundContext, input: DraftSpeechInput, ourSide: "aff" | "neg", system: string): Promise<{ output: SpeechDraftOutput; validation: Validation } | null> {
+  const argById = new Map(ctx.graph.args.map((a) => [a.id, a]));
+  const inPlay = new Set(output.sections.flatMap((s) => s.targets).map((t) => argById.get(t)?.positionId).filter((p): p is string => !!p));
+  const last = input.speech === "2NR" || input.speech === "2AR";
+  const missing = validation.unaddressed
+    .map((u) => argById.get(u.id))
+    .filter((a): a is NonNullable<typeof a> => !!a && (!last || inPlay.has(a.positionId)))
+    .slice(0, 10);
+  if (!missing.length || input.abortSignal?.aborted) return null;
+  input.onStatus?.(`${missing.length} argument${missing.length === 1 ? "" : "s"} still unanswered; answering ${missing.length === 1 ? "it" : "them"}`);
+  const posName = new Map(ctx.graph.positions.map((p) => [p.id, p.name]));
+  const positions = output.sections.filter((s) => !s.parentRef).map((s) => `${s.ref} — ${s.title}`);
+  const prompt = `Your draft of the ${input.speech} leaves these arguments unanswered (ids in brackets):
+${missing.map((a) => `- [${a.id}] (${posName.get(a.positionId) ?? "?"}) ${a.speech}${a.label ? ` #${a.label}` : ""}: ${a.text.slice(0, 300)}`).join("\n")}
+
+THE TOP-LEVEL SECTIONS OF YOUR DRAFT (ref — title):
+${positions.join("\n")}
+
+Write one short answer section for each argument: kind "response", relation "answers", targets = [its id], parentRef = the ref of the section above for its position (empty if none fits), a numbered title, and 20–45 words of analytic: the answer, the warrant against what they actually said, and why it matters. Use a card only if it is in the evidence provided and fits; never read a card the draft already reads. If the draft already makes the point elsewhere, cross-apply it in one sentence instead of repeating it.`;
+  try {
+    const res = await runStructured({
+      task: "section_revise",
+      system,
+      context: ctx.text,
+      prompt,
+      schema: z.object({ sections: z.array(DraftSectionSchema) }),
+      abortSignal: input.abortSignal,
+      teamId: input.teamId,
+      models: [
+        { model: MODELS.opus55, effort: "low", maxOutputTokens: 6000, firstChunkMs: 30000 },
+        { model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 6000 },
+      ],
+      fake: () => ({ sections: [] }),
+    });
+    const refs = new Set(output.sections.map((s) => s.ref));
+    const added = res.output.sections
+      .filter((s) => s.targets.some((t) => missing.some((m) => m.id === t)))
+      .map((s, i) => ({ ...s, ref: `fix${i + 1}`, parentRef: refs.has(s.parentRef) ? s.parentRef : "", relation: "answers" as const, kind: s.kind || "response" }));
+    if (!added.length) return null;
+    return validateDraft({ ...output, sections: [...output.sections, ...added] }, ctx, input.speech, ourSide, ctx.rates);
+  } catch (e) {
+    console.warn(`cover drops failed: ${(e as Error).message}`);
+    return null;
+  }
+}
 
 /**
  * Bring a fresh draft to time. Planners budget words loosely (deeper thinking
@@ -987,12 +1067,19 @@ function validatePatch(out: PatchPlanOutput, ctx: RoundContext, cs: ChangeSet, j
 
   // Adds: unique refs, known ids only, no parent cycles, no second answer to something already answered.
   const seen = new Set<string>();
+  const readAlready = new Set(ctx.draft ? allCardIds(ctx.draft) : []);
+  const repeatedCards: string[] = [];
   let adds = out.adds.map((a, i) => {
     let ref = (a.ref || `n${i + 1}`).trim();
     while (seen.has(ref)) ref = `${ref}_${i}`;
     seen.add(ref);
     const targets = a.targets.filter((t) => argById.has(t) || (droppedTargets++, false));
-    const cardIds = a.cardIds.filter((c) => pool.has(c) || (droppedCards++, false));
+    const cardIds = a.cardIds.filter((c) => pool.has(c) || (droppedCards++, false)).filter((c) => {
+      // Read once per speech: never a card the draft (or an earlier add) already reads.
+      if (!readAlready.has(c)) return readAlready.add(c), true;
+      repeatedCards.push(ctx.cards.find((x) => x.id === c)?.shortCite ?? c);
+      return false;
+    });
     return { ...a, ref, targets, cardIds, anchor: secById.has(a.anchor) ? a.anchor : "", title: stripIds(a.title), analytic: stripIds(a.analytic), needsEvidence: stripIds(a.needsEvidence) };
   });
   const refs = new Set(adds.map((a) => a.ref));
@@ -1110,7 +1197,7 @@ function validatePatch(out: PatchPlanOutput, ctx: RoundContext, cs: ChangeSet, j
   const editDelta = Object.values(editInfo).reduce((s, x) => s + x.seconds - x.previousSeconds, 0);
   const retags = checkCardTags(out.cardTags ?? [], ctx, new Set([...adds.flatMap((a) => a.cardIds), ...edits.flatMap((e) => e.cardIds)]));
   const output: PatchOutput = { ...out, summary: stripIds(out.summary), adds, retargets: [...retargets.values()].map((r) => ({ ...r, reason: stripIds(r.reason) })), edits: edits.map((e) => ({ ...e, reason: stripIds(e.reason) })), cardTags: retags.kept, notAddressed: out.notAddressed.filter((x) => x.targets.some((t) => argById.has(t))).map((x) => ({ ...x, reason: stripIds(x.reason) })), questions: out.questions.map(stripIds) };
-  return { output, addInfo, editInfo, argHashes, positionNames, estimatedSeconds: Math.round(previousSeconds + addSeconds + editDelta), checks: report.checks, remaining, retags: retags.notes, retagsRefused: retags.refused, dropped: { targets: droppedTargets, cards: droppedCards, duplicates, linksInPlace } };
+  return { output, addInfo, editInfo, argHashes, positionNames, estimatedSeconds: Math.round(previousSeconds + addSeconds + editDelta), checks: report.checks, remaining, retags: retags.notes, retagsRefused: retags.refused, dropped: { targets: droppedTargets, cards: droppedCards, duplicates, linksInPlace }, repeatedCards };
 }
 
 // ---------------------------------------------------------------------------
@@ -1382,8 +1469,9 @@ export async function extractFlow(input: ExtractInput) {
     const prior = priorOf(l);
     numbered.push(`${i + 1}. ${l.text}${l.source === "transcript" ? "   [transcript]" : ""}${prior.length ? `   [edited after it was flowed; read the whole line again]` : ""}`);
   }
+  const glossary = topicFor(round.resolution)?.glossary;
   const prompt = `SPEECH: ${speech} (${side.toUpperCase()})
-
+${glossary ? `\n${glossary}\n` : ""}
 POSITIONS ON THE FLOW:
 ${positions.map((p) => `[${p.id}] ${p.name} (${p.kind}, ${p.side})`).join("\n") || "(none yet)"}
 

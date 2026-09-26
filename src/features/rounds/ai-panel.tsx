@@ -265,6 +265,12 @@ function DraftProposal({ p, busy, setBusy, teamId, markOp, upd }: { p: Extract<P
           {v.library?.offered ? <div className="text-xs text-muted">Library: {v.library.offered} card{v.library.offered === 1 ? "" : "s"} fit what this speech must answer; the draft reads {v.library.used}.</div> : null}
           <RetagNotes retags={v.retags} refused={v.retagsRefused} />
           {v.droppedCards.length ? <Warn>{v.droppedCards.length} card reference(s) removed (not in your evidence).</Warn> : null}
+          {v.partialShells?.map((b) => (
+            <Warn key={b.title}>
+              Reads {b.used} of the {b.total} cards in your {b.position} shell ({b.title}). Read the whole shell or drop the position.
+            </Warn>
+          ))}
+          {v.repeatedCards?.length ? <Warn>Read once per speech: removed a second reading of {v.repeatedCards.join(", ")} (the first reading stays; cross-apply it by name).</Warn> : null}
           {v.droppedTargets.length ? <Warn>{v.droppedTargets.length} link(s) to arguments not on the flow removed.</Warn> : null}
           {out?.questions?.length ? <div className="text-xs text-info">To confirm: {out.questions.join(" ")}</div> : null}
         </div>

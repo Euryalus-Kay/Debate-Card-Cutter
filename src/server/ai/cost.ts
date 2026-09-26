@@ -46,6 +46,8 @@ export const TASK_LABEL: Record<string, string> = {
   web_fetch: "Reading blocked pages",
   file_segment: "Splitting imported files",
   card_label: "Labeling imported cards",
+  library_gaps: "Reviewing the library for gaps",
+  explain: "Explaining cards and arguments",
   evidence_fit: "Checking library cards fit",
   file_plan: "Planning files",
   cx_prep: "Cross-ex help",

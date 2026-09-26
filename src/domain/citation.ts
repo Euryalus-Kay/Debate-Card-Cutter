@@ -90,17 +90,38 @@ export function twoDigitYear(date?: CitationDate): string | null {
 }
 
 /** "Smith 23", "Smith & Jones 23", "Smith et al. 23", "CBO 23", "Smith ND". */
+const ET_AL = /,?\s+et\.?\s*al\.?$/i;
+const ORG_SKIP = new Set(["of", "for", "the", "a", "an", "and", "on", "in", "to", "at", "&"]);
+
+/**
+ * An organization's usual initials, used only when its own web address confirms them: "Committee for a
+ * Responsible Federal Budget" at crfb.org → "CRFB". Otherwise the full name (no invented abbreviations).
+ */
+export function organizationInitials(org: string, url?: string): string | null {
+  const words = org.split(/\s+/).filter((w) => w && !ORG_SKIP.has(w.toLowerCase()));
+  if (words.length < 3 || !url) return null;
+  const initials = words.map((w) => w[0]).join("").toUpperCase();
+  let host = "";
+  try {
+    host = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return null;
+  }
+  return host.split(".").some((part) => part === initials.toLowerCase()) ? initials : null;
+}
+
 export function shortCite(c: Citation): string {
   if (c.shortOverride?.trim()) return c.shortOverride.trim();
   const yy = twoDigitYear(c.date) ?? "ND";
   let who = "";
-  if (c.authors.length === 1) who = familyName(c.authors[0]);
+  // "Christopher Cai et al." is one listed name standing for several authors.
+  if (c.authors.length === 1) who = ET_AL.test(c.authors[0].name) ? `${familyName({ ...c.authors[0], name: c.authors[0].name.replace(ET_AL, "") })} et al.` : familyName(c.authors[0]);
   else if (c.authors.length === 2) who = `${familyName(c.authors[0])} & ${familyName(c.authors[1])}`;
   else if (c.authors.length > 2) who = `${familyName(c.authors[0])} et al.`;
   else if (c.organizationShort) who = c.organizationShort;
-  else if (c.organization) who = c.organization;
+  else if (c.organization) who = organizationInitials(c.organization, c.url) ?? c.organization;
   // No named author or organization: debate convention cites the publication (the gap stays flagged).
-  else if (c.publication?.trim()) who = c.publication.trim().replace(/^the\s+/i, "").slice(0, 40);
+  else if (c.publication?.trim()) who = organizationInitials(c.publication.trim(), c.url) ?? c.publication.trim().replace(/^the\s+/i, "").slice(0, 40);
   else who = "Unknown author";
   return `${who} ${yy}`;
 }

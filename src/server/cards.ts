@@ -2,9 +2,11 @@ import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { cardRevisions, cards, uploadBlocks, uploads } from "@/server/db/schema";
 import { newId } from "@/server/ids";
-import { bodyHash, verbatimText, type BodyBlock, type Card, type CardOrigin, type VerificationStatus } from "@/domain/card";
+import { bodyHash, verbatimText, type BodyBlock, type Card, type CardIssue, type CardOrigin, type VerificationStatus } from "@/domain/card";
+import { normalizeText } from "@/domain/verify";
 import { shortCite, type Citation } from "@/domain/citation";
 import { lintCard } from "@/domain/lint";
+import type { CardMeta } from "@/domain/card-label";
 
 export interface CardRow {
   id: string;
@@ -22,6 +24,8 @@ export interface CardRow {
   commentary: string;
   labels: string[];
   importedFrom: Record<string, unknown> | null;
+  /** library labels (src/server/library/label.ts) */
+  meta?: CardMeta | Record<string, never> | null;
   version: number;
   createdBy: string | null;
   createdAt: Date;
@@ -86,6 +90,7 @@ export interface CardSearchHit {
   origin: string;
   snippet: string;
   labels: string[];
+  meta?: CardMeta | Record<string, never> | null;
   updatedAt: Date;
   rank: number;
 }
@@ -97,16 +102,16 @@ export async function searchCards(teamId: string, q: string, opts: { limit?: num
   const verif = opts.verification?.length ? sql`and ${cards.verificationStatus} in (${sql.join(opts.verification.map((v) => sql`${v}`), sql`, `)})` : sql``;
   if (!query) {
     const rows = await db()
-      .select({ id: cards.id, tag: cards.tag, shortCite: cards.shortCite, verificationStatus: cards.verificationStatus, origin: cards.origin, snippet: sql<string>`left(${cards.plainText}, 240)`, labels: cards.labels, updatedAt: cards.updatedAt })
+      .select({ id: cards.id, tag: cards.tag, shortCite: cards.shortCite, verificationStatus: cards.verificationStatus, origin: cards.origin, snippet: sql<string>`left(${cards.plainText}, 240)`, labels: cards.labels, meta: cards.meta, updatedAt: cards.updatedAt })
       .from(cards)
       .where(and(eq(cards.teamId, teamId), isNull(cards.deletedAt), opts.verification?.length ? inArray(cards.verificationStatus, opts.verification as never[]) : undefined))
       .orderBy(desc(cards.updatedAt))
       .limit(limit);
-    return rows.map((r) => ({ ...r, rank: 0 }));
+    return rows.map((r) => ({ ...r, meta: r.meta as CardSearchHit["meta"], rank: 0 }));
   }
   const res = await db().execute(sql`
     with q as (select websearch_to_tsquery('english', ${query}) as tsq)
-    select c.id, c.tag, c.short_cite as "shortCite", c.verification_status as "verificationStatus", c.origin, c.labels, c.updated_at as "updatedAt",
+    select c.id, c.tag, c.short_cite as "shortCite", c.verification_status as "verificationStatus", c.origin, c.labels, c.meta, c.updated_at as "updatedAt",
       ts_headline('english', c.plain_text, q.tsq, 'MaxWords=40, MinWords=15, StartSel=«, StopSel=»') as snippet,
       (ts_rank(c.search, q.tsq) * 2 + similarity(c.tag, ${query})) as rank
     from ${cards} c, q
@@ -187,6 +192,38 @@ export async function updateCard(teamId: string, id: string, userId: string, pat
 }
 
 /** Same evidence, same tag, same highlighting: nothing new to keep. */
+const hasCite = (c: Citation) => !!(c.authors?.length || c.organization || c.raw?.trim());
+
+/** Two texts are the same words when the shorter (at least 25 words) is inside the longer. */
+function sameWords(x: string, y: string): boolean {
+  const [short, long] = x.length <= y.length ? [x, y] : [y, x];
+  return short.split(" ").length >= 25 && long.includes(short);
+}
+
+/**
+ * A card the file gives no cite for (a re-read marked "<<<1NC Jackson>>>", say) takes the cite of a card with the
+ * same words: an earlier card in this file, or one already in the library. With no such card, nothing is guessed.
+ */
+async function citeFromSameWords(teamId: string, body: BodyBlock[], earlier: { citation: Citation; norm: string; label: string }[]): Promise<{ citation: Citation; from: string } | null> {
+  const norm = normalizeText(verbatimText(body), { caseFold: true });
+  const words = norm.split(" ").filter(Boolean);
+  if (words.length < 25) return null;
+  for (const e of [...earlier].reverse()) if (sameWords(e.norm, norm)) return { citation: e.citation, from: e.label };
+  // In the library: a phrase from the middle of the card finds candidates; the full text confirms.
+  const mid = Math.floor(words.length / 2);
+  const phrase = words.slice(Math.max(0, mid - 4), mid + 4).join(" ");
+  const rows = await db()
+    .select({ shortCite: cards.shortCite, citation: cards.citation, plainText: cards.plainText })
+    .from(cards)
+    .where(and(eq(cards.teamId, teamId), isNull(cards.deletedAt), sql`${cards.search} @@ phraseto_tsquery('english', ${phrase})`))
+    .limit(8);
+  for (const r of rows) {
+    const c = r.citation as Citation;
+    if (hasCite(c) && sameWords(normalizeText(r.plainText, { caseFold: true }), norm)) return { citation: c, from: r.shortCite };
+  }
+  return null;
+}
+
 function sameCard(a: { tag: string; body: BodyBlock[] }, b: { tag: string; body: BodyBlock[] }): boolean {
   const norm = (t: string) => t.replace(/\s+/g, " ").trim().toLowerCase();
   // Spans as plain tuples: stored JSON doesn't keep key order.
@@ -226,6 +263,7 @@ export async function importCardsBatch(args: {
   }
   const out: BatchImportResult = { created: [], duplicates: 0, variants: 0 };
   const rows: (typeof cards.$inferInsert)[] = [];
+  const earlier: { citation: Citation; norm: string; label: string }[] = [];
   for (const it of withHash) {
     const known = existing.get(it.hash) ?? [];
     if (known.some((k) => sameCard(k, it))) {
@@ -235,19 +273,30 @@ export async function importCardsBatch(args: {
     const id = newId("card");
     const variantOf = known[0]?.id ?? null;
     if (variantOf) out.variants++;
-    const issues = lintCard({ tag: it.tag, body: it.body, citation: it.citation });
+    let citation = it.citation;
+    const inherited: CardIssue[] = [];
+    if (!hasCite(citation)) {
+      const same = await citeFromSameWords(args.teamId, it.body, earlier);
+      if (same) {
+        citation = structuredClone(same.citation);
+        inherited.push({ severity: "info", code: "cite_from_same_words", message: `The file gives no cite for this card; its cite comes from ${same.from}, whose text contains this card's words exactly.` });
+      }
+    }
+    if (hasCite(citation)) earlier.push({ citation, norm: normalizeText(verbatimText(it.body), { caseFold: true }), label: shortCite(citation) });
+    const issues = [...lintCard({ tag: it.tag, body: it.body, citation }), ...inherited];
     rows.push({
       id,
       teamId: args.teamId,
       tag: it.tag.slice(0, 2000),
-      shortCite: shortCite(it.citation),
-      citation: it.citation,
+      shortCite: shortCite(citation),
+      citation,
       body: it.body,
       origin: "imported",
       verificationStatus: "imported",
       verification: { status: "imported", issues },
       bodyHash: it.hash,
-      labels: [...new Set([...args.labels, ...it.path.slice(0, 3)])].slice(0, 12),
+      // A file can skip heading levels, leaving holes in the path: only real headings become labels.
+      labels: [...new Set([...args.labels, ...it.path.slice(0, 3)].filter((l): l is string => typeof l === "string" && !!l.trim()))].slice(0, 12),
       importedFrom: { uploadId: args.uploadId, fileName: args.fileName, blockIdx: it.blockIdx, path: it.path },
       plainText: verbatimText(it.body).slice(0, 100_000),
       variantOf,

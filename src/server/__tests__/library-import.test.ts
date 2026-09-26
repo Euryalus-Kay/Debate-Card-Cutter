@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../tests/helpers/pglite";
 import { db } from "@/server/db/client";
-import { cards, jobs, teams, user } from "@/server/db/schema";
+import { analyticsBank, cards, jobs, teams, user } from "@/server/db/schema";
 
 // Files "in Blob" for the job to read: pathname → bytes.
 const store = new Map<string, Uint8Array>();
@@ -19,6 +19,7 @@ vi.mock("@vercel/blob", () => ({
 const { createImportJob, runImportJob } = await import("@/server/library/import-job");
 const { buildDocx } = await import("@/server/export/docx-writer");
 const { makeText } = await import("@/domain/card");
+const { pastAnswers } = await import("@/server/delivered");
 
 let close: () => Promise<void>;
 const prevFake = process.env.AI_FAKE;
@@ -85,5 +86,49 @@ describe("importing files into the library", () => {
     const rows = await db().select().from(cards).where(eq(cards.shortCite, "Lindqvist 25"));
     const original = rows.find((r) => r.tag === "Budget cuts gut enforcement")!;
     expect(rows.find((r) => r.tag === "New mandates go unenforced")!.variantOf).toBe(original.id);
+  });
+
+  it("a card the file gives no cite for takes the cite of the card with the same words; otherwise it stays uncited", async () => {
+    const words = "An invented study of transit budgets found that when cities froze fares for three years, ridership rose among workers with long commutes and among students who ride across town to school each morning, while service cuts on weekends erased most of the gain for shift workers who travel at night.";
+    const long = [makeText(words, { underline: [{ start: 0, end: 60 }] })];
+    const reread = [makeText(words.slice(0, words.indexOf(", while")), { underline: [{ start: 0, end: 60 }], highlight: [{ start: 0, end: 30, color: "yellow" }] })];
+    await importFile("teams/t1/incoming/c1.docx", buildDocx([{ kind: "heading", level: 1, text: "SYNTHETIC 1NC" }, { kind: "card", tag: "Fare freezes raise ridership", shortCite: "Okafor 24", fullCite: "Okafor 24 (synthetic test source)", body: long }]), "c1.docx");
+    const other = [makeText("A different invented passage that no card in the library contains, about harbor dredging schedules and the tides that set them each season, written only for this test of cites.", { underline: [{ start: 0, end: 50 }] })];
+    const j = await importFile(
+      "teams/t1/incoming/c2.docx",
+      buildDocx([
+        { kind: "heading", level: 1, text: "SYNTHETIC 2NC" },
+        { kind: "card", tag: "Extend the fare card", shortCite: "", fullCite: "", body: reread },
+        { kind: "card", tag: "Dredging follows tides", shortCite: "", fullCite: "", body: other },
+      ]),
+      "c2.docx",
+    );
+    expect(j.result).toMatchObject({ created: 2 });
+    const rows = await db().select().from(cards).where(eq(cards.teamId, "t1"));
+    const ext = rows.find((r) => r.tag === "Extend the fare card")!;
+    expect(ext.shortCite).toBe("Okafor 24");
+    expect((ext.verification as { issues: { code: string }[] }).issues.some((i) => i.code === "cite_from_same_words")).toBe(true);
+    // No card has the same words, so no author is guessed.
+    expect((rows.find((r) => r.tag === "Dredging follows tides")!.citation as { authors: unknown[] }).authors).toEqual([]);
+  });
+
+  it("analytics in an imported file join the analytics bank with their block, side and file, and drafts on that side find them", async () => {
+    const bytes = buildDocx([
+      { kind: "heading", level: 1, text: "Invented Tolls DA" },
+      { kind: "heading", level: 3, text: "AT: Tolls are popular" },
+      { kind: "analytic", text: "1. Polling on tolls is soft because voters answer about roads they never drive, so the popularity claim is overstated.", asTag: true },
+      { kind: "analytic", text: "2. Even if tolls poll well, the plan's toll increase is the specific trigger that turns voters.", asTag: true },
+    ]);
+    const j = await importFile("teams/t1/incoming/an.docx", bytes, "2NC Invented Tolls.docx");
+    expect(j.result).toMatchObject({ blocks: 1 });
+    const [row] = await db().select().from(analyticsBank).where(eq(analyticsBank.source, "2NC Invented Tolls.docx"));
+    expect(row).toMatchObject({ side: "neg", speech: "2NC", position: "Invented Tolls DA", title: "AT: Tolls are popular", answers: "Tolls are popular", roundId: null });
+    expect(row.analytic).toContain("Polling on tolls is soft");
+    const need = [{ id: "arg_1", text: "Tolls are popular with voters, so no link to the plan" }];
+    expect((await pastAnswers("t1", "round_x", need, { side: "neg" })).map((p) => p.source)).toEqual(["2NC Invented Tolls.docx"]);
+    expect(await pastAnswers("t1", "round_x", need, { side: "aff" })).toEqual([]);
+    // Importing the same file again adds no second copy.
+    const again = await importFile("teams/t1/incoming/an2.docx", bytes, "2NC Invented Tolls.docx");
+    expect(again.result).toMatchObject({ blocks: 0 });
   });
 });

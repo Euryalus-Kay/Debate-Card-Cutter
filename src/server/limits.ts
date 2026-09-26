@@ -20,6 +20,8 @@ export const LIMITS = {
   research: { n: 30, sec: 3600, what: "research jobs" },
   file_build: { n: 20, sec: 3600, what: "file plans" },
   library_check: { n: 3, sec: 3600, what: "bulk source checks" },
+  library_gaps: { n: 6, sec: 3600, what: "library reviews" },
+  explain: { n: 40, sec: 60, what: "explanations" },
   card_check: { n: 60, sec: 60, what: "source checks" },
   import: { n: 30, sec: 3600, what: "file imports" },
 } as const;

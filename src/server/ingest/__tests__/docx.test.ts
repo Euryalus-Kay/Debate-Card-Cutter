@@ -165,6 +165,13 @@ describe("tags pasted without the Tag style (synthetic)", () => {
     expect(cards.every((c) => c.issues.length === 0)).toBe(true);
   });
 
+  it("marker lines like <<<1NC Jackson>>> join the tag and never become card text", () => {
+    const s = structureDocument([p(0, "Growth is fragile", { h: 4 }), p(1, "<<<1NC Rivera>>>"), p(2, body, { underline: true }), p(3, "<<<CONDENSED, NONE OMITTED>>>"), p(4, body, { underline: true })]);
+    const cards = s.items.filter((x): x is ImportedCard => x.kind === "card");
+    expect(cards.map((c) => c.tag)).toEqual(["Growth is fragile <<<1NC Rivera>>> <<<CONDENSED, NONE OMITTED>>>"]);
+    expect(cards[0].body.map((b) => (b as { text: string }).text)).toEqual([body, body]);
+  });
+
   it("an underlined line, or one that opens bold like a short cite, is not a note", () => {
     const tags = (between: DocParagraph) =>
       structureDocument([p(0, "Growth is fragile", { h: 4 }), between, p(2, cite), p(3, body, { underline: true })])
@@ -185,12 +192,40 @@ describe("files saved without heading styles (synthetic)", () => {
     runs: [{ text, props: { bold: opts.bold, size: opts.size }, emphasis: false }],
   });
 
-  it("Verbatim sizes become headings again, only when the file has no heading styles at all", async () => {
+  it("Verbatim sizes become headings again; in a styled file only short lines typed at heading size do", async () => {
     const { inferHeadingsFromSize } = await import("@/server/uploads");
     const flat = [p(0, "Case Neg", { bold: true, size: 52 }), p(1, "Advantage 1", { bold: true, size: 44 }), p(2, "AT: Innovation", { bold: true, size: 32 }), p(3, "Tags stay tags", { bold: true, size: 26 }), p(4, "Big but not bold", { size: 44 })];
     expect(inferHeadingsFromSize(flat).map((x) => x.headingLevel)).toEqual([1, 2, 3, 0, 0]);
-    const styled = [p(0, "Pocket", { h: 1 }), p(1, "Big bold line", { bold: true, size: 44 })];
-    expect(inferHeadingsFromSize(styled).map((x) => x.headingLevel)).toEqual([1, 0]);
+    const long = "An invented paragraph typed large and bold that runs on well past any heading length, because it is a sentence of card text and not a title.";
+    const styled = [p(0, "Pocket", { h: 1 }), p(1, "DA---Invented", { bold: true, size: 44 }), p(2, "AT---Invented objection", { bold: true, size: 32 }), p(3, "A tag-size bold line", { bold: true, size: 26 }), p(4, long, { bold: true, size: 44 })];
+    expect(inferHeadingsFromSize(styled).map((x) => x.headingLevel)).toEqual([1, 2, 3, 0, 0]);
+  });
+
+  it("recognizes cites with middle initials, titles, two full names, 'et al,' and 'No Date'", () => {
+    const cite = (text: string) => looksLikeCite(p(0, text));
+    expect(cite("Seth A. Berkowitz, 2026 – Division of Invented Studies, Example University")).toBe(true);
+    expect(cite("Dr. Ian Lesser, 2025 - Distinguished Fellow at an invented institute")).toBe(true);
+    expect(cite("Martin Mühleisen and Valbona Zeneli, 2025 – both are invented fellows")).toBe(true);
+    expect(cite("Kelsey Hartigan, et al, 2024 - an invented task force report, https://example.org/r")).toBe(true);
+    expect(cite("US Legal No Date (\"An Invented Definition\", https://example.org/d)")).toBe(true);
+    expect(cite("In March 2020, the invented agency declared an emergency across the country.")).toBe(false);
+    expect(cite("Smith 2019 found that invented premiums rose across every market studied.")).toBe(false);
+  });
+
+  it("a bold surname with the year after it is a cite, with co-authors in the short cite", () => {
+    const para = (runs: [string, boolean][]): DocParagraph => ({ index: 0, headingLevel: 0, inTable: false, text: runs.map((r) => r[0]).join(""), runs: runs.map(([text, bold]) => ({ text, props: { bold }, emphasis: false })) });
+    const two = para([["Martin ", false], ["Mühleisen", true], [" and Valbona Zeneli, 2025 – both invented fellows, https://example.org/x", false]]);
+    expect(looksLikeCite(two)).toBe(true);
+    const s = splitCite(two);
+    const c = citationFromImported(s.short, s.rest, s.raw, s.prefix);
+    expect(c.shortOverride).toBe("Mühleisen and Zeneli 2025");
+    expect(c.authors.map((a) => a.name)).toEqual(["Martin Mühleisen", "Valbona Zeneli"]);
+    expect(c.date?.year).toBe(2025);
+    const etal = para([["Kelsey ", false], ["Hartigan", true], [", et al, 2024 - an invented report", false]]);
+    const e = splitCite(etal);
+    expect(citationFromImported(e.short, e.rest, e.raw, e.prefix).shortOverride).toBe("Hartigan et al. 2024");
+    // A bold word in card text followed by a year and more sentence is not a cite.
+    expect(looksLikeCite(para([["According to ", false], ["Congress", true], [", 2025 budget talks stalled again", false]]))).toBe(false);
   });
 
   it("recognizes cites that open with a full name or a name particle, not ordinary sentences", () => {

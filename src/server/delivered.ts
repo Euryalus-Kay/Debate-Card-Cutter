@@ -4,12 +4,12 @@
  * similar arguments before. Re-delivering a draft replaces its rows.
  */
 
-import { and, eq, inArray, isNull, ne, notInArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, notInArray, or, sql } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { analyticsBank, cardUses, cards, rounds } from "@/server/db/schema";
 import { allSections, type Draft, type DraftItem } from "@/shared/draft-model";
 import type { ArgUnit, Position } from "@/domain/flow";
-import type { SpeechId } from "@/domain/format";
+import { SPEECHES, type SpeechId } from "@/domain/format";
 import { contentWords } from "@/server/library/find";
 
 export async function recordDelivery(args: { teamId: string; roundId: string; draftId: string; speech: SpeechId; draft: Draft; flowArgs: ArgUnit[]; positions: Position[] }): Promise<{ cards: number; answers: number }> {
@@ -40,6 +40,7 @@ export async function recordDelivery(args: { teamId: string; roundId: string; dr
       title: s.title.slice(0, 300),
       analytic: analytic.slice(0, 4000),
       cites: cardsHere.map((c) => c.shortCite).filter(Boolean),
+      side: SPEECHES[speech].side,
     });
   }
   // Card uses: only this team's live library cards.
@@ -48,7 +49,7 @@ export async function recordDelivery(args: { teamId: string; roundId: string; dr
   if (ids.length) await db().insert(cardUses).values(ids.map((cardId) => ({ teamId, cardId, draftId, roundId, speech, deliveredAt: new Date() }))).onConflictDoUpdate({ target: [cardUses.cardId, cardUses.draftId], set: { deliveredAt: new Date(), speech } });
   const sectionIds = bank.map((b) => b.sectionId);
   await db().delete(analyticsBank).where(and(eq(analyticsBank.draftId, draftId), sectionIds.length ? notInArray(analyticsBank.sectionId, sectionIds) : sql`true`));
-  for (const b of bank) await db().insert(analyticsBank).values(b).onConflictDoUpdate({ target: [analyticsBank.draftId, analyticsBank.sectionId], set: { position: b.position, answers: b.answers, title: b.title, analytic: b.analytic, cites: b.cites, speech } });
+  for (const b of bank) await db().insert(analyticsBank).values(b).onConflictDoUpdate({ target: [analyticsBank.draftId, analyticsBank.sectionId], set: { position: b.position, answers: b.answers, title: b.title, analytic: b.analytic, cites: b.cites, speech, side: b.side } });
   return { cards: ids.length, answers: bank.length };
 }
 
@@ -61,10 +62,15 @@ export interface PastAnswer {
   analytic: string;
   cites: string[];
   where: string;
+  /** set for analytics imported from a file: its name */
+  source: string;
 }
 
-/** The team's past answers (from other rounds) to arguments like these, best matches first. */
-export async function pastAnswers(teamId: string, roundId: string, needs: { id: string; text: string }[], opts: { perNeed?: number; max?: number } = {}): Promise<PastAnswer[]> {
+/**
+ * The team's past answers to arguments like these, best matches first: from other rounds and from imported
+ * files. With a side, only that side's answers (and ones whose side is unknown).
+ */
+export async function pastAnswers(teamId: string, roundId: string, needs: { id: string; text: string }[], opts: { perNeed?: number; max?: number; side?: "aff" | "neg" } = {}): Promise<PastAnswer[]> {
   const out: PastAnswer[] = [];
   const seen = new Set<string>();
   for (const n of needs) {
@@ -72,16 +78,23 @@ export async function pastAnswers(teamId: string, roundId: string, needs: { id: 
     if (words.length < 2) continue;
     const q = words.join(" | ");
     const rows = await db()
-      .select({ id: analyticsBank.id, speech: analyticsBank.speech, position: analyticsBank.position, answers: analyticsBank.answers, title: analyticsBank.title, analytic: analyticsBank.analytic, cites: analyticsBank.cites, tournament: rounds.tournament, roundLabel: rounds.roundLabel, rank: sql<number>`ts_rank_cd(${analyticsBank.search}, to_tsquery('english', ${q}))` })
+      .select({ id: analyticsBank.id, speech: analyticsBank.speech, position: analyticsBank.position, answers: analyticsBank.answers, title: analyticsBank.title, analytic: analyticsBank.analytic, cites: analyticsBank.cites, source: analyticsBank.source, tournament: rounds.tournament, roundLabel: rounds.roundLabel, rank: sql<number>`ts_rank_cd(${analyticsBank.search}, to_tsquery('english', ${q}))` })
       .from(analyticsBank)
       .leftJoin(rounds, eq(rounds.id, analyticsBank.roundId))
-      .where(and(eq(analyticsBank.teamId, teamId), ne(analyticsBank.roundId, roundId), sql`${analyticsBank.search} @@ to_tsquery('english', ${q})`))
+      .where(
+        and(
+          eq(analyticsBank.teamId, teamId),
+          or(isNull(analyticsBank.roundId), ne(analyticsBank.roundId, roundId)),
+          opts.side ? inArray(analyticsBank.side, ["", opts.side]) : undefined,
+          sql`${analyticsBank.search} @@ to_tsquery('english', ${q})`,
+        ),
+      )
       .orderBy(sql`ts_rank_cd(${analyticsBank.search}, to_tsquery('english', ${q})) desc`)
       .limit(opts.perNeed ?? 2);
     for (const r of rows) {
       if (seen.has(r.id) || Number(r.rank) < 0.05) continue;
       seen.add(r.id);
-      out.push({ needId: n.id, speech: r.speech, position: r.position, answered: r.answers, title: r.title, analytic: r.analytic, cites: (r.cites as string[]) ?? [], where: [r.tournament, r.roundLabel].filter(Boolean).join(" ") });
+      out.push({ needId: n.id, speech: r.speech, position: r.position, answered: r.answers, title: r.title, analytic: r.analytic, cites: (r.cites as string[]) ?? [], where: [r.tournament, r.roundLabel].filter(Boolean).join(" "), source: r.source });
       if (out.length >= (opts.max ?? 8)) return out;
     }
   }

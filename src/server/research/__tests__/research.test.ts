@@ -182,3 +182,16 @@ describe("byline words that aren't names", () => {
     expect(citation.authors).toHaveLength(0);
   });
 });
+
+describe("authors from a journal page and its DOI record (synthetic)", () => {
+  it("a page listing only its corresponding author takes the DOI record's full author list, in order", () => {
+    const { citation } = buildCitation({
+      url: "https://journal.example.org/article/1",
+      metadata: { authors: ["Camila Ortiz"], doi: "10.0000/example" },
+      bibliographic: { authors: ["Rosa Delgado", "Tomas Weber", "Camila Ortiz"], year: 2019 },
+      sourceText: "Invented article text.",
+      accessed: "2026-09-25",
+    });
+    expect(citation.authors.map((a) => a.name)).toEqual(["Rosa Delgado", "Tomas Weber", "Camila Ortiz"]);
+  });
+});

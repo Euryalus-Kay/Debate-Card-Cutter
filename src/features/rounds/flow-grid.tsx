@@ -12,6 +12,8 @@ import type { RoundRecord } from "./types";
 import { useWorkspace } from "./store";
 import { DeliveryBadge } from "./coverage-panel";
 import { useApp } from "@/components/shell/app-shell";
+import { ExplainButton } from "@/features/explain/explain-button";
+import { aiEnabledFor } from "./ai-enabled";
 
 const COLUMNS: { key: string; speeches: SpeechId[]; label: string }[] = [
   { key: "1AC", speeches: ["1AC"], label: "1AC" },
@@ -62,7 +64,7 @@ export function FlowGrid({ round, doc, graph }: { round: RoundRecord; doc: Y.Doc
             <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-faint">{group.title}</div>
             {group.list.map((p) => (
               <div key={p.id} className="mb-3 overflow-hidden rounded-xl border border-line bg-elev">
-                <PositionHeader doc={doc} position={p} />
+                <PositionHeader doc={doc} position={p} explain={aiEnabledFor(round) ? { teamId: round.teamId, roundId: round.id } : undefined} />
                 <div className="grid" style={{ gridTemplateColumns: `repeat(${COLUMNS.length}, minmax(0, 1fr))` }}>
                   {COLUMNS.map((col) => {
                     const args = graph.args
@@ -89,7 +91,7 @@ export function FlowGrid({ round, doc, graph }: { round: RoundRecord; doc: Y.Doc
   );
 }
 
-function PositionHeader({ doc, position: p }: { doc: Y.Doc; position: import("@/domain/flow").Position }) {
+function PositionHeader({ doc, position: p, explain }: { doc: Y.Doc; position: import("@/domain/flow").Position; explain?: { teamId: string; roundId: string } }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(p.name);
   if (editing)
@@ -131,6 +133,7 @@ function PositionHeader({ doc, position: p }: { doc: Y.Doc; position: import("@/
       <span className="text-[11px] text-faint">
         {p.side.toUpperCase()} · introduced in {p.introducedIn}
       </span>
+      {explain ? <ExplainButton teamId={explain.teamId} target={{ kind: "position", roundId: explain.roundId, positionId: p.id }} label="Explain" className="ml-auto" /> : null}
     </div>
   );
 }

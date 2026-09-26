@@ -130,8 +130,16 @@ export function buildCitation(input: CiteBuildInput): CiteBuildResult {
     authors = splitAuthors(input.user.authors).map((name) => ({ name }));
     authorProv = "user";
   } else if (md.authors.length) {
-    authors = splitAuthors(md.authors).map((name) => ({ name }));
-    authorProv = "source";
+    // A journal page may list only its corresponding author; the DOI record lists every author, in order.
+    const bib = splitAuthors(input.bibliographic?.authors ?? []);
+    const page = splitAuthors(md.authors);
+    if (bib.length > page.length && page.every((a) => bib.some((b) => familyMatch(a, b)))) {
+      authors = bib.map((name) => ({ name }));
+      authorProv = "metadata";
+    } else {
+      authors = page.map((name) => ({ name }));
+      authorProv = "source";
+    }
   } else if (input.bibliographic?.authors?.length) {
     authors = splitAuthors(input.bibliographic.authors).map((name) => ({ name }));
     authorProv = "metadata";

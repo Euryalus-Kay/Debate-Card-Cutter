@@ -52,7 +52,7 @@ interface Candidate {
   tag: string;
   shortCite: string;
   body: BodyBlock[];
-  meta: { side?: string; argType?: string; position?: string; role?: string; claim?: string } | null;
+  meta: { side?: string; argType?: string; position?: string; role?: string; claim?: string; use?: string; suggestedTag?: string } | null;
   /** the file headings it was imported under */
   labels: string[] | null;
   rank: number;
@@ -119,7 +119,7 @@ function renderCandidate(key: string, c: Candidate): string {
   const read = readAloud(c.body).text.split(/\s+/).slice(0, 70).join(" ");
   const labels = c.meta ? [c.meta.side ? `${c.meta.side} card` : "", c.meta.argType, c.meta.position, c.meta.role].filter(Boolean).join(" · ") : "";
   const file = (c.labels ?? []).filter(Boolean).slice(0, 4).join(" > ");
-  return `[${key}] TAG: ${c.tag.slice(0, 240)} | CITE: ${c.shortCite}${file ? ` | FILE: ${file.slice(0, 160)}` : ""}${labels ? ` | LABELS: ${labels}` : ""}${c.meta?.claim ? ` | CLAIM: ${c.meta.claim}` : ""}\n     READS: ${read}`;
+  return `[${key}] TAG: ${c.tag.slice(0, 240)}${c.meta?.suggestedTag ? ` (clearer: ${c.meta.suggestedTag.slice(0, 160)})` : ""} | CITE: ${c.shortCite}${file ? ` | FILE: ${file.slice(0, 160)}` : ""}${labels ? ` | LABELS: ${labels}` : ""}${c.meta?.claim ? ` | CLAIM: ${c.meta.claim}` : ""}${c.meta?.use ? ` | USE: ${c.meta.use.slice(0, 200)}` : ""}\n     READS: ${read}`;
 }
 
 function describeNeed(n: EvidenceNeed): string {

@@ -8,6 +8,7 @@ import { runStructured } from "@/server/ai/run";
 import { stripIds } from "@/domain/span-check";
 import { CARD_USES, type CardUse } from "@/domain/card-use";
 import { FILE_KIND_LABEL, FILE_KNOWLEDGE, FILE_RULES, sideOf, type FileKind } from "./knowledge";
+import { topicFor } from "@/domain/topics";
 
 export const FilePlanSchema = z.object({
   title: z.string().describe("The file's title as camp files name them, e.g. 'DA — Capital Flight' or 'Aff — Single Payer'"),
@@ -58,6 +59,7 @@ export function planPrompt(input: FileBuildInput): string {
     input.instructions ? `Team instructions: ${input.instructions}` : "",
     `Card budget: at most ${input.maxCards} card items in the whole file (analytics and text items don't count).`,
     `Cover every speech this argument is read in, as the structure below describes.`,
+    topicFor(input.resolution)?.brief ?? "",
   ]
     .filter(Boolean)
     .join("\n");

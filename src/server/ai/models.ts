@@ -22,6 +22,8 @@ export type AiTask =
   | "evidence_fit" // how well each library card fits what a speech needs (0–3), with what it proves there
   | "file_plan" // plan a whole evidence file: every speech's sections, card claims to find, analytics written out
   | "cx_prep" // cross-examination questions aimed at their warrants, or likely questions and answers for ours
+  | "library_gaps" // the team's library against the topic: what's covered, what's missing, arguments worth building
+  | "explain" // a card, argument or position in plain words, in the round's context
   | "speech_fit" // whole-speech keep/condense/cut plan to fit the time limit
   | "speech_patch" // update an existing draft: add answers to new arguments, relink, minimal edits
   | "coverage_review" // what's still missing, strategic risks
@@ -124,6 +126,16 @@ export const REGISTRY: Record<AiTask, TaskConfig> = {
   file_plan: {
     primary: { model: MODELS.opus55, effort: "medium", maxOutputTokens: 16000, firstChunkMs: 60000 },
     fallbacks: [{ model: MODELS.sonnet5, effort: "medium", maxOutputTokens: 16000 }],
+  },
+  // "Explain" is clicked mid-round: plain words in seconds.
+  explain: {
+    primary: { model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 1800, firstChunkMs: 12000 },
+    fallbacks: [{ model: MODELS.haiku45, maxOutputTokens: 1800 }],
+  },
+  // A coach's review of the whole library: judgment over many positions, run now and then.
+  library_gaps: {
+    primary: { model: MODELS.opus55, effort: "medium", maxOutputTokens: 12000, firstChunkMs: 60000 },
+    fallbacks: [{ model: MODELS.sonnet5, effort: "medium", maxOutputTokens: 12000 }],
   },
   evidence_fit: {
     primary: { model: MODELS.sonnet5, thinkingOff: true, maxOutputTokens: 4000, firstChunkMs: 10000 },

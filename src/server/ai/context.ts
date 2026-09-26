@@ -11,6 +11,8 @@ import { db } from "@/server/db/client";
 import { rounds, uploads } from "@/server/db/schema";
 import { loadDoc } from "@/server/docs/store";
 import { getCards, type CardRow } from "@/server/cards";
+import { labelLine, type CardMeta } from "@/domain/card-label";
+import { blocksForSpeech, libraryPositions, namedPositions, positionTokens, type FileBlock } from "@/server/library/shells";
 import { findEvidence, type EvidenceNeed, type FoundEvidence } from "@/server/library/find";
 import { pastAnswers } from "@/server/delivered";
 import { computeCoverage, possiblyKickedPositions, liveOffenseOnKickedPositions, POSITION_KIND_LABEL, type ArgUnit, type CoverageReport, type RoundGraph } from "@/domain/flow";
@@ -19,6 +21,7 @@ import { cardLoad, readAloud } from "@/domain/card";
 import { fullCite, shortCite } from "@/domain/citation";
 import { capRatesForJudge, estimateSeconds, presetProfile, wordsForSeconds, type JudgeSpeed, type RatePresetId, type RateProfile } from "@/domain/timing";
 import { renderJudgeProfile } from "./paradigm";
+import { topicFor } from "@/domain/topics";
 import type { StoredJudge } from "@/server/judges";
 import { readCxNotes, readGraph, readSlots, readStrategy, recordedSpeeches } from "@/shared/round-doc";
 import { draftSchema, DRAFT_FRAGMENT } from "@/shared/editor/schema";
@@ -49,6 +52,8 @@ export interface RoundContext {
   libraryFor: Record<string, string[]>;
   /** the library check (B2): candidates found, pairs rated, cards offered */
   libraryCheck: { candidates: number; rated: number; offered: number; cached: number; ms: number; skipped: string | null } | null;
+  /** blocks from the team's files for the positions in play: whole shells, extensions, answers */
+  fileBlocks: { key: string; position: string; purpose: "shell" | "extend" | "answer"; title: string; fileName: string; cardIds: string[] }[];
 }
 
 function argLine(a: ArgUnit, indent = "   "): string {
@@ -91,7 +96,9 @@ function renderCard(c: CardRow, full: boolean, rates: RateProfile): string {
   const words = read.text.split(/\s+/);
   const text = full ? read.text : words.slice(0, 90).join(" ") + (words.length > 90 ? " …" : "");
   const secs = Math.round(estimateSeconds(cardLoad({ tag: c.tag, citation: c.citation, body: c.body }), rates.rates));
-  return `[${c.id}] TAG: ${c.tag}\n   CITE: ${shortCite(c.citation)} — ${fullCite(c.citation).slice(0, 220)}\n   ${read.basis === "highlight" ? "READ TEXT (highlighted)" : read.basis === "underline" ? "READ TEXT (underlined)" : "TEXT"}: ${text}\n   TIME TO READ: ~${secs} s (tag, cite, and read text)\n   STATUS: ${c.verificationStatus}`;
+  const meta = c.meta && "side" in c.meta ? (c.meta as CardMeta) : null;
+  const label = labelLine(meta);
+  return `[${c.id}] TAG: ${c.tag}${meta?.suggestedTag ? `\n   CLEARER TAG (the file's tag doesn't state the claim; checked against the card's words): ${meta.suggestedTag}` : ""}\n   CITE: ${shortCite(c.citation)} — ${fullCite(c.citation).slice(0, 220)}${label ? `\n   LIBRARY LABEL: ${label}` : ""}\n   ${read.basis === "highlight" ? "READ TEXT (highlighted)" : read.basis === "underline" ? "READ TEXT (underlined)" : "TEXT"}: ${text}\n   TIME TO READ: ~${secs} s (tag, cite, and read text)\n   STATUS: ${c.verificationStatus}`;
 }
 
 export function renderDraft(draft: Draft): string {
@@ -184,10 +191,29 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
     library = libraryCheck.cardIds.map((id) => rows.find((c) => c.id === id)).filter((c): c is CardRow => !!c);
   }
   // The team's own past answers to arguments like these (analytics bank), from other rounds.
-  const past = opts.evidenceMode !== "selected_only" && coverage ? await pastAnswers(round.teamId, round.id, coverage.items.filter((i) => i.status === "unanswered" || i.status === "uncertain").slice(0, 30).map((i) => ({ id: i.arg.id, text: i.arg.text }))).catch(() => []) : [];
+  const past = opts.evidenceMode !== "selected_only" && coverage ? await pastAnswers(round.teamId, round.id, coverage.items.filter((i) => i.status === "unanswered" || i.status === "uncertain").slice(0, 30).map((i) => ({ id: i.arg.id, text: i.arg.text })), { side: round.ourSide }).catch(() => []) : [];
   // Cards already in the draft are always available to keep.
   const inDraft = inDraftIds.filter((id) => !selected.some((c) => c.id === id));
   const draftCards = inDraft.length ? await getCards(round.teamId, inDraft) : [];
+  // The team's files, arranged by argument: the whole shell for a position this speech introduces (named in the
+  // instructions or strategy notes), the file's extension blocks for our positions, our answer blocks to theirs.
+  let fileBlocks: FileBlock[] = [];
+  let fileCards: CardRow[] = [];
+  if (opts.evidenceMode !== "selected_only" && ours) {
+    try {
+      const named = namedPositions(`${opts.instructions ?? ""}\n${strategy.plan ?? ""}\n${strategy.instructions ?? ""}`, await libraryPositions(round.teamId), round.ourSide);
+      const inRound = (side: "aff" | "neg") => graph.positions.filter((p) => p.side === side && graph.args.some((a) => a.positionId === p.id && a.delivery !== "not_read")).map((p) => p.name);
+      // A named position already in the round is extended, not introduced again.
+      const ourNow = inRound(round.ourSide);
+      const running = (name: string) => ourNow.some((n) => positionTokens(n).some((t) => positionTokens(name).includes(t)));
+      fileBlocks = await blocksForSpeech(round.teamId, { speech: opts.speech, ourSide: round.ourSide, introduce: named.filter((n) => !running(n)), ours: ourNow, theirs: inRound(round.ourSide === "aff" ? "neg" : "aff") });
+      const have = new Set([...selected, ...draftCards, ...library].map((c) => c.id));
+      const ids = [...new Set(fileBlocks.flatMap((b) => b.items.flatMap((i) => (i.kind === "card" && i.cardId && !have.has(i.cardId) ? [i.cardId] : []))))];
+      fileCards = ids.length ? await getCards(round.teamId, ids) : [];
+    } catch {
+      fileBlocks = [];
+    }
+  }
 
   const judge = judgeRecord;
   const cardWpm = rates.rates.cardWpm;
@@ -196,6 +222,7 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
   lines.push(`ROUND`);
   lines.push(`- We are ${round.ourSide.toUpperCase()}. Opponent: ${[(round.opponent as { code?: string }).code, (round.opponent as { school?: string }).school].filter(Boolean).join(", ") || "unknown"}.`);
   lines.push(`- Resolution: ${round.resolution || "not given"}`);
+  const topic = topicFor(round.resolution);
   lines.push(`- Format: ${fmt.name}. The ${opts.speech} is ${Math.round(limitSeconds / 60)} minutes. New-argument policy: ${fmt.newArgumentPolicy}.`);
   lines.push(`- Speaker's rates: cards ~${cardWpm} wpm, analytics ~${analyticWpm} wpm. So 30 s ≈ ${wordsForSeconds(30, "analytic", rates.rates)} analytic words or ${wordsForSeconds(30, "card", rates.rates)} words of highlighted card text.`);
   if (judgeRateCap) lines.push(`- The judge limits speed, so these rates are capped at a ${judgeRateCap} pace. Write less rather than asking the speaker to go faster.`);
@@ -206,6 +233,10 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
     lines.push(`- Paradigm excerpt: """${judge.paradigmText.slice(0, 1500)}"""`);
   } else {
     lines.push(judge?.paradigmText?.trim() ? `- Judge ${judge.name || ""} paradigm (quoted; infer preferences only from what it explicitly says):\n"""${judge.paradigmText.slice(0, 4000)}"""` : `- No judge paradigm provided: do not assume judge preferences.`);
+  }
+  if (topic) {
+    lines.push("");
+    lines.push(topic.brief);
   }
   const cxNotes = readCxNotes(stateDoc);
   if (Object.keys(cxNotes).length) {
@@ -267,10 +298,29 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
       for (const f of libraryCheck?.byCard.get(c.id) ?? []) lines.push(`   FITS [${f.needId}] (${f.fit >= 3 ? "proves it" : "helps"}): ${f.use}`);
     }
   } else if (libraryCheck && !libraryCheck.skipped) lines.push(`(No library card fits what this speech must answer: answer with analytics, and describe any card you need in needsEvidence.)`);
+  if (fileBlocks.length) {
+    lines.push("");
+    lines.push(`FROM YOUR TEAM'S FILES (how the team wrote these arguments; reference cards by id)`);
+    lines.push(`- A SHELL is a position this speech introduces: read it whole and in order (every card and analytic), adapting only the analytics to this round (e.g. the link story to this aff). If time is short, drop a whole position, never half a shell.`);
+    lines.push(`- EXTEND blocks carry our position forward: extend what the other side answered, with the file's cards and warrants, and keep every part the position needs to win (e.g. a K's framework, link, impact and alternative; a DA's uniqueness, link and impact).`);
+    lines.push(`- ANSWER blocks are the team's prepared answers to their position: use the ones that answer what they actually said.`);
+    const byId = new Map([...selected, ...draftCards, ...library, ...fileCards].map((c) => [c.id, c]));
+    for (const b of fileBlocks) {
+      lines.push(`== ${b.purpose.toUpperCase()} for ${b.position}: "${b.title}" (${b.fileName}${b.speech ? `, ${b.speech}` : ""})`);
+      for (const it of b.items) {
+        if (it.kind === "analytic") lines.push(`   ANALYTIC: ${it.text}`);
+        else if (it.cardId && byId.get(it.cardId)) lines.push(renderCard(byId.get(it.cardId)!, true, rates).replace(/^/gm, "   "));
+        else lines.push(`   (card "${it.tag.slice(0, 120)}" isn't in the library yet)`);
+      }
+    }
+  }
   if (past.length) {
     lines.push("");
-    lines.push(`YOUR TEAM'S PAST ANSWERS TO SIMILAR ARGUMENTS (from earlier rounds: adapt them to what this opponent actually said; cards they mention are not available unless listed above)`);
-    for (const p of past) lines.push(`- For [${p.needId}]: in ${p.where ? `${p.where}, ` : ""}the ${p.speech} answered "${p.answered.slice(0, 200)}"${p.position ? ` (${p.position})` : ""} with: ${p.title ? `${p.title} — ` : ""}${p.analytic.slice(0, 500)}`);
+    lines.push(`YOUR TEAM'S PAST ANSWERS TO SIMILAR ARGUMENTS (from earlier rounds and the team's own files: adapt them to what this opponent actually said; cards they mention are not available unless listed above)`);
+    for (const p of past) {
+      if (p.source) lines.push(`- For [${p.needId}]: the team's file "${p.source}"${p.speech ? ` (${p.speech})` : ""}, block "${p.title}"${p.position ? ` on ${p.position}` : ""}${p.answered ? `, answering "${p.answered.slice(0, 200)}"` : ""}: ${p.analytic.slice(0, 700)}`);
+      else lines.push(`- For [${p.needId}]: in ${p.where ? `${p.where}, ` : ""}the ${p.speech} answered "${p.answered.slice(0, 200)}"${p.position ? ` (${p.position})` : ""} with: ${p.title ? `${p.title} — ` : ""}${p.analytic.slice(0, 500)}`);
+    }
   }
   if (draft && !opts.omitDraftText) {
     lines.push("");
@@ -282,7 +332,7 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
     text: lines.join("\n"),
     graph,
     coverage,
-    cards: [...selected, ...draftCards, ...library],
+    cards: [...selected, ...draftCards, ...library, ...fileCards],
     draft,
     draftJson,
     recorded,
@@ -292,7 +342,8 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
     judgeRateCap,
     judgeLay: judgeRecord?.profile?.experience?.value === "lay" || judgeRecord?.profile?.experience?.value === "parent",
     newArgumentPolicy: fmt.newArgumentPolicy,
-    refs: { stateHeadSeq, draftHeadSeq, cardIds: [...selected, ...draftCards, ...library].map((c) => c.id) },
+    refs: { stateHeadSeq, draftHeadSeq, cardIds: [...selected, ...draftCards, ...library, ...fileCards].map((c) => c.id) },
+    fileBlocks: fileBlocks.map((b) => ({ key: b.key, position: b.position, purpose: b.purpose, title: b.title, fileName: b.fileName, cardIds: b.items.flatMap((i) => (i.kind === "card" && i.cardId ? [i.cardId] : [])) })),
     libraryCardIds: library.map((c) => c.id),
     libraryFor: Object.fromEntries(
       [...new Set(library.flatMap((c) => (libraryCheck?.byCard.get(c.id) ?? []).map((f) => f.needId)))].map((argId) => [
@@ -304,7 +355,7 @@ export async function buildRoundContext(roundId: string, opts: ContextOptions): 
   };
 }
 
-function allCardIds(d: Draft): string[] {
+export function allCardIds(d: Draft): string[] {
   const out: string[] = [];
   const walk = (items: Draft["items"]) => {
     for (const it of items) {

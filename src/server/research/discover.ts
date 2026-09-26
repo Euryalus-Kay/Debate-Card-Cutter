@@ -69,6 +69,20 @@ function parseCandidates(text: string): { url: string; title?: string; publicati
   }
 }
 
+const PRESENT = /\b(now|currently|current|today|this year|still|status quo|squo|uniqueness|non-?unique)\b/i;
+
+/** A scholarly work's authors (in order), date and venue by its DOI, from OpenAlex. */
+export async function workByDoi(doi: string, signal?: AbortSignal): Promise<{ authors: string[]; date?: string; year?: number; venue?: string; doi: string } | null> {
+  try {
+    const res = await fetch(`https://api.openalex.org/works/doi:${encodeURIComponent(doi.replace(/^https?:\/\/(dx\.)?doi\.org\//i, ""))}`, { signal: signal ?? AbortSignal.timeout(10000), headers: { "user-agent": "ClashDebateResearch/1.0" } });
+    if (!res.ok) return null;
+    const w = (await res.json()) as OpenAlexWork;
+    return { authors: (w.authorships ?? []).map((a) => a.author?.display_name).filter((x): x is string => !!x).slice(0, 12), date: w.publication_date ?? undefined, year: w.publication_year ?? undefined, venue: w.primary_location?.source?.display_name ?? undefined, doi };
+  } catch {
+    return null;
+  }
+}
+
 export async function discoverWeb(
   query: string,
   opts: { context?: string; maxCandidates?: number; maxSearches?: number; signal?: AbortSignal; teamId?: string | null } = {},
@@ -83,7 +97,10 @@ export async function discoverWeb(
     `"${query}"`,
     opts.context ? `Context: ${opts.context}` : "",
     ``,
+    `Today is ${new Date().toISOString().slice(0, 10)}.`,
     `Search the web for sources whose own text makes or directly supports this claim. Prefer, in order: named experts or institutions with clear qualifications (academics, think tanks, government agencies, major newspapers and magazines, law reviews, trade press); pages whose full text is publicly readable (not paywalled); recent work when the claim depends on current events. Avoid press releases that only summarize others, content farms, encyclopedias, and forums.`,
+    // A claim about the present ("deficits are rising now") is uniqueness: old evidence can't prove it.
+    PRESENT.test(`${query} ${opts.context ?? ""}`) ? `This claim is about the present, so only sources published in the last 12 months count; skip older ones even if they say it.` : "",
     ``,
     `Reply with ONLY a JSON array (no prose) of up to ${max} of the best leads from your search results, best first:`,
     `[{"url": "...", "title": "...", "publication": "...", "why": "one short sentence on what the source says that matters"}]`,
