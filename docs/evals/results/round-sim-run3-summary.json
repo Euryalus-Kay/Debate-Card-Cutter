@@ -1,0 +1,118 @@
+{
+  "at": "2026-09-26T04:00:04.931Z",
+  "mode": "fast",
+  "usd": 6.88,
+  "minutes": 15.4,
+  "overall": 5,
+  "winner": "aff",
+  "speeches": [
+    {
+      "speech": "1AC",
+      "score": 6,
+      "judgeDrops": 0,
+      "unaddressed": 0,
+      "critical": 0,
+      "warnings": 0,
+      "repeatedCards": 0,
+      "partialShells": 0,
+      "estimatedSeconds": 471,
+      "limitSeconds": 480,
+      "cards": 16
+    },
+    {
+      "speech": "1NC",
+      "score": 5,
+      "judgeDrops": 3,
+      "unaddressed": 0,
+      "critical": 0,
+      "warnings": 2,
+      "repeatedCards": 0,
+      "partialShells": 0,
+      "estimatedSeconds": 473,
+      "limitSeconds": 480,
+      "cards": 11
+    },
+    {
+      "speech": "2AC",
+      "score": 6,
+      "judgeDrops": 2,
+      "unaddressed": 0,
+      "critical": 0,
+      "warnings": 18,
+      "repeatedCards": 0,
+      "partialShells": 0,
+      "estimatedSeconds": 465,
+      "limitSeconds": 480,
+      "cards": 9
+    },
+    {
+      "speech": "2NC",
+      "score": 6,
+      "judgeDrops": 1,
+      "unaddressed": 0,
+      "critical": 0,
+      "warnings": 8,
+      "repeatedCards": 0,
+      "partialShells": 0,
+      "estimatedSeconds": 469,
+      "limitSeconds": 480,
+      "cards": 5
+    },
+    {
+      "speech": "1NR",
+      "score": 6,
+      "judgeDrops": 2,
+      "unaddressed": 0,
+      "critical": 0,
+      "warnings": 4,
+      "repeatedCards": 0,
+      "partialShells": 0,
+      "estimatedSeconds": 289,
+      "limitSeconds": 300,
+      "cards": 4
+    },
+    {
+      "speech": "1AR",
+      "score": 5,
+      "judgeDrops": 2,
+      "unaddressed": 0,
+      "critical": 0,
+      "warnings": 2,
+      "repeatedCards": 0,
+      "partialShells": 0,
+      "estimatedSeconds": 285,
+      "limitSeconds": 300,
+      "cards": 2
+    },
+    {
+      "speech": "2NR",
+      "score": 6,
+      "judgeDrops": 3,
+      "unaddressed": 0,
+      "critical": 1,
+      "warnings": 14,
+      "repeatedCards": 0,
+      "partialShells": 0,
+      "estimatedSeconds": 294,
+      "limitSeconds": 300,
+      "cards": 0
+    },
+    {
+      "speech": "2AR",
+      "score": 6,
+      "judgeDrops": 2,
+      "unaddressed": 0,
+      "critical": 0,
+      "warnings": 7,
+      "repeatedCards": 0,
+      "partialShells": 0,
+      "estimatedSeconds": 293,
+      "limitSeconds": 300,
+      "cards": 0
+    }
+  ],
+  "droppedClaimable": {
+    "byNeg": 0,
+    "byAff": 1
+  }
+}
