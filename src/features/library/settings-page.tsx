@@ -64,17 +64,18 @@ export function SettingsPage() {
 /** What the team's AI use cost this month, by feature (estimated from token counts). */
 function AiSpend({ teamId }: { teamId: string }) {
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ["ai-usage", teamId], queryFn: () => api<{ capUsd: number; canChangeCap: boolean; month: { usd: number; byFeature: { feature: string; calls: number; usd: number }[] }; lastMonth: { usd: number }; note: string }>(`/api/teams/${teamId}/ai-usage`) });
+  const q = useQuery({ queryKey: ["ai-usage", teamId], queryFn: () => api<{ capUsd: number | null; canChangeCap: boolean; month: { usd: number; byFeature: { feature: string; calls: number; usd: number }[] }; lastMonth: { usd: number }; note: string }>(`/api/teams/${teamId}/ai-usage`) });
   const d = q.data;
   const [cap, setCap] = useState<string | null>(null);
   async function saveCap() {
-    const n = Math.round(Number(cap));
-    if (!Number.isFinite(n) || n < 0 || n > 1000) return toast("Enter a whole number of dollars from 0 to 1000.", "warn");
+    // Empty means no limit.
+    const n = cap?.trim() ? Math.round(Number(cap)) : null;
+    if (n !== null && (!Number.isFinite(n) || n < 0)) return toast("Enter a whole number of dollars, or leave it empty for no limit.", "warn");
     try {
       await api(`/api/teams/${teamId}/ai-usage`, { method: "POST", json: { capUsd: n } });
       setCap(null);
       await qc.invalidateQueries({ queryKey: ["ai-usage", teamId] });
-      toast(`Monthly AI budget set to $${n}.`, "ok");
+      toast(n === null ? "No monthly AI limit." : `Monthly AI budget set to $${n}.`, "ok");
     } catch (e) {
       toast((e as Error).message, "bad");
     }
@@ -87,15 +88,16 @@ function AiSpend({ teamId }: { teamId: string }) {
       ) : (
         <>
           <p className="mt-1 text-[13px]">
-            About <span className="font-semibold">${d.month.usd.toFixed(2)}</span> of the ${d.capUsd} monthly budget so far{d.lastMonth.usd ? ` (last month: $${d.lastMonth.usd.toFixed(2)})` : ""}. At the budget, new AI requests stop until next month; typed notes, the flow and cards keep working.
+            About <span className="font-semibold">${d.month.usd.toFixed(2)}</span> so far this month{d.capUsd !== null ? ` of the $${d.capUsd} monthly budget` : " (no monthly limit)"}{d.lastMonth.usd ? ` (last month: $${d.lastMonth.usd.toFixed(2)})` : ""}.{d.capUsd !== null ? " At the budget, new AI requests stop until next month; typed notes, the flow and cards keep working." : ""}
           </p>
           {d.canChangeCap ? (
             <div className="mt-2 flex items-center gap-2 text-[13px]">
               <label htmlFor="ai-cap" className="text-muted">
                 Monthly budget ($)
               </label>
-              <Input id="ai-cap" className="h-8 w-24" inputMode="numeric" value={cap ?? String(d.capUsd)} onChange={(e) => setCap(e.target.value)} />
-              {cap !== null && cap !== String(d.capUsd) ? (
+              <Input id="ai-cap" className="h-8 w-28" inputMode="numeric" placeholder="No limit" value={cap ?? (d.capUsd === null ? "" : String(d.capUsd))} onChange={(e) => setCap(e.target.value)} />
+              <span className="text-xs text-faint">empty = no limit</span>
+              {cap !== null && cap !== (d.capUsd === null ? "" : String(d.capUsd)) ? (
                 <Button size="sm" onClick={() => void saveCap()}>
                   Save
                 </Button>

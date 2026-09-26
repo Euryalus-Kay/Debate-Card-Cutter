@@ -64,6 +64,13 @@
       "when": 1790392104293,
       "tag": "0008_shared_team_explanations",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790434876945,
+      "tag": "0009_no_ai_budget",
+      "breakpoints": true
     }
   ]
 }

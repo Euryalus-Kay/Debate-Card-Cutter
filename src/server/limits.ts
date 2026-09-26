@@ -1,7 +1,7 @@
 /**
  * Guards on routes that spend AI (Phase G): a per-user burst limit (a runaway client loop can't run up a
- * bill) and the team's monthly budget (the owner sets it; estimated from recorded token counts). Both
- * answer 429 with a plain explanation. Counts live in the database, so they hold across server instances.
+ * bill) and the team's monthly budget (the owner sets it, or leaves it empty for no limit; estimated from
+ * recorded token counts). Both answer 429 with a plain explanation. Counts live in the database, so they hold across server instances.
  */
 
 import { and, eq, gte, lt, sql } from "drizzle-orm";
@@ -63,15 +63,18 @@ export async function monthSpendUsd(teamId: string): Promise<number> {
   return usd;
 }
 
-export async function teamCapUsd(teamId: string): Promise<number> {
+/** The team's monthly AI budget in dollars, or null for no limit. */
+export async function teamCapUsd(teamId: string): Promise<number | null> {
   const [t] = await db().select({ cap: teams.aiMonthlyCapUsd }).from(teams).where(eq(teams.id, teamId));
-  return t?.cap ?? 50;
+  return t?.cap ?? null;
 }
 
-/** Refuse new AI work once the month's spend reaches the team's budget. */
+/** Refuse new AI work once the month's spend reaches the team's budget (a team with no limit never stops). */
 export async function assertBudget(teamId: string): Promise<void> {
-  const [usd, cap] = await Promise.all([monthSpendUsd(teamId), teamCapUsd(teamId)]);
-  if (usd >= cap) throw new HttpError(429, `This month's AI budget is used up (about $${usd.toFixed(2)} of $${cap}). The team owner can raise it in Settings; typed notes, the flow and your cards keep working.`);
+  const cap = await teamCapUsd(teamId);
+  if (cap === null) return;
+  const usd = await monthSpendUsd(teamId);
+  if (usd >= cap) throw new HttpError(429, `This month's AI budget is used up (about $${usd.toFixed(2)} of $${cap}). The team owner can raise it or remove the limit in Settings; typed notes, the flow and your cards keep working.`);
 }
 
 /** Both guards for a request that spends AI. */

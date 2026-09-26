@@ -120,6 +120,12 @@ async function lease(jobId: string) {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** The month's AI budget is used up (a team with no limit never is). */
+async function overBudget(teamId: string): Promise<boolean> {
+  const cap = await teamCapUsd(teamId);
+  return cap !== null && (await monthSpendUsd(teamId)) >= cap;
+}
+
 export async function runFileBuild(jobId: string): Promise<void> {
   const job = await lease(jobId);
   if (!job) return;
@@ -186,7 +192,7 @@ export async function runFileBuild(jobId: string): Promise<void> {
           const best = found.cardIds[0];
           if (best && (found.byCard.get(best)?.[0]?.fit ?? 0) >= 3) {
             Object.assign(it, { status: "library", cardId: best, note: found.byCard.get(best)?.[0]?.use });
-          } else if ((await monthSpendUsd(job.teamId)) >= (await teamCapUsd(job.teamId))) {
+          } else if (await overBudget(job.teamId)) {
             // The month's AI budget ran out mid-build: the rest is reported missing, not researched.
             Object.assign(it, { status: "not_found", note: "Not researched: this month's AI budget is used up." });
           } else {

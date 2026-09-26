@@ -46,14 +46,14 @@ export const GET = handle(async (_req: Request, ctx: { params: Promise<{ teamId:
   });
 });
 
-/** The owner sets the team's monthly AI budget (USD). */
+/** The owner sets the team's monthly AI budget (USD), or null for no limit. */
 export const POST = handle(async (req: Request, ctx: { params: Promise<{ teamId: string }> }) => {
   const { teamId } = await ctx.params;
   const u = await requireUser();
   await requireTeam(u.id, teamId);
   if ((await membership(u.id, teamId))?.role !== "owner") throw new HttpError(403, "Only the team owner can change the AI budget.");
-  const p = z.object({ capUsd: z.number().int().min(0).max(1000) }).safeParse(await req.json().catch(() => null));
-  if (!p.success) throw new HttpError(400, "The budget is a whole number of dollars from 0 to 1000.");
+  const p = z.object({ capUsd: z.number().int().min(0).max(100_000).nullable() }).safeParse(await req.json().catch(() => null));
+  if (!p.success) throw new HttpError(400, "The budget is a whole number of dollars, or empty for no limit.");
   await db().update(teams).set({ aiMonthlyCapUsd: p.data.capUsd, updatedAt: new Date() }).where(eq(teams.id, teamId));
   return Response.json({ capUsd: p.data.capUsd });
 });

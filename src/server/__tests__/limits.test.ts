@@ -33,4 +33,10 @@ describe("AI guards", () => {
     await db().insert(telemetry).values({ teamId: "t2", kind: "ai", name: "web_discover:claude-sonnet-5", ms: 1000, ok: true, data: { usage: { inputTokens: 100_000, outputTokens: 0 }, searches: 90 } });
     await expect(assertBudget("t2")).rejects.toMatchObject({ status: 429 });
   });
+
+  it("a team with no limit (the default) is never stopped by the budget", async () => {
+    await db().insert(teams).values({ id: "t3", name: "Team 3", createdBy: "u1" });
+    await db().insert(telemetry).values({ teamId: "t3", kind: "ai", name: "web_discover:claude-sonnet-5", ms: 1000, ok: true, data: { usage: { inputTokens: 10_000_000, outputTokens: 0 }, searches: 900 } });
+    await expect(assertBudget("t3")).resolves.toBeUndefined();
+  });
 });

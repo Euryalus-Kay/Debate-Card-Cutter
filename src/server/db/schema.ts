@@ -123,7 +123,8 @@ export const teams = pgTable("teams", {
   name: text("name").notNull(),
   school: text("school").notNull().default(""),
   /** AI spend allowed per calendar month (USD, estimated from token counts); the owner sets it */
-  aiMonthlyCapUsd: integer("ai_monthly_cap_usd").notNull().default(50),
+  /** empty means no limit */
+  aiMonthlyCapUsd: integer("ai_monthly_cap_usd"),
   /** the site's one shared team: every account on the site is a member, so everyone sees the same library */
   siteShared: boolean("site_shared").notNull().default(false),
   createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
