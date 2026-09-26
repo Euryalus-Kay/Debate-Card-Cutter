@@ -303,13 +303,21 @@ const fmtSec = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)
  * answer section under their position, written with the round in view. The time fit runs after it.
  */
 export async function coverDrops(output: SpeechDraftOutput, validation: Validation, ctx: RoundContext, input: DraftSpeechInput, ourSide: "aff" | "neg", system: string): Promise<{ output: SpeechDraftOutput; validation: Validation } | null> {
+  // The constructives that open the round choose what to answer (the 1NC needn't answer every 1AC card);
+  // the others must cover what's in front of them.
+  if (input.speech === "1AC" || input.speech === "1NC") return null;
   const argById = new Map(ctx.graph.args.map((a) => [a.id, a]));
   const inPlay = new Set(output.sections.flatMap((s) => s.targets).map((t) => argById.get(t)?.positionId).filter((p): p is string => !!p));
   const last = input.speech === "2NR" || input.speech === "2AR";
-  const missing = validation.unaddressed
-    .map((u) => argById.get(u.id))
-    .filter((a): a is NonNullable<typeof a> => !!a && (!last || inPlay.has(a.positionId)))
-    .slice(0, 10);
+  // In the last rebuttals, nothing the other side said on a position the speech goes for may be left out, even
+  // if the draft listed it as "omitted"; elsewhere a deliberate omission (with its reason) stands.
+  const lastMissing = () => {
+    const targets = output.sections.filter((s) => s.relation !== "none" && s.relation !== "new").map((s) => ({ sectionId: s.ref, title: s.title, relation: s.relation as DraftTarget["relation"], targets: s.targets }));
+    const cov = computeCoverage(ctx.graph, input.speech, [...(ctx.draft ? draftTargetsFromDraft(ctx.draft) : []), ...targets], ctx.recorded);
+    const answer = speechesToAnswerFor(input.speech);
+    return cov.items.filter((i) => i.status === "unanswered" && inPlay.has(i.arg.positionId) && answer.includes(i.arg.speech)).map((i) => i.arg);
+  };
+  const missing = (last ? lastMissing() : validation.unaddressed.map((u) => argById.get(u.id)).filter((a): a is NonNullable<typeof a> => !!a)).slice(0, 12);
   if (!missing.length || input.abortSignal?.aborted) return null;
   input.onStatus?.(`${missing.length} argument${missing.length === 1 ? "" : "s"} still unanswered; answering ${missing.length === 1 ? "it" : "them"}`);
   const posName = new Map(ctx.graph.positions.map((p) => [p.id, p.name]));

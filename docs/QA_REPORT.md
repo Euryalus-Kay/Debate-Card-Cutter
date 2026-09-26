@@ -23,10 +23,10 @@ Every automated suite passes. Production passes a 23-step smoke test with real m
 
 | Suite | Result | Status |
 |---|---|---|
-| Unit and integration tests (PGlite, no network) | 267 tests in 47 files pass | verified |
+| Unit and integration tests (PGlite, no network) | 285 tests in 51 files pass | verified |
 | TypeScript and ESLint | clean | verified |
 | Production build (local, separate worktree) | builds | verified |
-| End-to-end, fake model (`E2E_FAKE=1`) | 22 passed. 2 skipped by design: the real-model test and the screenshot walkthrough. One run failed on a timeout while a real-model build was running on the same machine; the next two runs passed | verified |
+| End-to-end, fake model (`E2E_FAKE=1`) | 24 passed. 2 skipped by design: the real-model test and the screenshot walkthrough. One run failed on a timeout while a real-model build was running on the same machine; the next two runs passed | verified |
 | Production smoke test (`scripts/e2e/prod-smoke.ts`, real models) | 23/23 steps (see §11) | verified |
 
 The end-to-end suite covers:
@@ -169,7 +169,17 @@ Each deploy was preceded by its migrations (0003–0006), applied while producti
 8. [The card maker](qa/screens/08-card-maker.png)
 9. [Settings: spend and budget](qa/screens/09-settings-spend.png)
 
-## 13. Open items and user actions
+## 13. Season library, labels, Explain, gap review, round simulation (2026-09-26)
+
+- **Your files on the live site:** 48 files (your 17 season speech docs, the gap-cards file, the 7-file starter set, 23 camp files) imported into the shared library: 1,448 cards (all labeled), 337 analytics blocks, 378 exact duplicates skipped. **Verified** (database counts).
+- **One library for everyone:** the site's team is shared; every account joins it. Unit-tested (3 tests); partners' E2E shows one imports and the other sees the cards, labels, analytics and the same gap review. **Verified.**
+- **Import fidelity on your docs (P-51):** 29 more cites kept across 40 files; whole cards no longer swallowed into the card above. **Verified** (before/after on all 40 files).
+- **Labels (P-52):** what each card proves, where it fits, its speeches; a suggested tag only for unclear tags (73 of 1,448), each checked against the card's words. **Verified** on 226 cards in development.
+- **Explain (D-53):** E2E with the fake model; the window stays open while lists refresh. **Verified.**
+- **Gap review (D-54):** real-model run on your season files: 19 positions, 12 gaps, 7 argument ideas; 22 of the 24 cards it asked for were cut and verified from real sources ($3.60), 2 left as "Card needed". **Verified.**
+- **Round simulation (P-54):** a full round, the engine against itself on your library, judged by a separate expert model. Run 1 scored 4/10 and found the export/flow bug, story drift and rebuttal drops; all fixed and re-run (see PROJECT_RECORD). **Verified**, with the judge's caveats.
+
+## 14. Open items and user actions
 
 - **Speech-to-text:** add `OPENAI_API_KEY` in the Vercel dashboard, from a parent-owned OpenAI account with a spend limit. Then try Listen once in Chrome, with everyone's consent.
 - **Your library:** create your production account, then import:

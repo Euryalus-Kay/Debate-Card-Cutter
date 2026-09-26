@@ -19,6 +19,7 @@ import { newId } from "@/server/ids";
 export { guessKind, matchPosition, positionKey } from "@/domain/positions";
 import { guessKind, matchPosition, positionKey } from "@/domain/positions";
 import { jaccard } from "@/domain/flow-extract";
+import { ROADMAP } from "@/server/drafts";
 
 export interface FlowImportResult {
   positionsCreated: number;
@@ -71,6 +72,8 @@ export async function importUploadToFlow(roundId: string, uploadId: string, user
 
   for (const b of blocks) {
     const path = (b.path as string[]) ?? [];
+    // A roadmap in the doc is the speech's order, not an argument.
+    if (path.some((h) => h && ROADMAP.test(h)) || (b.kind === "heading" && ROADMAP.test(b.text))) continue;
     if (b.kind === "heading") {
       // Pocket (level 1) is usually the speech name; Hat/Block name positions.
       if ((b.level ?? 0) >= 2 || !/^(1ac|1nc|2ac|2nc|1nr|1ar|2nr|2ar)\b/i.test(b.text)) {

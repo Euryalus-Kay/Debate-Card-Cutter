@@ -23,6 +23,31 @@ const section = (id: string, title: string, targets: string[]) => ({
   content: [{ type: "heading", attrs: { level: 4 }, content: [{ type: "text", text: title }] }, { type: "paragraph", content: [{ type: "text", text: `${title}.` }] }],
 });
 
+describe("delivering a 1NC", () => {
+  it("an off-case section linked to the plan is its own position, with its cards and answers under it", async () => {
+    await db().insert(user).values({ id: "u9", name: "Neg Debater", email: "u9@example.test" });
+    await db().insert(teams).values({ id: "t9", name: "Neg Team", createdBy: "u9" });
+    const { id: roundId, stateDocId } = await createRound("t9", "u9", RoundInput.parse({ ourSide: "neg" }));
+    await applyServerChange(
+      stateDocId,
+      (doc) => {
+        upsertPosition(doc, { id: "p_plan", name: "Plan", kind: "plan", side: "aff", introducedIn: "1AC", order: 0 });
+        upsertArg(doc, { id: "plan1", positionId: "p_plan", speech: "1AC", side: "aff", order: 1, label: "1", text: "Plan: invented single payer", role: "plan_text", cardIds: [], provenance: { type: "user_note", by: "u9" }, delivery: "confirmed" });
+      },
+      { userId: "u9", origin: "test" },
+    );
+    const draftId = await createDraft({ teamId: "t9", roundId, speech: "1NC", userId: "u9" });
+    const da = { type: "section", attrs: { id: "d0", kind: "response", relation: "answers", targets: ["plan1"], role: "uniqueness" }, content: [{ type: "heading", attrs: { level: 4 }, content: [{ type: "text", text: "Invented Midterms DA" }] }, { type: "paragraph", content: [{ type: "text", text: "Democrats win the invented midterms now." }] }, { ...section("d1", "Link", ["plan1"]), attrs: { id: "d1", kind: "response", relation: "answers", targets: ["plan1"], role: "link" } }] };
+    await applyServerChange(draftId, (doc) => prosemirrorJSONToYXmlFragment(draftSchema(), { type: "doc", content: [da] }, doc.getXmlFragment(DRAFT_FRAGMENT)), { userId: "u9", origin: "test" });
+    await deliverDraft(draftId, "u9");
+    const { doc } = await loadDoc(stateDocId);
+    const ours = readArgs(doc).filter((a) => a.speech === "1NC");
+    const dpos = ours.find((a) => a.text === "Link")!.positionId;
+    expect(dpos).not.toBe("p_plan");
+    expect(ours.filter((a) => a.positionId === dpos).map((a) => a.text).sort()).toEqual(["Invented Midterms DA", "Link"]);
+  });
+});
+
 describe("delivering a speech", () => {
   it("records our answers on the flow, numbered per position", async () => {
     await db().insert(user).values({ id: "u1", name: "Deb Ater", email: "u1@example.test" });

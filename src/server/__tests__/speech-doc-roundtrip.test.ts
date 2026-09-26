@@ -1,7 +1,7 @@
 /**
  * A speech exported to Word is flowed by the other team (synthetic draft): every top-level section is one
- * position, even when the model marked it as answering something (a 1NC's T "answers" the plan), and each
- * answer keeps its reasoning, so the other side's AI sees what to answer.
+ * position, even when the model marked it as answering something (a 1NC's T "answers" the plan), each answer
+ * keeps its reasoning, so the other side's AI sees what to answer, and the roadmap stays out.
  */
 import { describe, expect, it } from "vitest";
 import { draftToExportNodes } from "@/server/drafts";
@@ -27,7 +27,9 @@ describe("speech doc round trip", () => {
     const bytes = buildDocx(draftToExportNodes(draftFromPM(pm), { title: "1NC" }));
     const s = structureDocument(parseDocx(bytes).paragraphs);
     const headings = s.items.filter((i) => i.kind === "heading" && i.level === 3).map((i) => (i as { text: string }).text);
-    expect(headings).toEqual(["Roadmap", "T---Invented Interpretation", "Invented DA"]);
+    // The roadmap is said, not flowed: it isn't in the doc.
+    expect(headings).toEqual(["T---Invented Interpretation", "Invented DA"]);
+    expect(s.items.some((i) => (i as { text?: string }).text?.includes("Three off"))).toBe(false);
     const analytics = s.items.filter((i): i is ImportedAnalytic => i.kind === "analytic");
     const violation = analytics.find((a) => a.text === "Violation and standards")!;
     expect(violation.path.filter(Boolean)).toContain("T---Invented Interpretation");

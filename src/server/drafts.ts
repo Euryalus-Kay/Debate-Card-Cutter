@@ -10,7 +10,7 @@ import { db } from "@/server/db/client";
 import { documents, docVersions, rounds } from "@/server/db/schema";
 import { applyServerChange, loadDoc, saveVersion } from "@/server/docs/store";
 import { DRAFT_FRAGMENT, draftSchema } from "@/shared/editor/schema";
-import { allSections, draftFromPM, type Draft, type DraftItem, type PMNodeJSON } from "@/shared/draft-model";
+import { type DraftSection, allSections, draftFromPM, type Draft, type DraftItem, type PMNodeJSON } from "@/shared/draft-model";
 import { deleteArg, deletePosition, readArgs, readPositions, readRelations, upsertArg, upsertPosition, upsertRelation, setRelationStatus, updateSlot } from "@/shared/round-doc";
 import type { ArgRole, ArgUnit, Position, RelationType } from "@/domain/flow";
 import { guessKind, matchPosition } from "@/domain/positions";
@@ -34,6 +34,10 @@ function firstSentence(text: string, max = 160): string {
  * Mark a draft delivered: freeze a version, and write its arguments onto the
  * flow as our confirmed units for that speech, with their links.
  */
+const OFF_CASE = new Set(["da", "cp", "k", "t", "theory"]);
+/** "Roadmap", "Order": the order a speech goes in, not an argument. */
+export const ROADMAP = /^\s*(road\s?map|the order|order|off-?case order)\b/i;
+
 export async function deliverDraft(docId: string, userId: string): Promise<{ versionId: string; args: number }> {
   const [d] = await db().select().from(documents).where(eq(documents.id, docId));
   if (!d || d.kind !== "speech_draft" || !d.roundId || !d.speech) throw new Error("not a speech draft");
@@ -54,7 +58,10 @@ export async function deliverDraft(docId: string, userId: string): Promise<{ ver
       if (it.type !== "section") continue;
       const s = it.section;
       let pos = parentPos;
-      if (s.kind === "position" && !s.targets.length && s.title.trim()) {
+      // A 1NC's off-case (T, a DA, a CP, a K, theory) is its own position even when the model linked it to the
+      // plan it "answers"; otherwise it would land on the aff's plan and the block couldn't extend it.
+      const introducesOffCase = !parentPos && speech === "1NC" && OFF_CASE.has(guessKind(s.title));
+      if (((s.kind === "position" && !s.targets.length && s.title.trim()) || introducesOffCase) && !ROADMAP.test(s.title)) {
         const existing = s.positionId ?? matchPosition(s.title, positionsNow.filter((p) => p.side === SPEECHES[speech].side))?.id;
         if (existing) pos = existing;
         else {
@@ -68,12 +75,17 @@ export async function deliverDraft(docId: string, userId: string): Promise<{ ver
     }
   };
   walk(draft.items, null);
-  const sections = allSections(draft).filter((s) => s.kind !== "position" || s.targets.length);
+  // A position heading with nothing of its own is only a container; one that reads a card or says something (a
+  // DA's uniqueness under its heading) is an argument on its position too.
+  const ownContent = (x: DraftSection) => x.items.some((i) => i.type === "card" || (i.type === "paragraph" && i.text.trim()));
+  const sections = allSections(draft).filter((s) => s.kind !== "position" || s.targets.length || ownContent(s));
   const units: { unit: ArgUnit; rel?: { type: RelationType; to: string[]; grouped: boolean } }[] = [];
   // Numbering restarts on each position, the way a flow is numbered ("2AC 1, 2, 3" on each sheet).
   const perPosition = new Map<string, number>();
   for (const s of sections) {
-    const positionId = s.positionId ?? (s.targets[0] ? posOf.get(s.targets[0]) : undefined) ?? inherited.get(s.id);
+    // Where it's said decides its position (a DA's link that answers the plan belongs to the DA); a top-level
+    // answer with no position of its own goes to the position of what it answers.
+    const positionId = s.positionId ?? inherited.get(s.id) ?? (s.targets[0] ? posOf.get(s.targets[0]) : undefined);
     if (!positionId) continue;
     const order = (perPosition.get(positionId) ?? 0) + 1;
     perPosition.set(positionId, order);
@@ -175,6 +187,8 @@ export function draftToExportNodes(draft: Draft, opts: { title?: string; include
       switch (it.type) {
         case "section": {
           const s = it.section;
+          // The roadmap is said, not flowed: it stays out of the speech doc.
+          if (depth === 0 && ROADMAP.test(s.title)) break;
           const first = s.items[0];
           const rest = first?.type === "heading" ? s.items.slice(1) : s.items;
           if (first?.type === "heading" && first.text.trim()) {
