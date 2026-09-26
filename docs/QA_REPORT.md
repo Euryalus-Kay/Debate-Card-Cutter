@@ -23,7 +23,7 @@ Every automated suite passes. Production passes a 23-step smoke test with real m
 
 | Suite | Result | Status |
 |---|---|---|
-| Unit and integration tests (PGlite, no network) | 265 tests in 47 files pass | verified |
+| Unit and integration tests (PGlite, no network) | 267 tests in 47 files pass | verified |
 | TypeScript and ESLint | clean | verified |
 | Production build (local, separate worktree) | builds | verified |
 | End-to-end, fake model (`E2E_FAKE=1`) | 22 passed. 2 skipped by design: the real-model test and the screenshot walkthrough. One run failed on a timeout while a real-model build was running on the same machine; the next two runs passed | verified |
@@ -175,5 +175,5 @@ Each deploy was preceded by its migrations (0003–0006), applied while producti
   - the camp files: Library → Import files; up to 50 MB each; several at once are fine;
   - the starter set, from `~/Projects/debate-corpus/nhi-2026-starter/`.
   - Afterwards, run "Check them word for word" to re-verify the imported cards against their sources.
-- **Known import corner case:** a note line between a tag and its cite ("---also AT: …") keeps that card's cite from being recognized. It's rare, and the card text is still kept, as an analytic.
+- **Import corner case, fixed (P-50):** a note line between a tag and its cite ("---also AT: …") no longer hides the cite; the note joins the tag.
 - **Blind file comparison:** only one file type has been compared (the K), with the caveats above.

@@ -251,16 +251,26 @@ export function structureDocument(paragraphs: DocParagraph[], hints: { cites?: S
     const runs = p.runs.filter((r) => r.text.trim());
     return runs.length > 0 && runs.every((r) => r.props.bold);
   };
+  // A short plain line between a tag and its cite ("---also AT: …") is the cutter's note, not card text. A line
+  // that opens bold ("Ho 2 --- Assistant Professor…") is the first line of a cite, not a note.
+  const isNote = (k: number): boolean => {
+    const q = paragraphs[k];
+    const first = q.runs.find((r) => r.text.trim());
+    const opensBold = !!first && (!!first.props.bold || isCiteStyle(first.charStyleName, first.charStyle));
+    return q.headingLevel === 0 && q.text.trim().length <= 200 && !opensBold && !hasCardFormatting(q) && !looksLikeCite(q) && !hints.cites?.has(q.index);
+  };
   const isTag = (i: number): boolean => {
     const p = paragraphs[i];
     if (p.headingLevel === 4) return true;
     if (p.headingLevel !== 0 || isBlank(p) || !allBold(p) || p.text.length > 400) return false;
-    const next = nextNonBlank(paragraphs, i + 1);
+    let next = nextNonBlank(paragraphs, i + 1);
+    if (next !== -1 && isNote(next)) next = nextNonBlank(paragraphs, next + 1);
     if (next === -1) return false;
     const n = paragraphs[next];
     if (!styled) return looksLikeCite(n);
     return n.headingLevel === 0 && looksLikeCite(n) && !allBold(n) && !looksLikeCite(p);
   };
+  const isCiteAt = (k: number) => !!hints.cites?.has(paragraphs[k].index) || looksLikeCite(paragraphs[k]);
 
   let i = 0;
   while (i < paragraphs.length) {
@@ -278,16 +288,25 @@ export function structureDocument(paragraphs: DocParagraph[], hints: { cites?: S
       continue;
     }
     if (isTag(i)) {
-      const tagText = p.text.trim();
-      const next = nextNonBlank(paragraphs, i + 1);
+      let tagText = p.text.trim();
+      let next = nextNonBlank(paragraphs, i + 1);
       const nextIsBoundary = next === -1 || paragraphs[next].headingLevel > 0 || isTag(next);
       if (nextIsBoundary) {
         items.push({ kind: "analytic", text: tagText, detail: [], paragraphIndex: i, path: [...path] });
         i++;
         continue;
       }
+      // A note line between the tag and its cite joins the tag, so the cite is still found and the card text
+      // stays exactly the source's words.
+      if (isNote(next)) {
+        const after = nextNonBlank(paragraphs, next + 1);
+        if (after !== -1 && paragraphs[after].headingLevel === 0 && isCiteAt(after) && !isTag(after)) {
+          tagText = `${tagText} ${paragraphs[next].text.trim()}`;
+          next = after;
+        }
+      }
       const citeP = paragraphs[next];
-      const citeLike = !!hints.cites?.has(citeP.index) || looksLikeCite(citeP);
+      const citeLike = isCiteAt(next);
       // Collect following body paragraphs until the next boundary.
       let j = citeLike ? next + 1 : next;
       const bodyParas: DocParagraph[] = [];

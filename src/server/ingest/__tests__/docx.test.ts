@@ -146,6 +146,34 @@ describe("tags pasted without the Tag style (synthetic)", () => {
     const s = structureDocument([p(0, "Growth is fragile", { h: 4 }), p(1, "Rivera 22", { bold: true }), p(2, cite), p(3, body, { underline: true })]);
     expect(s.items.filter((x) => x.kind === "card")).toHaveLength(1);
   });
+
+  it("a note line between a tag and its cite joins the tag; the cite is still found and the card text is only the card's", () => {
+    const s = structureDocument([
+      p(0, "Growth is fragile", { h: 4 }),
+      p(1, "---also AT: Invented Objection"),
+      p(2, cite),
+      p(3, body, { underline: true }),
+      p(4, "Small firms drive the gains", { bold: true }),
+      p(5, "[read with the second card]"),
+      p(6, cite),
+      p(7, body, { underline: true }),
+    ]);
+    const cards = s.items.filter((x): x is ImportedCard => x.kind === "card");
+    expect(cards.map((c) => c.tag)).toEqual(["Growth is fragile ---also AT: Invented Objection", "Small firms drive the gains [read with the second card]"]);
+    expect(cards.map((c) => c.cite?.short)).toEqual(["Rivera 22", "Rivera 22"]);
+    expect(cards.map((c) => c.body.map((b) => (b as { text: string }).text))).toEqual([[body], [body]]);
+    expect(cards.every((c) => c.issues.length === 0)).toBe(true);
+  });
+
+  it("an underlined line, or one that opens bold like a short cite, is not a note", () => {
+    const tags = (between: DocParagraph) =>
+      structureDocument([p(0, "Growth is fragile", { h: 4 }), between, p(2, cite), p(3, body, { underline: true })])
+        .items.filter((x): x is ImportedCard => x.kind === "card")
+        .map((c) => c.tag);
+    expect(tags(p(1, "Invented underlined words", { underline: true }))).toEqual(["Growth is fragile"]);
+    const citeFirstLine: DocParagraph = { index: 1, headingLevel: 0, inTable: false, text: "Ho 2 --- Assistant Professor of Law", runs: [{ text: "Ho 2", props: { bold: true }, emphasis: false }, { text: " --- Assistant Professor of Law", props: {}, emphasis: false }] };
+    expect(tags(citeFirstLine)).toEqual(["Growth is fragile"]);
+  });
 });
 
 describe("files saved without heading styles (synthetic)", () => {
